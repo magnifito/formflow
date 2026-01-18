@@ -1,20 +1,8 @@
 /**
- * UI Components Barrel Export
+ * UI Utilities Barrel Export
  *
- * Import all UI components from a single location:
- * import { ButtonComponent, CardComponent } from '@/shared/ui';
+ * Zard UI components are installed via CLI and imported from their installation location.
+ * This file only exports shared utilities.
  */
 
-export { ButtonComponent } from './button.component';
-export {
-  CardComponent,
-  CardHeaderComponent,
-  CardTitleComponent,
-  CardDescriptionComponent,
-  CardContentComponent,
-  CardFooterComponent
-} from './card.component';
-export { InputComponent } from './input.component';
-export { BadgeComponent } from './badge.component';
-export { SeparatorComponent } from './separator.component';
 export { cn } from './utils';

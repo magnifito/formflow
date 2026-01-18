@@ -12,7 +12,7 @@
     "setup": "npm install && npm run setup:env && echo '✓ Setup complete! Run: npm run dev'",
     "setup:env": "bash scripts/setup-dev-env.sh",
     "setup:env:copy": "if [ ! -f .env.development ] && [ ! -f .env ]; then cp .env.development.example .env.development; fi && echo '✓ Environment file ready'",
-    "postinstall": "nx reset --onlyCache",
+    "postinstall": "nx reset",
     "// --- Development ---": "",
     "dev": "docker-compose -f docker-compose.db.yml up -d && nx run-many --target=dev --projects=dashboard-api,collector-api,dashboard-ui,test-lab --parallel=4",
     "dev:stop": "docker-compose -f docker-compose.db.yml down",
@@ -87,11 +87,9 @@
     "@nx/js": "^22.3.3",
     "@nx/node": "^22.3.3",
     "@nx/workspace": "^22.3.3",
-    "@spartan-ng/cli": "^0.0.1-alpha.605",
     "@tailwindcss/postcss": "^4.1.18",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
-    "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
     "jest-preset-angular": "^16.0.0",
     "nx": "^22.3.3",
@@ -102,6 +100,7 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "typeorm": "0.3.28"
   }
 }

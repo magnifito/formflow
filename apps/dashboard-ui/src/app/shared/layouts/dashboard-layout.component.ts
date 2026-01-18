@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { SeparatorComponent } from '../ui/separator.component';
+import { ZardDividerComponent } from '@/shared/components/divider';
 
 /**
  * Dashboard Layout Component
@@ -14,7 +14,11 @@ import { SeparatorComponent } from '../ui/separator.component';
 @Component({
   selector: 'app-dashboard-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, SeparatorComponent],
+  imports: [
+    CommonModule,
+    RouterModule,
+    ZardDividerComponent,
+  ],
   template: `
     <div class="flex h-screen bg-background">
       <!-- Sidebar -->
@@ -29,7 +33,7 @@ import { SeparatorComponent } from '../ui/separator.component';
           </div>
         </div>
 
-        <ui-separator></ui-separator>
+        <z-divider></z-divider>
 
         <!-- Navigation -->
         <nav class="flex-1 p-4 space-y-1">
@@ -96,7 +100,7 @@ import { SeparatorComponent } from '../ui/separator.component';
           </a>
         </nav>
 
-        <ui-separator></ui-separator>
+        <z-divider></z-divider>
 
         <!-- User Section -->
         <div class="p-4">
