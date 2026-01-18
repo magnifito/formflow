@@ -1,0 +1,29 @@
+# =============================================================================
+# FormFlow Database Only - For local NX development
+# =============================================================================
+# Usage:
+#   docker-compose -f docker-compose.db.yml up -d    # Start database
+#   docker-compose -f docker-compose.db.yml down     # Stop database
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: formflow-db
+    environment:
+      POSTGRES_USER: formflow
+      POSTGRES_PASSWORD: formflow_dev_password
+      POSTGRES_DB: formflow
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U formflow -d formflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local

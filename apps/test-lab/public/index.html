@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FormFlow Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div>
+          <h1>FormFlow Lab</h1>
+          <p>Standalone test page for FormFlow submissions and integrations.</p>
+        </div>
+        <div class="origin">
+          <span>Origin</span>
+          <strong id="originValue">-</strong>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel">
+          <h2>Session & Data</h2>
+          <div class="status" id="authStatus">Not logged in.</div>
+          <div class="columns">
+            <label class="field">
+              Email
+              <input id="loginEmail" type="email" placeholder="you@example.com" />
+            </label>
+            <label class="field">
+              Password
+              <input id="loginPassword" type="password" placeholder="••••••••" />
+            </label>
+          </div>
+          <div class="row">
+            <button class="btn primary" id="loginBtn" type="button">Login</button>
+            <button class="btn secondary" id="logoutBtn" type="button">Logout</button>
+            <button class="btn ghost" id="refreshDataBtn" type="button">Refresh Data</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <label class="field">
+            API Key
+            <input id="apiKeyDisplay" type="text" readonly placeholder="No API key loaded" />
+          </label>
+          <div class="row">
+            <button class="btn secondary" id="useApiKeyBtn" type="button">Use API Key</button>
+            <button class="btn ghost" id="createApiKeyBtn" type="button">Generate API Key</button>
+          </div>
+
+          <label class="field hidden" id="orgContextGroup">
+            Organization Context
+            <select id="orgContextSelect"></select>
+          </label>
+
+          <label class="field">
+            Forms
+            <select id="formsSelect" size="5"></select>
+          </label>
+          <div class="row">
+            <button class="btn secondary" id="useFormBtn" type="button">Use Selected Form</button>
+            <button class="btn ghost" id="copyFormUrlBtn" type="button">Copy Submit URL</button>
+          </div>
+          <div class="hint" id="dataHint">No data loaded.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Target</h2>
+          <label class="field">
+            Base URL
+            <input id="baseUrl" type="text" placeholder="http://localhost:3000" />
+          </label>
+          <div class="row">
+            <label class="radio">
+              <input type="radio" name="targetMode" value="submit" checked />
+              /submit/:submitHash
+            </label>
+            <label class="radio">
+              <input type="radio" name="targetMode" value="apikey" />
+              /formflow/:apiKey
+            </label>
+          </div>
+          <div class="row" id="formatRow">
+            <label class="radio">
+              <input type="radio" name="requestFormat" value="json" checked />
+              JSON
+            </label>
+            <label class="radio">
+              <input type="radio" name="requestFormat" value="multipart" />
+              multipart/form-data
+            </label>
+          </div>
+          <label class="field" id="submitHashGroup">
+            Submit Hash
+            <input id="submitHash" type="text" placeholder="173bf09b-ac2a-49cc-85c7-8af95f8c2281" />
+          </label>
+          <label class="field hidden" id="apiKeyGroup">
+            API Key
+            <input id="apiKey" type="text" placeholder="your-api-key" />
+          </label>
+          <div class="hint">
+            Endpoint
+            <code id="endpointPreview">-</code>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>CSRF</h2>
+          <p class="hint">Enabled when CSRF_SECRET is set on the server.</p>
+          <div class="row">
+            <button class="btn secondary" id="fetchCsrfBtn" type="button">Fetch Token</button>
+            <label class="checkbox">
+              <input id="autoCsrf" type="checkbox" checked />
+              Auto-fetch before submit
+            </label>
+          </div>
+          <textarea id="csrfToken" rows="3" readonly placeholder="Token will appear here"></textarea>
+          <div class="hint" id="csrfExpiry">No token yet.</div>
+        </section>
+
+        <section class="panel wide">
+          <h2>Form Payload</h2>
+          <form id="payloadForm">
+            <fieldset>
+              <legend>Identity</legend>
+              <div class="columns">
+                <label class="field">
+                  Full Name
+                  <input id="fullName" type="text" placeholder="Jamie Rivera" />
+                </label>
+                <label class="field">
+                  Email
+                  <input id="email" type="email" placeholder="jamie@example.com" />
+                </label>
+                <label class="field">
+                  Phone
+                  <input id="phone" type="tel" placeholder="+1-415-555-0199" />
+                </label>
+                <label class="field">
+                  Company
+                  <input id="company" type="text" placeholder="Acme Labs" />
+                </label>
+                <label class="field">
+                  Job Title
+                  <input id="jobTitle" type="text" placeholder="Product Manager" />
+                </label>
+                <label class="field">
+                  Website
+                  <input id="website" type="url" placeholder="https://example.com" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Preferences</legend>
+              <div class="columns">
+                <div class="field">
+                  Preferred Contact
+                  <div class="inline">
+                    <label class="radio"><input type="radio" name="preferredContact" value="email" checked />Email</label>
+                    <label class="radio"><input type="radio" name="preferredContact" value="phone" />Phone</label>
+                    <label class="radio"><input type="radio" name="preferredContact" value="chat" />Chat</label>
+                  </div>
+                </div>
+                <label class="field">
+                  Priority
+                  <select id="priority">
+                    <option value="low">Low</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High</option>
+                  </select>
+                </label>
+                <div class="field">
+                  Interests
+                  <div class="inline">
+                    <label class="checkbox"><input type="checkbox" name="interests" value="email" />Email</label>
+                    <label class="checkbox"><input type="checkbox" name="interests" value="slack" />Slack</label>
+                    <label class="checkbox"><input type="checkbox" name="interests" value="webhooks" />Webhooks</label>
+                    <label class="checkbox"><input type="checkbox" name="interests" value="n8n" />n8n</label>
+                    <label class="checkbox"><input type="checkbox" name="interests" value="make" />Make</label>
+                  </div>
+                </div>
+                <label class="field">
+                  Tags (comma separated)
+                  <input id="tags" type="text" placeholder="enterprise, beta, integration" />
+                </label>
+                <label class="field">
+                  Color Preference
+                  <input id="colorPreference" type="color" value="#1e3a8a" />
+                </label>
+                <label class="field checkbox">
+                  <input id="subscribeNewsletter" type="checkbox" />
+                  Subscribe to newsletter
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Metrics</legend>
+              <div class="columns">
+                <label class="field">
+                  Budget (USD)
+                  <input id="budgetUsd" type="number" step="0.01" placeholder="12500.75" />
+                </label>
+                <label class="field">
+                  Team Size
+                  <input id="teamSize" type="number" step="1" placeholder="42" />
+                </label>
+                <label class="field">
+                  Rating
+                  <input id="rating" type="number" step="0.1" min="0" max="5" placeholder="4.7" />
+                </label>
+                <label class="field">
+                  Satisfaction
+                  <input id="satisfaction" type="range" min="1" max="10" value="7" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Dates</legend>
+              <div class="columns">
+                <label class="field">
+                  Start Date
+                  <input id="startDate" type="date" />
+                </label>
+                <label class="field">
+                  Meeting Time
+                  <input id="meetingTime" type="time" />
+                </label>
+                <label class="field">
+                  Meeting At
+                  <input id="meetingAt" type="datetime-local" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Message</legend>
+              <label class="field">
+                Message
+                <textarea id="message" rows="4" placeholder="Tell us more about what you need."></textarea>
+              </label>
+            </fieldset>
+
+            <fieldset>
+              <legend>Address</legend>
+              <div class="columns">
+                <label class="field">
+                  Line 1
+                  <input id="addressLine1" type="text" placeholder="123 Market St" />
+                </label>
+                <label class="field">
+                  Line 2
+                  <input id="addressLine2" type="text" placeholder="Suite 900" />
+                </label>
+                <label class="field">
+                  City
+                  <input id="city" type="text" placeholder="San Francisco" />
+                </label>
+                <label class="field">
+                  State
+                  <input id="state" type="text" placeholder="CA" />
+                </label>
+                <label class="field">
+                  Postal Code
+                  <input id="postalCode" type="text" placeholder="94105" />
+                </label>
+                <label class="field">
+                  Country
+                  <input id="country" type="text" placeholder="US" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>UTM / Metadata</legend>
+              <div class="columns">
+                <label class="field">
+                  UTM Source
+                  <input id="utmSource" type="text" placeholder="curl" />
+                </label>
+                <label class="field">
+                  UTM Campaign
+                  <input id="utmCampaign" type="text" placeholder="lab" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>File (JSON only)</legend>
+              <label class="field">
+                File
+                <input id="fileInput" type="file" />
+              </label>
+              <div class="inline">
+                <label class="checkbox">
+                  <input id="includeFileMeta" type="checkbox" checked />
+                  Include file metadata
+                </label>
+                <label class="checkbox">
+                  <input id="includeFileData" type="checkbox" />
+                  Include base64 data (may exceed size limits)
+                </label>
+              </div>
+            </fieldset>
+          </form>
+        </section>
+
+        <section class="panel wide">
+          <h2>Custom Fields</h2>
+          <div id="customFields" class="custom-fields"></div>
+          <div class="row">
+            <button class="btn secondary" id="addCustomField" type="button">Add Field</button>
+            <button class="btn ghost" id="fillSample" type="button">Fill Sample Data</button>
+          </div>
+        </section>
+
+        <section class="panel wide">
+          <h2>Raw JSON Override</h2>
+          <label class="checkbox">
+            <input id="useRawJson" type="checkbox" />
+            Use raw JSON payload instead of the form values
+          </label>
+          <textarea id="rawJson" rows="8" placeholder='{"name":"Test","message":"Hello"}'></textarea>
+        </section>
+
+        <section class="panel wide">
+          <h2>Submit</h2>
+          <div class="row">
+            <button class="btn primary" id="submitBtn" type="submit" form="payloadForm">Submit</button>
+            <button class="btn secondary" id="resetBtn" type="button">Reset Form</button>
+          </div>
+          <div class="request-preview">
+            <h3>Request Preview</h3>
+            <pre id="requestPreview">-</pre>
+          </div>
+        </section>
+
+        <section class="panel wide">
+          <h2>Response</h2>
+          <pre id="responseLog">-</pre>
+          <div class="history">
+            <h3>History</h3>
+            <div id="historyList" class="history-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

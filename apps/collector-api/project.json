@@ -1,0 +1,68 @@
+{
+  "name": "collector-api",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/collector-api/src",
+  "projectType": "application",
+  "tags": ["type:app", "scope:collector-api"],
+  "targets": {
+    "build": {
+      "executor": "@nx/node:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/collector-api",
+        "main": "apps/collector-api/src/index.ts",
+        "tsConfig": "apps/collector-api/tsconfig.json",
+        "assets": ["apps/collector-api/src"]
+      },
+      "configurations": {
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "inspect": false
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/node:serve",
+      "options": {
+        "buildTarget": "collector-api:build"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/index.ts",
+        "cwd": "apps/collector-api",
+        "env": {
+          "NODE_ENV": "development",
+          "PORT": "3001",
+          "DEV_DB_HOST": "localhost",
+          "DEV_DB_PORT": "5433",
+          "DEV_DB_USERNAME": "formflow",
+          "DEV_DB_PASSWORD": "formflow_dev_password",
+          "DEV_DB_DATABASE": "formflow",
+          "DASHBOARD_API_URL": "http://localhost:3000"
+        }
+      }
+    },
+    "docker:build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t formflow-collector-api .",
+        "cwd": "apps/collector-api"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/collector-api/jest.config.js",
+        "passWithNoTests": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    }
+  }
+}

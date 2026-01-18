@@ -1,0 +1,31 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compileOnSave": false,
+  "compilerOptions": {
+    "baseUrl": "../../",
+    "paths": {
+      "@formflow/shared/entities": ["libs/shared/entities/src/index.ts"],
+      "@formflow/shared/data-source": ["libs/shared/data-source/src/index.ts"],
+      "@formflow/shared/utils": ["libs/shared/utils/encryption/src/index.ts"]
+    },
+    "lib": ["ES2022"],
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./build",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "declaration": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "strict": false,
+    "isolatedModules": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build"]
+}
