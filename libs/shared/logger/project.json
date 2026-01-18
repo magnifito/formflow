@@ -1,7 +1,7 @@
 {
   "name": "shared-utils-logger",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/shared/utils/logger/src",
+  "sourceRoot": "libs/shared/logger/src",
   "projectType": "library",
   "tags": ["type:lib", "scope:shared"],
   "targets": {
@@ -9,10 +9,10 @@
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/libs/shared/utils/logger",
-        "main": "libs/shared/utils/logger/src/index.ts",
-        "tsConfig": "libs/shared/utils/logger/tsconfig.json",
-        "assets": ["libs/shared/utils/logger/*.md"]
+        "outputPath": "dist/libs/shared/logger",
+        "main": "libs/shared/logger/src/index.ts",
+        "tsConfig": "libs/shared/logger/tsconfig.json",
+        "assets": ["libs/shared/logger/*.md"]
       }
     },
     "lint": {

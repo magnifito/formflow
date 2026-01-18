@@ -2,7 +2,7 @@ import { Response, NextFunction } from "express";
 import { AuthRequest } from "./auth";
 import { AppDataSource } from "../data-source";
 import { User } from "@formflow/shared/entities";
-import logger from "@formflow/shared/utils/logger";
+import logger from "@formflow/shared/logger";
 
 /**
  * Middleware to verify that the authenticated user is a Super Admin.

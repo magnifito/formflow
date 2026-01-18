@@ -5,7 +5,7 @@ import { getEnv } from "@formflow/shared/env";
 import nodemailer from "nodemailer";
 import axios from "axios";
 import crypto from "crypto";
-import logger from "@formflow/shared/utils/logger";
+import logger from "@formflow/shared/logger";
 
 const router = Router();
 const csrfSecret = getEnv("CSRF_SECRET");

@@ -1,22 +1,16 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "module": "commonjs",
     "lib": ["ES2022"],
     "declaration": true,
     "declarationMap": true,
-    "outDir": "../../dist/out-tsc",
+    "outDir": "../../../dist/out-tsc",
     "rootDir": "src",
-    "baseUrl": "../../",
-    "paths": {
-      "@formflow/shared/encryption": ["dist/libs/shared/encryption/src/index.d.ts"]
-    },
     "skipLibCheck": true,
     "strict": false,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true
+    "resolveJsonModule": true
   },
   "include": ["src/**/*"],
   "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]

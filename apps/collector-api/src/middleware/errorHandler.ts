@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import logger from '@formflow/shared/utils/logger';
+import logger from '@formflow/shared/logger';
 
 /**
  * Express error handling middleware

@@ -4,7 +4,7 @@ import { Organization, User, Form, Submission, OrganizationIntegration } from "@
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import { verifySuperAdmin } from "../middleware/superAdmin";
 import bcrypt from "bcrypt";
-import logger from "@formflow/shared/utils/logger";
+import logger from "@formflow/shared/logger";
 
 const BCRYPT_ROUNDS = 10;
 const router = Router();

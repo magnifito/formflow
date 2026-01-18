@@ -2,7 +2,7 @@ import { Response, NextFunction } from "express";
 import { AuthRequest } from "./auth";
 import { AppDataSource } from "../data-source";
 import { User, Organization } from "@formflow/shared/entities";
-import logger from "@formflow/shared/utils/logger";
+import logger from "@formflow/shared/logger";
 
 export type OrgContextRequest = AuthRequest & {
     organization?: Organization;

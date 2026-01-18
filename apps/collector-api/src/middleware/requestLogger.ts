@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import logger, { maskHeaders, maskSensitiveData } from '@formflow/shared/utils/logger';
+import logger, { maskHeaders, maskSensitiveData } from '@formflow/shared/logger';
 
 // Extend Request type to include correlation ID
 declare global {

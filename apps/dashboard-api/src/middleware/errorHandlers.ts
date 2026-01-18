@@ -1,4 +1,4 @@
-import logger from '@formflow/shared/utils/logger';
+import logger from '@formflow/shared/logger';
 
 /**
  * Setup global error handlers for uncaught exceptions and unhandled rejections

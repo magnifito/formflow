@@ -16,8 +16,8 @@ import { errorHandler } from "./middleware/errorHandler";
 import { setupGlobalErrorHandlers } from "./middleware/errorHandlers";
 import AdminController from "./controller/AdminController";
 import OrganizationController from "./controller/OrganizationController";
-import logger from "@formflow/shared/utils/logger";
-import { maskUrl } from "@formflow/shared/utils/logger";
+import logger from "@formflow/shared/logger";
+import { maskUrl } from "@formflow/shared/logger";
 
 const BCRYPT_ROUNDS = 10;
 

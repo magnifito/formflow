@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from "typeorm"
 import { Organization } from "./Organization"
-import { encrypt, decrypt } from "@formflow/shared/utils"
+import { encrypt, decrypt } from "@formflow/shared/encryption"
 
 @Entity()
 export class OrganizationIntegration {

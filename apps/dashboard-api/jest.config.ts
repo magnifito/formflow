@@ -29,8 +29,8 @@ const config: Config.InitialOptions = {
     '^@formflow/shared/env$': '<rootDir>/../../libs/shared/env/src/index.ts',
     '^@formflow/shared/entities$': '<rootDir>/../../libs/shared/entities/src/index.ts',
     '^@formflow/shared/data-source$': '<rootDir>/../../libs/shared/data-source/src/index.ts',
-    '^@formflow/shared/utils$': '<rootDir>/../../libs/shared/utils/encryption/src/index.ts',
-    '^@formflow/shared/utils/logger$': '<rootDir>/../../libs/shared/utils/logger/src/index.ts',
+    '^@formflow/shared/encryption$': '<rootDir>/../../libs/shared/encryption/src/index.ts',
+    '^@formflow/shared/logger$': '<rootDir>/../../libs/shared/logger/src/index.ts',
   },
 };
 

@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { AppDataSource } from "../data-source";
-import logger from "@formflow/shared/utils/logger";
+import logger from "@formflow/shared/logger";
 import { Form, Organization, WhitelistedDomain, OrganizationIntegration, Submission } from "@formflow/shared/entities";
 import { verifyToken } from "../middleware/auth";
 import { injectOrgContext, verifyOrgAdmin, OrgContextRequest } from "../middleware/orgContext";

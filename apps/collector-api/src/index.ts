@@ -11,8 +11,8 @@ import { requestLogger } from "./middleware/requestLogger";
 import { errorHandler } from "./middleware/errorHandler";
 import { setupGlobalErrorHandlers } from "./middleware/errorHandlers";
 import SubmissionController from "./controller/SubmissionController";
-import logger from "@formflow/shared/utils/logger";
-import { maskUrl } from "@formflow/shared/utils/logger";
+import logger from "@formflow/shared/logger";
+import { maskUrl } from "@formflow/shared/logger";
 const createChallenge = require("./Alcha/Challenge.js");
 
 loadEnv();

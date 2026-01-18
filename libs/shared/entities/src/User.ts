@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from "typeorm"
-import { encrypt, decrypt } from "@formflow/shared/utils"
+import { encrypt, decrypt } from "@formflow/shared/encryption"
 import { Organization } from "./Organization"
 
 // User role within an organization
