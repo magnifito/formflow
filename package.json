@@ -14,7 +14,7 @@
     "setup:env:copy": "if [ ! -f .env.development ] && [ ! -f .env ]; then cp .env.development.example .env.development; fi && echo '✓ Environment file ready'",
     "postinstall": "nx reset",
     "// --- Development ---": "",
-    "dev": "docker-compose -f docker-compose.db.yml up -d && nx run-many --target=dev --projects=dashboard-api,collector-api,dashboard-ui,test-lab --parallel=4",
+    "dev": "docker-compose -f docker-compose.db.yml up -d --wait && NX_TUI=false nx run-many --target=dev --projects=dashboard-api,collector-api,dashboard-ui,test-lab --parallel=4",
     "dev:stop": "docker-compose -f docker-compose.db.yml down",
     "dashboard-ui": "nx run dashboard-ui:serve",
     "dashboard-api": "nx run dashboard-api:dev",

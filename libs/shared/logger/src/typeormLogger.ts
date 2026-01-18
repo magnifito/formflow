@@ -21,7 +21,9 @@ export class WinstonTypeORMLogger implements Logger {
     if (!LOG_QUERIES) return;
 
     const startTime = Date.now();
-    (queryRunner as any)?._queryStartTime = startTime;
+    if (queryRunner) {
+      (queryRunner as any)._queryStartTime = startTime;
+    }
 
     getLogger().debug('TypeORM Query', {
       query,
