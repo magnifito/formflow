@@ -1,16 +1,7 @@
 import * as crypto from 'crypto';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
+import { getEnv, loadEnv } from "@formflow/shared/env";
 
-// Try to load .env from multiple possible locations
-// This handles both direct server execution and script execution
-// Use process.cwd() which is more reliable in ts-node context
-dotenv.config(); // Try current directory first
-dotenv.config({ path: path.join(process.cwd(), '.env') }); // Try from cwd
-dotenv.config({ path: path.join(process.cwd(), '../.env') }); // Try one level up
-dotenv.config({ path: path.join(process.cwd(), '../../.env') }); // Try two levels up
-dotenv.config({ path: path.join(process.cwd(), '../../../.env') }); // Try three levels up (from libs/shared/utils/encryption/src)
-dotenv.config({ path: path.join(process.cwd(), '../../../../.env') }); // Try four levels up (from workspace root)
+loadEnv();
 
 const algorithm = 'aes-256-cbc';
 
@@ -18,7 +9,7 @@ const algorithm = 'aes-256-cbc';
 let key: Buffer | null = null;
 const getKey = (): Buffer => {
     if (!key) {
-        const encryptionKey = process.env.ENCRYPTION_KEY;
+        const encryptionKey = getEnv("ENCRYPTION_KEY");
         if (!encryptionKey) {
             throw new Error('ENCRYPTION_KEY environment variable is not set');
         }

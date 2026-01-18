@@ -52,25 +52,18 @@ The API will be available at `http://localhost:3000`.
 
 ## Environment Configuration
 
-Copy the `.env.example` file to `.env` and configure:
+Copy `.env.development.example` to `.env.development` (or `.env.example` to `.env`) and configure:
 
 ```bash
 # Development/Production Mode
 NODE_ENV=development
 
-# Database Configuration (Development)
-DEV_DB_HOST=localhost
-DEV_DB_PORT=5433
-DEV_DB_USER=formflow
-DEV_DB_PASS=formflow_password
-DEV_DB=formflow_dev
-
-# Database Configuration (Production)
-PROD_DB_HOST=localhost
-PROD_DB_PORT=5432
-PROD_DB_USER=formflow
-PROD_DB_PASS=your_secure_password
-PROD_DB=formflow_prod
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5433
+DB_USER=formflow
+DB_PASSWORD=formflow_password
+DB_NAME=formflow_dev
 
 # JWT Secret
 JWT_SECRET=your-secret-key-here
@@ -92,12 +85,7 @@ ALLOWED_ORIGINS=http://localhost:4200,https://yourdomain.com
 
 ### Database Configuration
 
-The datasource automatically selects the correct database configuration based on `NODE_ENV`:
-
-- **Development**: Uses `DEV_DB_*` environment variables
-- **Production**: Uses `PROD_DB_*` environment variables
-
-No code changes required when switching environments.
+The datasource reads `DB_*` from your active env file (`.env.development` or `.env.production`).
 
 ## Initial Setup
 
@@ -117,7 +105,7 @@ This starts a PostgreSQL instance in Docker on port 5433.
 npm run migrate:create-super-admin
 ```
 
-This creates your first super admin user using the credentials in your `.env` file.
+This creates your first super admin user using the credentials in your env file.
 
 See [docs/SUPER_ADMIN_SETUP.md](../../docs/SUPER_ADMIN_SETUP.md) for detailed setup instructions.
 
@@ -212,7 +200,7 @@ docker build -t formflow-dashboard-api -f apps/dashboard-api/dockerfile .
 docker run -p 3000:3000 \
   -e NODE_ENV=production \
   -e JWT_SECRET=your-secret \
-  -e PROD_DB_HOST=your-db-host \
+  -e DB_HOST=your-db-host \
   formflow-dashboard-api
 ```
 

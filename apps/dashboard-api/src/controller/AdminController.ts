@@ -4,6 +4,7 @@ import { Organization, User, Form, Submission, OrganizationIntegration } from "@
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import { verifySuperAdmin } from "../middleware/superAdmin";
 import bcrypt from "bcrypt";
+import logger from "@formflow/shared/utils/logger";
 
 const BCRYPT_ROUNDS = 10;
 const router = Router();
@@ -55,8 +56,8 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
                 last30Days: recentSubmissions
             }
         });
-    } catch (error) {
-        console.error('Error fetching admin stats:', error);
+    } catch (error: any) {
+        logger.error('Error fetching admin stats', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch statistics' });
     }
 });
@@ -83,8 +84,8 @@ router.get('/organizations', async (req: AuthRequest, res: Response) => {
                 totalPages: Math.ceil(total / limit)
             }
         });
-    } catch (error) {
-        console.error('Error fetching organizations:', error);
+    } catch (error: any) {
+        logger.error('Error fetching organizations', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch organizations' });
     }
 });
@@ -126,8 +127,8 @@ router.post('/organizations', async (req: AuthRequest, res: Response) => {
         await AppDataSource.manager.save(orgIntegration);
 
         res.status(201).json(organization);
-    } catch (error) {
-        console.error('Error creating organization:', error);
+    } catch (error: any) {
+        logger.error('Error creating organization', { error: error.message, stack: error.stack, correlationId: req.correlationId, name, slug });
         res.status(500).json({ error: 'Failed to create organization' });
     }
 });
@@ -162,8 +163,8 @@ router.get('/organizations/:id', async (req: AuthRequest, res: Response) => {
                 submissionCount
             }
         });
-    } catch (error) {
-        console.error('Error fetching organization:', error);
+    } catch (error: any) {
+        logger.error('Error fetching organization', { error: error.message, stack: error.stack, orgId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch organization' });
     }
 });
@@ -202,8 +203,8 @@ router.put('/organizations/:id', async (req: AuthRequest, res: Response) => {
         await AppDataSource.manager.save(organization);
 
         res.json(organization);
-    } catch (error) {
-        console.error('Error updating organization:', error);
+    } catch (error: any) {
+        logger.error('Error updating organization', { error: error.message, stack: error.stack, orgId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update organization' });
     }
 });
@@ -225,8 +226,8 @@ router.delete('/organizations/:id', async (req: AuthRequest, res: Response) => {
         await AppDataSource.manager.save(organization);
 
         res.json({ message: 'Organization deactivated successfully' });
-    } catch (error) {
-        console.error('Error deactivating organization:', error);
+    } catch (error: any) {
+        logger.error('Error deactivating organization', { error: error.message, stack: error.stack, orgId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to deactivate organization' });
     }
 });
@@ -242,8 +243,8 @@ router.get('/organizations/:id/users', async (req: AuthRequest, res: Response) =
         });
 
         res.json(users);
-    } catch (error) {
-        console.error('Error fetching organization users:', error);
+    } catch (error: any) {
+        logger.error('Error fetching organization users', { error: error.message, stack: error.stack, orgId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
@@ -279,8 +280,8 @@ router.post('/organizations/:id/users', async (req: AuthRequest, res: Response) 
         await AppDataSource.manager.save(user);
 
         res.json({ message: 'User added to organization', user: { id: user.id, email: user.email, role: user.role } });
-    } catch (error) {
-        console.error('Error adding user to organization:', error);
+    } catch (error: any) {
+        logger.error('Error adding user to organization', { error: error.message, stack: error.stack, orgId, userId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to add user to organization' });
     }
 });
@@ -309,8 +310,8 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
                 totalPages: Math.ceil(total / limit)
             }
         });
-    } catch (error) {
-        console.error('Error fetching users:', error);
+    } catch (error: any) {
+        logger.error('Error fetching users', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch users' });
     }
 });
@@ -333,8 +334,8 @@ router.put('/users/:id/super-admin', async (req: AuthRequest, res: Response) => 
         await AppDataSource.manager.save(user);
 
         res.json({ message: 'Super admin status updated', isSuperAdmin: user.isSuperAdmin });
-    } catch (error) {
-        console.error('Error updating super admin status:', error);
+    } catch (error: any) {
+        logger.error('Error updating super admin status', { error: error.message, stack: error.stack, userId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update super admin status' });
     }
 });
@@ -399,8 +400,8 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
             isSuperAdmin: user.isSuperAdmin,
             createdAt: user.createdAt
         });
-    } catch (error) {
-        console.error('Error creating user:', error);
+    } catch (error: any) {
+        logger.error('Error creating user', { error: error.message, stack: error.stack, email, organizationId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to create user' });
     }
 });
@@ -429,8 +430,8 @@ router.put('/users/:id/suspend', async (req: AuthRequest, res: Response) => {
         await AppDataSource.manager.save(user);
 
         res.json({ message: 'User status updated', isActive: user.isActive });
-    } catch (error) {
-        console.error('Error updating user status:', error);
+    } catch (error: any) {
+        logger.error('Error updating user status', { error: error.message, stack: error.stack, userId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update user status' });
     }
 });
@@ -453,8 +454,8 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
         await AppDataSource.manager.remove(user);
 
         res.json({ message: 'User deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting user:', error);
+    } catch (error: any) {
+        logger.error('Error deleting user', { error: error.message, stack: error.stack, userId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to delete user' });
     }
 });
@@ -495,8 +496,8 @@ router.get('/submissions', async (req: AuthRequest, res: Response) => {
                 totalPages: Math.ceil(total / limit)
             }
         });
-    } catch (error) {
-        console.error('Error fetching submissions:', error);
+    } catch (error: any) {
+        logger.error('Error fetching submissions', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch submissions' });
     }
 });

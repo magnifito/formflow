@@ -36,11 +36,11 @@
         "env": {
           "NODE_ENV": "development",
           "PORT": "3001",
-          "DEV_DB_HOST": "localhost",
-          "DEV_DB_PORT": "5433",
-          "DEV_DB_USERNAME": "formflow",
-          "DEV_DB_PASSWORD": "formflow_dev_password",
-          "DEV_DB_DATABASE": "formflow",
+          "DB_HOST": "localhost",
+          "DB_PORT": "5433",
+          "DB_USER": "formflow",
+          "DB_PASSWORD": "formflow_dev_password",
+          "DB_NAME": "formflow",
           "DASHBOARD_API_URL": "http://localhost:3000"
         }
       }
@@ -56,8 +56,17 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "jestConfig": "apps/collector-api/jest.config.js",
+        "jestConfig": "apps/collector-api/jest.config.ts",
         "passWithNoTests": true
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "codeCoverage": true
+        },
+        "coverage": {
+          "codeCoverage": true
+        }
       }
     },
     "lint": {

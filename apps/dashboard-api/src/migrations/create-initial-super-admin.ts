@@ -15,22 +15,17 @@
 import "reflect-metadata";
 import { AppDataSource } from "../data-source";
 import { User } from "@formflow/shared/entities";
+import { getEnv, loadEnv } from "@formflow/shared/env";
 import bcrypt from "bcrypt";
-import dotenv from "dotenv";
-import path from "path";
 
-// Load .env from root directory
-// Use process.cwd() which is more reliable in ts-node context
-dotenv.config(); // Try current directory
-dotenv.config({ path: path.join(process.cwd(), '.env') }); // Try from cwd (apps/dashboard-api)
-dotenv.config({ path: path.join(process.cwd(), '../.env') }); // Try monorepo root
+loadEnv();
 
 const BCRYPT_ROUNDS = 10;
 
 async function createInitialSuperAdmin() {
-    const email = process.env.SUPER_ADMIN_EMAIL;
-    const password = process.env.SUPER_ADMIN_PASSWORD;
-    const name = process.env.SUPER_ADMIN_NAME || 'Super Admin';
+    const email = getEnv("SUPER_ADMIN_EMAIL");
+    const password = getEnv("SUPER_ADMIN_PASSWORD");
+    const name = getEnv("SUPER_ADMIN_NAME") || 'Super Admin';
 
     // Validation
     if (!email || !password) {

@@ -3,21 +3,34 @@ import express, { Request, Response } from "express";
 import bodyParser from "body-parser";
 import nodemailer from "nodemailer";
 import cors from "cors";
-import dotenv from "dotenv";
 import axios from 'axios';
 import { AppDataSource } from "./data-source";
 import { User } from "@formflow/shared/entities";
+import { getEnv, loadEnv } from "@formflow/shared/env";
+import { requestLogger } from "./middleware/requestLogger";
+import { errorHandler } from "./middleware/errorHandler";
+import { setupGlobalErrorHandlers } from "./middleware/errorHandlers";
 import SubmissionController from "./controller/SubmissionController";
+import logger from "@formflow/shared/utils/logger";
+import { maskUrl } from "@formflow/shared/utils/logger";
 const createChallenge = require("./Alcha/Challenge.js");
 
-dotenv.config();
+loadEnv();
 
-const app = express();
-const PORT = process.env.PORT || 3001;
-const DASHBOARD_API_URL = process.env.DASHBOARD_API_URL || "http://localhost:3000";
+const PORT = getEnv("PORT") || 3001;
+const DASHBOARD_API_URL = getEnv("DASHBOARD_API_URL") || "http://localhost:3000";
 
-async function initializeServer() {
-    await AppDataSource.initialize();
+/**
+ * Create and configure Express app
+ * Separated from server initialization for testing
+ */
+async function createApp() {
+    const app = express();
+
+    // Initialize database connection if not already initialized
+    if (!AppDataSource.isInitialized) {
+        await AppDataSource.initialize();
+    }
 
     // CORS - Allow all origins for public form submissions
     const corsOptions = {
@@ -64,6 +77,9 @@ async function initializeServer() {
   
     app.use(bodyParser.json());
 
+    // Request logging middleware (after body parser to capture request body)
+    app.use(requestLogger);
+
     // Form submission routes
     app.use('/submit', SubmissionController);
 
@@ -74,14 +90,14 @@ async function initializeServer() {
         secure: true,
         auth: {
             type: 'OAuth2',
-            clientId: process.env.GMAIL_CLIENT,
-            clientSecret: process.env.GMAIL_SECRET,
+            clientId: getEnv("GMAIL_CLIENT"),
+            clientSecret: getEnv("GMAIL_SECRET"),
         },
     });
 
     // Legacy endpoint: Basic post route, sends form data to the users email.
     app.post('/formflow/:apikey', async (req, res) => {
-        console.log("req.body: ", req.body);
+        logger.debug('Legacy formflow endpoint called', { apikey: req.params.apikey, correlationId: req.correlationId });
         const { apikey } = req.params;
         const { name, email, message } = req.body;
         const messageList = [];
@@ -105,7 +121,7 @@ async function initializeServer() {
         AppDataSource.manager.findOne(User, { where: { apiKey: apikey } })
             .then(async user => {
                 if (!user) {
-                    console.log("User not found!");
+                    logger.warn('User not found for legacy endpoint', { apikey, correlationId: req.correlationId });
                     res.status(401).json('Unauthorized');
                     return;
                 }
@@ -115,7 +131,7 @@ async function initializeServer() {
                     const isAllowed = user.allowedDomains.some(domain => req.headers.origin.includes(domain)) 
                         || req.headers.origin.includes("localhost");
                     if (!isAllowed) {
-                        console.log("Domain not allowed:", req.headers.origin);
+                        logger.warn('Domain not allowed for legacy endpoint', { origin: req.headers.origin, userId: user.id, correlationId: req.correlationId });
                         res.status(403).json('You are not allowed to submit from this domain');
                         return;
                     }
@@ -128,37 +144,37 @@ async function initializeServer() {
                 if (user.returnBoolean === true) {
                     axios.post(`${DASHBOARD_API_URL}/formflow/return/${apikey}`, {
                         emailToSendTo: email,
-                    }).catch(err => console.error('Return email error:', err));
+                    }).catch(err => logger.error('Return email error', { error: err.message, userId: user.id, correlationId: req.correlationId }));
                 }
 
                 // Send to integrations via dashboard-api
                 if (user.telegramChatId != null && user.telegramBoolean) {
                     axios.post(`${DASHBOARD_API_URL}/telegram/send/${user.id}`, {
                         message: req.body,
-                    }).catch(err => console.error('Telegram error:', err));
+                    }).catch(err => logger.error('Telegram error', { error: err.message, userId: user.id, correlationId: req.correlationId }));
                 }
 
                 if (user.discordWebhook != null && user.discordBoolean) {
                     await axios.post(user.discordWebhook, { content: niceMessageDiscord })
-                        .catch(err => console.error('Discord error:', err));
+                        .catch(err => logger.error('Discord error', { error: err.message, userId: user.id, correlationId: req.correlationId }));
                 }
 
                 if (user.makeBoolean === true && user.makeWebhook != null) {
                     axios.post(`${DASHBOARD_API_URL}/make/${apikey}`, {
                         message: req.body,
-                    }).catch(err => console.error('Make error:', err));
+                    }).catch(err => logger.error('Make error', { error: err.message, userId: user.id, correlationId: req.correlationId }));
                 }
 
                 if (user.n8nBoolean === true && user.n8nWebhook != null) {
                     axios.post(`${DASHBOARD_API_URL}/n8n/send/${apikey}`, {
                         message: req.body,
-                    }).catch(err => console.error('n8n error:', err));
+                    }).catch(err => logger.error('n8n error', { error: err.message, userId: user.id, correlationId: req.correlationId }));
                 }
 
                 if (user.webhookBoolean === true && user.webhookWebhook != null) {
                     axios.post(`${DASHBOARD_API_URL}/webhook/send/${apikey}`, {
                         message: req.body,
-                    }).catch(err => console.error('Webhook error:', err));
+                    }).catch(err => logger.error('Webhook error', { error: err.message, userId: user.id, correlationId: req.correlationId }));
                 }
             })
             .catch(error => {
@@ -176,9 +192,9 @@ async function initializeServer() {
                 text: `${niceMessage}`,
                 attachments: file ? [{ filename: file.originalname, content: file.buffer }] : [],
                 auth: {
-                    user: process.env.GMAIL_EMAIL,
-                    refreshToken: process.env.GMAIL_REFRESH,
-                    accessToken: process.env.GMAIL_ACCESS,
+                    user: getEnv("GMAIL_EMAIL"),
+                    refreshToken: getEnv("GMAIL_REFRESH"),
+                    accessToken: getEnv("GMAIL_ACCESS"),
                     expires: 1484314697598,
                 },
             };
@@ -243,7 +259,7 @@ async function initializeServer() {
                             }
                         }); 
                     } else if (email && accessToken && refreshToken && await isValidEmail(emailToSendTo) === true) {
-                        console.log("sending from gmail.")
+                        logger.info('Sending return email from Gmail', { userId: user.id, emailToSendTo, correlationId: req.correlationId });
                         const transporter = nodemailer.createTransport({
                             host: 'smtp.gmail.com',
                             port: 465,
@@ -253,8 +269,8 @@ async function initializeServer() {
                                 user: email,
                                 accessToken: accessToken,
                                 refreshToken: refreshToken,
-                                clientId: process.env.GOOGLE_CLIENT_ID,
-                                clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+                                clientId: getEnv("GOOGLE_CLIENT_ID"),
+                                clientSecret: getEnv("GOOGLE_CLIENT_SECRET"),
                             },
                         });
                         const mailMessage = {
@@ -265,18 +281,19 @@ async function initializeServer() {
                         }
                         transporter.sendMail(mailMessage, (error) => {
                             if (error) {
-                                console.error(error);
+                                logger.error('Error sending return email from Gmail', { error: error.message, userId: user.id, emailToSendTo, correlationId: req.correlationId });
                                 res.status(500).json('Error sending email');
                             } else {
+                                logger.info('Return email sent successfully from Gmail', { userId: user.id, emailToSendTo, correlationId: req.correlationId });
                                 res.json({ message: 'Email sent successfully' });
                             }
                         });
                     } else {
-                        console.log("Sending from formflow email.")
+                        logger.info('Sending return email from FormFlow email', { userId: user.id, emailToSendTo, correlationId: req.correlationId });
                         const emailSubject = user.emailSubject;
                         const emailBody = user.emailBody;
                         const mailMessage = {
-                            from: process.env.EMAIL_USER,
+                            from: getEnv("EMAIL_USER"),
                             to: emailToSendTo,
                             subject: emailSubject,
                             text: emailBody,
@@ -310,11 +327,35 @@ async function initializeServer() {
         }
     });
 
-    app.listen(PORT, () => {
-        console.log(`Form API server has started on port ${PORT}.`);
+    // Error handling middleware (must be last)
+    app.use(errorHandler);
+
+    return app;
+}
+
+/**
+ * Start the server
+ * Only used when running the app directly (not in tests)
+ */
+async function startServer() {
+    const app = await createApp();
+
+    const server = app.listen(PORT, () => {
+        logger.info(`Form API server has started on port ${PORT}`, { port: PORT, environment: process.env.NODE_ENV || 'development' });
+    });
+
+    return { app, server };
+}
+
+// Only start server if this file is run directly (not imported by tests)
+if (require.main === module) {
+    // Setup global error handlers
+    setupGlobalErrorHandlers();
+    
+    startServer().catch((error) => {
+        logger.error('Failed to start server', { error: error.message, stack: error.stack });
+        process.exit(1);
     });
 }
 
-initializeServer();
-
-export { app, initializeServer };
+export { createApp, startServer };

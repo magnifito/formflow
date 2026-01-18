@@ -1,0 +1,101 @@
+<div class="container">
+    <div class="setup-card">
+        <div class="logo">
+            <img src="../../assets/FormFlow__1_-removebg.png" alt="FormFlow Logo">
+        </div>
+        <h1>Welcome to FormFlow</h1>
+        <p *ngIf="isCheckingSetup()">Checking setup status...</p>
+        <p *ngIf="!isCheckingSetup()">Let's get started! Create your account and organization.</p>
+        
+        <form *ngIf="!isCheckingSetup()" (ngSubmit)="completeSetup()" class="setup-form">
+            <div class="form-section">
+                <h2>Administrator Account</h2>
+                
+                <div class="form-group">
+                    <label for="email">Email *</label>
+                    <input 
+                        id="email"
+                        type="email" 
+                        [(ngModel)]="email" 
+                        name="email"
+                        placeholder="admin@example.com"
+                        class="form-input"
+                        autocomplete="email"
+                        required
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password *</label>
+                    <input 
+                        id="password"
+                        type="password" 
+                        [(ngModel)]="password" 
+                        name="password"
+                        placeholder="Minimum 8 characters"
+                        class="form-input"
+                        autocomplete="new-password"
+                        minlength="8"
+                        required
+                    />
+                    <small class="form-hint">Password must be at least 8 characters</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input 
+                        id="name"
+                        type="text" 
+                        [(ngModel)]="name" 
+                        name="name"
+                        placeholder="John Doe"
+                        class="form-input"
+                        autocomplete="name"
+                    />
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2>Organization</h2>
+
+                <div class="form-group">
+                    <label for="organizationName">Organization Name *</label>
+                    <input 
+                        id="organizationName"
+                        type="text" 
+                        [(ngModel)]="organizationName" 
+                        name="organizationName"
+                        (blur)="generateSlugFromName()"
+                        placeholder="My Company"
+                        class="form-input"
+                        required
+                    />
+                    <small class="form-hint">This will be your organization's display name</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="organizationSlug">Organization Slug *</label>
+                    <input 
+                        id="organizationSlug"
+                        type="text" 
+                        [(ngModel)]="organizationSlug" 
+                        name="organizationSlug"
+                        placeholder="my-company"
+                        class="form-input"
+                        pattern="[a-z0-9-]+"
+                        required
+                    />
+                    <small class="form-hint">URL-friendly identifier (lowercase, numbers, and hyphens only). Auto-generated from name, but you can edit it.</small>
+                </div>
+            </div>
+            
+            <div class="error-message" *ngIf="errorMessage()">
+                {{ errorMessage() }}
+            </div>
+            
+            <button type="submit" class="setup-button" [disabled]="isLoading()">
+                {{ isLoading() ? 'Setting up...' : 'Complete Setup' }}
+            </button>
+        </form>
+    </div>
+</div>

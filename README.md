@@ -64,7 +64,7 @@ Go to `localhost:4200`. You're done.
 Create your admin account:
 
 ```bash
-# Add to .env file
+# Add to your env file (.env.development or .env)
 SUPER_ADMIN_EMAIL=admin@example.com
 SUPER_ADMIN_PASSWORD=your-password
 SUPER_ADMIN_NAME=Your Name
@@ -74,6 +74,35 @@ npm run migrate:create-super-admin
 ```
 
 Login at `localhost:4200/login`. Create a form. Done.
+
+### Test Drive (Complete Demo in 5 Minutes)
+
+Want to see everything working end-to-end with sample data?
+
+```bash
+# 1. Start services
+npm run db:up
+npm run collector-api  # Terminal 1
+npm run dashboard-api  # Terminal 2
+npm run test-lab:webhooks  # Terminal 3
+
+# 2. Seed sample data (creates 3 orgs, forms, integrations)
+npm run seed
+
+# 3. Open Test Lab UI
+# Visit http://localhost:5177
+# Login: admin@acme-corp.dev / password123
+# Click "Refresh Data", select a form, fill, submit
+# Watch webhook deliveries in Terminal 3
+```
+
+**📖 [Complete Testing Guide](QUICKSTART_TESTING.md)** - Full walkthrough with screenshots
+
+This creates:
+- 3 organizations with different integrations
+- 16-18 ready-to-test forms
+- Webhook logger showing real-time deliveries
+- Interactive UI for submitting test data
 
 ---
 
@@ -100,12 +129,12 @@ Type in your email credentials. Hit deploy. You're live in 2 minutes.
 Do whatever you want. It's Node.js and PostgreSQL. Deploy it anywhere you deploy normal apps.
 
 Environment variables you need:
-- Database credentials (`DEV_DB_*` or `PROD_DB_*`)
+- Database credentials (`DB_*`)
 - Email settings (SMTP)
 - JWT secret
 - That's it
 
-Full .env example is in the repo.
+Full examples are in `.env.development.example` and `.env.production.example`.
 
 ---
 

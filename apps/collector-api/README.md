@@ -58,25 +58,18 @@ The API will be available at `http://localhost:3001`.
 
 ## Environment Configuration
 
-Configure in the root `.env` file:
+Configure in your env file (`.env.development` or `.env`):
 
 ```bash
 # Development/Production Mode
 NODE_ENV=development
 
-# Database Configuration (Development)
-DEV_DB_HOST=localhost
-DEV_DB_PORT=5433
-DEV_DB_USER=formflow
-DEV_DB_PASS=formflow_password
-DEV_DB=formflow_dev
-
-# Database Configuration (Production)
-PROD_DB_HOST=localhost
-PROD_DB_PORT=5432
-PROD_DB_USER=formflow
-PROD_DB_PASS=your_secure_password
-PROD_DB=formflow_prod
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5433
+DB_USER=formflow
+DB_PASSWORD=formflow_password
+DB_NAME=formflow_dev
 
 # Email Configuration
 EMAIL_HOST=smtp.gmail.com
@@ -300,7 +293,7 @@ docker build -t formflow-collector-api -f apps/collector-api/dockerfile .
 ```bash
 docker run -p 3001:3001 \
   -e NODE_ENV=production \
-  -e PROD_DB_HOST=your-db-host \
+  -e DB_HOST=your-db-host \
   formflow-collector-api
 ```
 

@@ -46,11 +46,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      PROD_DB_HOST: postgres
-      PROD_DB_PORT: 5432
-      PROD_DB: ${DB_NAME:-formflow}
-      PROD_DB_USER: ${DB_USER:-formflow}
-      PROD_DB_PASS: ${DB_PASSWORD:?Database password required}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-formflow}
+      DB_USER: ${DB_USER:-formflow}
+      DB_PASSWORD: ${DB_PASSWORD:?Database password required}
       JWT_SECRET: ${JWT_SECRET:?JWT secret required}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Encryption key required}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
@@ -98,11 +98,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      PROD_DB_HOST: postgres
-      PROD_DB_PORT: 5432
-      PROD_DB: ${DB_NAME:-formflow}
-      PROD_DB_USER: ${DB_USER:-formflow}
-      PROD_DB_PASS: ${DB_PASSWORD:?Database password required}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-formflow}
+      DB_USER: ${DB_USER:-formflow}
+      DB_PASSWORD: ${DB_PASSWORD:?Database password required}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Encryption key required}
       CSRF_SECRET: ${CSRF_SECRET}
       CSRF_TTL_MINUTES: ${CSRF_TTL_MINUTES:-15}

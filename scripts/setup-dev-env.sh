@@ -3,7 +3,7 @@
 # =============================================================================
 # FormFlow Development Environment Setup Script
 # =============================================================================
-# Creates a .env file with development-ready defaults
+# Creates a .env.development file with development-ready defaults
 # Usage: ./scripts/setup-dev-env.sh
 # =============================================================================
 
@@ -11,17 +11,17 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-ENV_FILE="$PROJECT_ROOT/.env"
+ENV_FILE="$PROJECT_ROOT/.env.development"
 
 echo "🐝 FormFlow Development Environment Setup"
 echo "=========================================="
 
-# Check if .env already exists
+# Check if .env.development already exists
 if [ -f "$ENV_FILE" ]; then
-    read -p "⚠️  .env file already exists. Overwrite? (y/N): " -n 1 -r
+    read -p "⚠️  .env.development file already exists. Overwrite? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Aborted. Existing .env file preserved."
+        echo "Aborted. Existing .env.development file preserved."
         exit 0
     fi
 fi
@@ -35,7 +35,7 @@ JWT_SECRET=$(generate_secret)
 ENCRYPTION_KEY=$(generate_secret)
 HMAC_SECRET=$(generate_secret)
 
-# Create .env file with development defaults
+# Create .env.development file with development defaults
 cat > "$ENV_FILE" << EOF
 # =============================================================================
 # FormFlow Development Environment
@@ -48,24 +48,33 @@ cat > "$ENV_FILE" << EOF
 # -----------------------------------------------------------------------------
 NODE_ENV=development
 PORT=3000
-LOG_LEVEL=debug
+REDIRECT_URL=http://localhost:4200
+DASHBOARD_API_URL=http://localhost:3000
+EMAIL_USER=test@localhost
 
 # -----------------------------------------------------------------------------
-# Development Database (Docker Compose)
+# Logging Configuration
 # -----------------------------------------------------------------------------
+LOG_LEVEL=debug
+LOG_DIR=logs
+LOG_MAX_FILES=14
+LOG_SLOW_REQUEST_THRESHOLD=1000
+LOG_REQUEST_BODY=true
+LOG_RESPONSE_BODY=false
+LOG_QUERIES=true
+LOG_SLOW_QUERY_THRESHOLD=500
+LOG_SAMPLE_RATE=1.0
+SERVICE_NAME=
+SERVICE_VERSION=
+
+# -----------------------------------------------------------------------------
+# Database (PostgreSQL)
+# -----------------------------------------------------------------------------
+DB_HOST=localhost
+DB_PORT=5433
 DB_NAME=formflow
 DB_USER=formflow
 DB_PASSWORD=formflow_dev_password
-
-DEV_DB_HOST=localhost
-DEV_DB_PORT=5433
-DEV_DB_DATABASE=formflow
-DEV_DB_USERNAME=formflow
-DEV_DB_PASSWORD=formflow_dev_password
-# Legacy variable names (kept for backward compatibility)
-DEV_DB=formflow
-DEV_DB_USER=formflow
-DEV_DB_PASS=formflow_dev_password
 
 # -----------------------------------------------------------------------------
 # Security (auto-generated - safe for development only)
@@ -130,13 +139,13 @@ HMAC=${HMAC_SECRET}
 EOF
 
 echo ""
-echo "✅ Created .env file with development defaults"
+echo "✅ Created .env.development file with development defaults"
 echo ""
 echo "📋 Next steps:"
 echo "   1. Set up GitHub OAuth (required for login):"
 echo "      - Go to: https://github.com/settings/developers"
 echo "      - Create OAuth App with callback: http://localhost:3000/auth/github/callback"
-echo "      - Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to .env"
+echo "      - Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to .env.development"
 echo ""
 echo "   2. Start the development environment:"
 echo "      npm run dev"

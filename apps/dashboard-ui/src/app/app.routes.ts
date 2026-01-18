@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './login/login.component';
+import { SetupComponent } from './setup/setup.component';
 import { AuthGuard } from './auth.guard';
 import { AdminGuard } from './guards/admin.guard';
 
@@ -19,6 +20,7 @@ import { AdminCreateUserComponent } from './features/admin/admin-create-user.com
 import { AdminSubmissionsComponent } from './features/admin/admin-submissions.component';
 
 export const routes: Routes = [
+    { path: 'setup', component: SetupComponent },
     { path: 'login', component: LoginComponent },
 
     // Tenant/Organization routes with AppShell

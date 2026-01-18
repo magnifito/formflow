@@ -1,13 +1,15 @@
 import { Router, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
 import { Form, FormIntegration, OrganizationIntegration, WhitelistedDomain, Submission } from "@formflow/shared/entities";
+import { getEnv } from "@formflow/shared/env";
 import nodemailer from "nodemailer";
 import axios from "axios";
 import crypto from "crypto";
+import logger from "@formflow/shared/utils/logger";
 
 const router = Router();
-const csrfSecret = process.env.CSRF_SECRET;
-const csrfTtlMinutes = Number.parseInt(process.env.CSRF_TTL_MINUTES || "15", 10);
+const csrfSecret = getEnv("CSRF_SECRET");
+const csrfTtlMinutes = Number.parseInt(getEnv("CSRF_TTL_MINUTES") || "15", 10);
 const csrfTtlMs = Number.isFinite(csrfTtlMinutes) && csrfTtlMinutes > 0
     ? csrfTtlMinutes * 60 * 1000
     : 15 * 60 * 1000;
@@ -174,8 +176,8 @@ const createTransporter = () => {
         secure: true,
         auth: {
             type: 'OAuth2',
-            clientId: process.env.GMAIL_CLIENT,
-            clientSecret: process.env.GMAIL_SECRET,
+            clientId: getEnv("GMAIL_CLIENT"),
+            clientSecret: getEnv("GMAIL_SECRET"),
         },
     });
 };
@@ -281,8 +283,9 @@ router.get('/:submitHash/csrf', async (req: Request, res: Response) => {
 
         const token = createCsrfToken(submitHash, origin);
         res.json({ token, expiresInSeconds: Math.floor(csrfTtlMs / 1000) });
-    } catch (error) {
-        console.error('CSRF token error:', error);
+        logger.info('CSRF token issued', { submitHash, origin, correlationId: req.correlationId });
+    } catch (error: any) {
+        logger.error('CSRF token error', { error: error.message, stack: error.stack, submitHash, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to issue CSRF token' });
     }
 });
@@ -303,6 +306,13 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
         if (contentLength) {
             const size = parseInt(contentLength, 10);
             if (size > 100000) {  // Default 100KB limit, will check per-form later
+                logger.warn('Request body too large (initial check)', {
+                    size,
+                    limit: 100000,
+                    submitHash,
+                    ip: clientIp,
+                    correlationId: req.correlationId,
+                });
                 return res.status(413).json({ error: 'Request body too large' });
             }
         }
@@ -354,6 +364,14 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
         if (contentLength && securitySettings.maxRequestSizeBytes) {
             const size = parseInt(contentLength, 10);
             if (size > securitySettings.maxRequestSizeBytes) {
+                logger.warn('Request body too large (form-specific limit)', {
+                    size,
+                    limit: securitySettings.maxRequestSizeBytes,
+                    submitHash,
+                    formId: form.id,
+                    ip: clientIp,
+                    correlationId: req.correlationId,
+                });
                 return res.status(413).json({ error: `Request body too large (max ${securitySettings.maxRequestSizeBytes} bytes)` });
             }
         }
@@ -469,52 +487,52 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
                 subject: `New Form Submission: ${form.name}`,
                 text: niceMessage,
                 auth: {
-                    user: process.env.GMAIL_EMAIL,
-                    refreshToken: process.env.GMAIL_REFRESH,
-                    accessToken: process.env.GMAIL_ACCESS,
+                    user: getEnv("GMAIL_EMAIL"),
+                    refreshToken: getEnv("GMAIL_REFRESH"),
+                    accessToken: getEnv("GMAIL_ACCESS"),
                     expires: 1484314697598,
                 },
             };
 
             transporter.sendMail(mailMessage, (error) => {
                 if (error) {
-                    console.error('Error sending email:', error);
+                    logger.error('Error sending email', { error: error.message, formId: form.id, correlationId: req.correlationId });
                 }
             });
         }
 
         // Telegram integration
         if (integration.telegramEnabled && integration.telegramChatId) {
-            const url = `https://api.telegram.org/bot${process.env.TELEGRAM_API_TOKEN}/sendMessage`;
+            const url = `https://api.telegram.org/bot${getEnv("TELEGRAM_API_TOKEN")}/sendMessage`;
             axios.post(url, {
                 chat_id: integration.telegramChatId,
                 text: niceMessage,
-            }).catch(err => console.error('Telegram error:', err));
+            }).catch(err => logger.error('Telegram error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
         }
 
         // Discord integration
         if (integration.discordEnabled && integration.discordWebhook) {
             const discordMessage = `\`\`\`${niceMessage}\`\`\``;
             axios.post(integration.discordWebhook, { content: discordMessage })
-                .catch(err => console.error('Discord error:', err));
+                .catch(err => logger.error('Discord error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
         }
 
         // Make.com integration
         if (integration.makeEnabled && integration.makeWebhook) {
             axios.post(integration.makeWebhook, formData)
-                .catch(err => console.error('Make error:', err));
+                .catch(err => logger.error('Make error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
         }
 
         // n8n integration
         if (integration.n8nEnabled && integration.n8nWebhook) {
             axios.post(integration.n8nWebhook, formData)
-                .catch(err => console.error('n8n error:', err));
+                .catch(err => logger.error('n8n error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
         }
 
         // Generic webhook integration
         if (integration.webhookEnabled && integration.webhookUrl) {
             axios.post(integration.webhookUrl, formData)
-                .catch(err => console.error('Webhook error:', err));
+                .catch(err => logger.error('Webhook error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
         }
 
         // Slack integration
@@ -527,13 +545,13 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
                     'Authorization': `Bearer ${integration.slackAccessToken}`,
                     'Content-Type': 'application/json'
                 }
-            }).catch(err => console.error('Slack error:', err));
+            }).catch(err => logger.error('Slack error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
         }
 
         res.json({ message: 'Submission received successfully' });
 
-    } catch (error) {
-        console.error('Submission error:', error);
+    } catch (error: any) {
+        logger.error('Submission error', { error: error.message, stack: error.stack, submitHash, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to process submission' });
     }
 });

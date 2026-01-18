@@ -26,6 +26,13 @@ export class Form {
     @Column({ default: true })
     useOrgIntegrations: boolean
 
+    // Form Protection Settings
+    @Column({ default: false })
+    captchaEnabled: boolean
+
+    @Column({ default: false })
+    csrfEnabled: boolean
+
     // Security Settings
     @Column({ default: true })
     useOrgSecuritySettings: boolean

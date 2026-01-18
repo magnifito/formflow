@@ -41,6 +41,11 @@ node_modules/
 # Testing
 /coverage
 
+# Logs
+/logs
+logs/
+*.log
+
 # Misc
 .DS_Store
 Thumbs.db

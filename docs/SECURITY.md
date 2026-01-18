@@ -182,11 +182,11 @@ X-Frame-Options: DENY
 
 ```bash
 # Database
-DEV_DB_HOST=postgres
-DEV_DB_PORT=5432
-DEV_DB=formflow
-DEV_DB_USER=formflow
-DEV_DB_PASS=your_secure_password
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=formflow
+DB_USER=formflow
+DB_PASSWORD=your_secure_password
 
 # Encryption
 ENCRYPTION_KEY=your-32-character-encryption-key
@@ -212,11 +212,11 @@ MIN_SECONDS_BETWEEN_SUBMISSIONS=5
 
 ```bash
 # Database
-DEV_DB_HOST=postgres
-DEV_DB_PORT=5432
-DEV_DB=formflow
-DEV_DB_USER=formflow
-DEV_DB_PASS=your_secure_password
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=formflow
+DB_USER=formflow
+DB_PASSWORD=your_secure_password
 
 # JWT Authentication
 JWT_SECRET=your-jwt-secret-key
@@ -238,7 +238,7 @@ REDIRECT_URL=http://localhost:4200
 
 ### For Developers
 
-1. **Never commit secrets** - Use `.env.example` template
+1. **Never commit secrets** - Use `.env.development.example` / `.env.production.example` templates
 2. **Rotate keys regularly** - Especially in production
 3. **Use strong secrets** - Minimum 32 characters, random generation
 4. **Enable HTTPS** - Always use TLS in production

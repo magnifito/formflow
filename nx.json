@@ -15,6 +15,10 @@
     "sharedGlobals": [
       "{workspaceRoot}/.env",
       "{workspaceRoot}/.env.example",
+      "{workspaceRoot}/.env.development",
+      "{workspaceRoot}/.env.development.example",
+      "{workspaceRoot}/.env.production",
+      "{workspaceRoot}/.env.production.example",
       "{workspaceRoot}/tsconfig.base.json",
       "{workspaceRoot}/nx.json",
       "{workspaceRoot}/package.json",
@@ -38,7 +42,7 @@
     },
     "dev": {
       "cache": false,
-      "inputs": ["default", "{workspaceRoot}/.env"]
+      "inputs": ["default", "{workspaceRoot}/.env", "{workspaceRoot}/.env.development"]
     }
   },
   "generators": {

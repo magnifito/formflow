@@ -3,28 +3,40 @@ import express, { Request, Response } from "express";
 import bodyParser from "body-parser";
 import nodemailer from "nodemailer";
 import cors from "cors";
-import dotenv from "dotenv";
 import crypto from "crypto";
 import axios from 'axios';
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { AppDataSource } from "./data-source";
-import { User } from "@formflow/shared/entities";
+import { User, Organization } from "@formflow/shared/entities";
+import { getEnv, loadEnv } from "@formflow/shared/env";
 import { verifyToken, AuthRequest } from "./middleware/auth";
+import { requestLogger } from "./middleware/requestLogger";
+import { errorHandler } from "./middleware/errorHandler";
+import { setupGlobalErrorHandlers } from "./middleware/errorHandlers";
 import AdminController from "./controller/AdminController";
 import OrganizationController from "./controller/OrganizationController";
+import logger from "@formflow/shared/utils/logger";
+import { maskUrl } from "@formflow/shared/utils/logger";
 
 const BCRYPT_ROUNDS = 10;
 
-dotenv.config();
+loadEnv();
 
-const redirectUrl = process.env.REDIRECT_URL || "https://formflow.fyi";
-const PORT = process.env.PORT || 3000;
+const redirectUrl = getEnv("REDIRECT_URL") || "https://formflow.fyi";
+const PORT = getEnv("PORT") || 3000;
 
-const app = express();
+/**
+ * Create and configure Express app
+ * Separated from server initialization for testing
+ */
+async function createApp() {
+    const app = express();
 
-async function initializeServer() {
-    await AppDataSource.initialize();
+    // Initialize database connection if not already initialized
+    if (!AppDataSource.isInitialized) {
+        await AppDataSource.initialize();
+    }
 
     const allowedOrigins = [redirectUrl, 'http://localhost:4200', 'http://localhost:5177'];
     const strictCorsOptions = {
@@ -80,6 +92,131 @@ async function initializeServer() {
   
     app.use(bodyParser.json());
 
+    // Request logging middleware (after body parser to capture request body)
+    app.use(requestLogger);
+
+    // Setup endpoints (must be before auth routes, no auth required)
+    // GET /setup - Check if setup is needed
+    app.get('/setup', async (_req: Request, res: Response) => {
+        try {
+            const superAdminCount = await AppDataSource.manager.count(User, {
+                where: { isSuperAdmin: true }
+            });
+            
+            res.json({
+                setupNeeded: superAdminCount === 0
+            });
+        } catch (error: any) {
+            logger.error('Error checking setup status', { error: error.message, stack: error.stack });
+            res.status(500).json({ error: 'Failed to check setup status' });
+        }
+    });
+
+    // POST /setup - Complete initial setup (create super admin and organization)
+    app.post('/setup', cors(strictCorsOptions), async (req: Request, res: Response) => {
+        try {
+            const { email, password, name, organizationName, organizationSlug } = req.body;
+
+            // Validation
+            if (!email || !password || !organizationName || !organizationSlug) {
+                return res.status(400).json({ error: 'Email, password, organizationName, and organizationSlug are required' });
+            }
+
+            if (password.length < 8) {
+                return res.status(400).json({ error: 'Password must be at least 8 characters' });
+            }
+
+            // Check if setup has already been completed
+            const existingSuperAdmin = await AppDataSource.manager.findOne(User, {
+                where: { isSuperAdmin: true }
+            });
+
+            if (existingSuperAdmin) {
+                return res.status(403).json({ error: 'Setup has already been completed. A super admin already exists.' });
+            }
+
+            // Check if email already exists
+            const existingUser = await AppDataSource.manager.findOne(User, {
+                where: { email }
+            });
+
+            if (existingUser) {
+                return res.status(400).json({ error: 'User with this email already exists' });
+            }
+
+            // Check if organization slug is already taken
+            const existingOrg = await AppDataSource.manager.findOne(Organization, {
+                where: { slug: organizationSlug }
+            });
+
+            if (existingOrg) {
+                return res.status(400).json({ error: 'Organization with this slug already exists' });
+            }
+
+            // Create organization first
+            const organization = AppDataSource.manager.create(Organization, {
+                name: organizationName,
+                slug: organizationSlug,
+                isActive: true
+            });
+
+            const savedOrganization = await AppDataSource.manager.save(organization);
+            logger.info('Initial organization created during setup', { 
+                organizationId: savedOrganization.id, 
+                organizationName: savedOrganization.name,
+                correlationId: req.correlationId 
+            });
+
+            // Create super admin user
+            const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+            const superAdmin = AppDataSource.manager.create(User, {
+                email,
+                passwordHash,
+                name: name || null,
+                organizationId: savedOrganization.id, // Assign to the new organization
+                role: 'org_admin',
+                isSuperAdmin: true,
+                isActive: true
+            });
+
+            const savedUser = await AppDataSource.manager.save(superAdmin);
+            logger.info('Initial super admin created during setup', { 
+                userId: savedUser.id, 
+                email: savedUser.email,
+                organizationId: savedOrganization.id,
+                correlationId: req.correlationId 
+            });
+
+            // Generate JWT for immediate login
+            const token = jwt.sign(
+                { userId: savedUser.id },
+                getEnv("JWT_SECRET")!,
+                { expiresIn: '24h' }
+            );
+
+            res.status(201).json({
+                message: 'Setup completed successfully',
+                user: {
+                    id: savedUser.id,
+                    email: savedUser.email,
+                    name: savedUser.name,
+                    isSuperAdmin: savedUser.isSuperAdmin,
+                    organizationId: savedOrganization.id
+                },
+                organization: {
+                    id: savedOrganization.id,
+                    name: savedOrganization.name,
+                    slug: savedOrganization.slug
+                },
+                token // Return token for automatic login
+            });
+        } catch (error: any) {
+            logger.error('Error during setup', { error: error.message, stack: error.stack, correlationId: req.correlationId });
+            res.status(500).json({ error: 'Failed to complete setup' });
+        }
+    });
+
     // Dashboard routes
     app.use('/admin', AdminController);
     app.use('/org', OrganizationController);
@@ -111,15 +248,55 @@ async function initializeServer() {
             // Generate JWT
             const token = jwt.sign(
                 { userId: user.id },
-                process.env.JWT_SECRET!,
+                getEnv("JWT_SECRET")!,
                 { expiresIn: '24h' }
             );
 
-            res.json({ token, userId: user.id, name: user.name, email: user.email });
+            res.json({ token, user: { id: user.id, name: user.name, email: user.email, isSuperAdmin: user.isSuperAdmin } });
+            logger.info('User logged in successfully', { userId: user.id, email: user.email, correlationId: req.correlationId });
         } catch (error: any) {
-            console.error('Login error:', error);
+            logger.error('Login error', { error: error.message, stack: error.stack, correlationId: req.correlationId });
             res.status(500).json({ error: 'Login failed' });
         }
+    });
+
+    // GET /auth/me - Get current authenticated user
+    app.get('/auth/me', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
+        try {
+            const user = await AppDataSource.manager.findOne(User, {
+                where: { id: req.user!.userId },
+                relations: ['organization']
+            });
+
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            res.json({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                isSuperAdmin: user.isSuperAdmin,
+                isActive: user.isActive,
+                organizationId: user.organizationId,
+                role: user.role,
+                organization: user.organization ? {
+                    id: user.organization.id,
+                    name: user.organization.name,
+                    slug: user.organization.slug
+                } : null
+            });
+        } catch (error: any) {
+            logger.error('Get current user error', { error: error.message, stack: error.stack, userId: req.user?.userId, correlationId: req.correlationId });
+            res.status(500).json({ error: 'Failed to get user information' });
+        }
+    });
+
+    // POST /auth/logout - Logout (client-side token removal, optional server-side logic)
+    app.post('/auth/logout', cors(strictCorsOptions), verifyToken, (_req: AuthRequest, res: Response) => {
+        // In a JWT-based auth system, logout is primarily client-side (removing the token)
+        // Server-side logout would require token blacklisting, which we can implement later if needed
+        res.json({ message: 'Logged out successfully' });
     });
 
     // User management endpoints
@@ -137,13 +314,13 @@ async function initializeServer() {
         AppDataSource.manager.findOne(User, { where: { id: userId }, relations: ['organization'] })
             .then(user => {
                 if (!user) {
-                    console.log("user not found")
+                    logger.warn('User not found', { userId, correlationId: req.correlationId });
                     return res.status(404).json('User not found');
                 }
                 res.json(user);
             })
             .catch(error => {
-                console.log("error: ", error)
+                logger.error('Error fetching user', { error: error.message, stack: error.stack, userId, correlationId: req.correlationId });
                 res.status(500).json('Internal Server Error');
             });
     });
@@ -238,8 +415,8 @@ async function initializeServer() {
     });
 
     app.post('/telegram/send/:userId', async (req, res) => {
-        console.log("in telegram send");
         const userId = parseInt(req.params.userId);
+        logger.debug('Telegram send request', { userId, correlationId: req.correlationId });
         const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
         if (!user) {
             res.status(400).send('User not found');
@@ -261,17 +438,17 @@ async function initializeServer() {
             const formattedMessage = messageList.join('\n\n');
 
             const sendTelegramMessage = async (chatId, message) => {
-                const url = `https://api.telegram.org/bot${process.env.TELEGRAM_API_TOKEN}/sendMessage`;
-                console.log("telegram url: ", url);
+                const url = `https://api.telegram.org/bot${getEnv("TELEGRAM_API_TOKEN")}/sendMessage`;
+                logger.debug('Sending Telegram message', { chatId, url: maskUrl(url), correlationId: req.correlationId });
             
                 try {
-                    console.log("in the try...");
                     await axios.post(url, {
                         chat_id: chatId,
                         text: message,
                     });
-                } catch (error) {
-                    console.error('Error sending message:', error);
+                    logger.info('Telegram message sent successfully', { chatId, correlationId: req.correlationId });
+                } catch (error: any) {
+                    logger.error('Error sending Telegram message', { error: error.message, chatId, correlationId: req.correlationId });
                 }
             };
             await sendTelegramMessage(user.telegramChatId, formattedMessage);
@@ -285,7 +462,7 @@ async function initializeServer() {
             res.status(400).send('User not found');
             return;
         } else {
-            const url = `https://api.telegram.org/bot${process.env.TELEGRAM_API_TOKEN}/sendMessage`;
+            const url = `https://api.telegram.org/bot${getEnv("TELEGRAM_API_TOKEN")}/sendMessage`;
             await axios.post(url, {
                 chat_id: user.telegramChatId,
                 text: "FormFlow will no longer be sending your form submission data to this chat!",
@@ -345,12 +522,12 @@ async function initializeServer() {
             return;
         } else {
             try {
-                console.log("Sending to make");
+                logger.info('Sending to Make.com', { apiKey, webhookUrl: maskUrl(user.makeWebhook), correlationId: req.correlationId });
                 // Send form data to Make.com
                 await axios.post(user.makeWebhook, message);
                 res.status(200).send('Form submitted successfully');
-            } catch (error) {
-                console.error('Error sending data to Make.com:', error);
+            } catch (error: any) {
+                logger.error('Error sending data to Make.com', { error: error.message, apiKey, correlationId: req.correlationId });
                 res.status(500).send('Internal Server Error');
             }
         }
@@ -365,11 +542,11 @@ async function initializeServer() {
             return;
         } else {
             if (makeBoolean == true && user.currentPlugins + 1 > user.maxPlugins && user.maxPlugins !== null) {
-                console.log("Can't toggle make, max plugins reached");
+                logger.warn('Cannot toggle Make.com - max plugins reached', { userId, currentPlugins: user.currentPlugins, maxPlugins: user.maxPlugins, correlationId: req.correlationId });
                 res.status(400).send('You have reached your plugin limit');
                 return;
             } else {
-                console.log("update allowed")
+                logger.debug('Updating Make.com settings', { userId, makeBoolean, correlationId: req.correlationId });
                 user.makeBoolean = makeBoolean;
                 if (makeBoolean == true) {
                     user.currentPlugins += 1;
@@ -377,8 +554,7 @@ async function initializeServer() {
                     user.currentPlugins -= 1;
                 }
                 await AppDataSource.manager.save(user);
-                console.log("current plugins: ", user.currentPlugins);
-                console.log("max plugins: ", user.maxPlugins);
+                logger.info('Make.com settings updated', { userId, makeBoolean, currentPlugins: user.currentPlugins, maxPlugins: user.maxPlugins, correlationId: req.correlationId });
                 res.json({ message: 'Make settings updated successfully' });
             }
         }
@@ -422,11 +598,11 @@ async function initializeServer() {
         } else {
             try {
                 // Send form data to N8N.com
-                console.log("Sending to n8n");
+                logger.info('Sending to n8n', { apiKey, webhookUrl: maskUrl(user.n8nWebhook), correlationId: req.correlationId });
                 await axios.post(user.n8nWebhook, message);
                 res.status(200).send('Form submitted successfully');
-            } catch (error) {
-                console.log("Error sending message");
+            } catch (error: any) {
+                logger.error('Error sending message to n8n', { error: error.message, apiKey, correlationId: req.correlationId });
                 res.send('Error sending message');
             }
         }
@@ -441,11 +617,11 @@ async function initializeServer() {
             return;
         } else {
             if (n8nBoolean == true && user.currentPlugins + 1 > user.maxPlugins && user.maxPlugins !== null) {
-                console.log("Can't toggle n8n, max plugins reached");
+                logger.warn('Cannot toggle n8n - max plugins reached', { userId, currentPlugins: user.currentPlugins, maxPlugins: user.maxPlugins, correlationId: req.correlationId });
                 res.status(400).send('You have reached your plugin limit');
                 return;
             } else {
-                console.log("update allowed")
+                logger.debug('Updating n8n settings', { userId, n8nBoolean, correlationId: req.correlationId });
                 user.n8nBoolean = n8nBoolean;
                 if (n8nBoolean == true) {
                     user.currentPlugins += 1;
@@ -495,11 +671,11 @@ async function initializeServer() {
             return;
         } else {
             if (webhookBoolean == true && user.currentPlugins + 1 > user.maxPlugins && user.maxPlugins !== null) {
-                console.log("Can't toggle webhook, max plugins reached");
+                logger.warn('Cannot toggle webhook - max plugins reached', { userId, currentPlugins: user.currentPlugins, maxPlugins: user.maxPlugins, correlationId: req.correlationId });
                 res.status(400).send('You have reached your plugin limit');
                 return;
             } else {
-                console.log("update allowed")
+                logger.debug('Updating webhook settings', { userId, webhookBoolean, correlationId: req.correlationId });
                 user.webhookBoolean = webhookBoolean;
                 if (webhookBoolean == true) {
                     user.currentPlugins += 1;
@@ -548,11 +724,11 @@ async function initializeServer() {
             return;
         } else {
             try {
-                console.log("Sending webhook");
+                logger.info('Sending webhook', { apiKey, webhookUrl: maskUrl(user.webhookWebhook), correlationId: req.correlationId });
                 await axios.post(user.webhookWebhook, message);
                 res.status(200).send('Form submitted successfully');
-            } catch (error) {
-                console.log("Error sending message");
+            } catch (error: any) {
+                logger.error('Error sending webhook', { error: error.message, apiKey, correlationId: req.correlationId });
                 res.send('Error sending message');
             }
         }
@@ -618,8 +794,8 @@ async function initializeServer() {
                 }
             }
 
-        } catch (error) {
-            console.error('Error during update return settings:', error);
+        } catch (error: any) {
+            logger.error('Error during update return settings', { error: error.message, stack: error.stack, userId, correlationId: req.correlationId });
             res.status(500).json({ error: 'An error occurred during the update process' });
         }
     });
@@ -643,7 +819,7 @@ async function initializeServer() {
         };
         
         const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.query;
-        const botToken = process.env.TELEGRAM_API_TOKEN;
+        const botToken = getEnv("TELEGRAM_API_TOKEN");
     
         try {
             const isValid = await verifyTelegramHash(req.query, botToken);
@@ -731,7 +907,7 @@ async function initializeServer() {
                             }
                         }); 
                     } else if (email && accessToken && refreshToken && await isValidEmail(emailToSendTo) === true) {
-                        console.log("sending from gmail.")
+                        logger.info('Sending return email from Gmail', { userId, emailToSendTo, correlationId: req.correlationId });
                         const transporter = nodemailer.createTransport({
                             host: 'smtp.gmail.com',
                             port: 465,
@@ -741,8 +917,8 @@ async function initializeServer() {
                                 user: email,
                                 accessToken: accessToken,
                                 refreshToken: refreshToken,
-                                clientId: process.env.GOOGLE_CLIENT_ID,
-                                clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+                                clientId: getEnv("GOOGLE_CLIENT_ID"),
+                                clientSecret: getEnv("GOOGLE_CLIENT_SECRET"),
                             },
                         });
                         const mailMessage = {
@@ -753,14 +929,15 @@ async function initializeServer() {
                         }
                         transporter.sendMail(mailMessage, (error) => {
                             if (error) {
-                                console.error(error);
+                                logger.error('Error sending return email from Gmail', { error: error.message, userId, emailToSendTo, correlationId: req.correlationId });
                                 res.status(500).json('Error sending email');
                             } else {
+                                logger.info('Return email sent successfully from Gmail', { userId, emailToSendTo, correlationId: req.correlationId });
                                 res.json({ message: 'Email sent successfully' });
                             }
                         });
                     } else {
-                        console.log("Sending from formflow email.")
+                        logger.info('Sending return email from FormFlow email', { userId, emailToSendTo, correlationId: req.correlationId });
                         const emailSubject = user.emailSubject;
                         const emailBody = user.emailBody;
                         const transporter = nodemailer.createTransport({
@@ -769,12 +946,12 @@ async function initializeServer() {
                             secure: true,
                             auth: {
                                 type: 'OAuth2',
-                                clientId: process.env.GMAIL_CLIENT,
-                                clientSecret: process.env.GMAIL_SECRET,
+                                clientId: getEnv("GMAIL_CLIENT"),
+                                clientSecret: getEnv("GMAIL_SECRET"),
                             },
                         });
                         const mailMessage = {
-                            from: process.env.EMAIL_USER,
+                            from: getEnv("EMAIL_USER"),
                             to: emailToSendTo,
                             subject: emailSubject,
                             text: emailBody,
@@ -796,11 +973,35 @@ async function initializeServer() {
         }
     });
 
-    app.listen(PORT, () => {
-        console.log(`Dashboard API server has started on port ${PORT}.`);
+    // Error handling middleware (must be last)
+    app.use(errorHandler);
+
+    return app;
+}
+
+/**
+ * Start the server
+ * Only used when running the app directly (not in tests)
+ */
+async function startServer() {
+    const app = await createApp();
+
+    const server = app.listen(PORT, () => {
+        logger.info(`Dashboard API server has started on port ${PORT}`, { port: PORT, environment: process.env.NODE_ENV || 'development' });
+    });
+
+    return { app, server };
+}
+
+// Only start server if this file is run directly (not imported by tests)
+if (require.main === module) {
+    // Setup global error handlers
+    setupGlobalErrorHandlers();
+    
+    startServer().catch((error) => {
+        logger.error('Failed to start server', { error: error.message, stack: error.stack });
+        process.exit(1);
     });
 }
 
-initializeServer();
-
-export { app, initializeServer };
+export { createApp, startServer };

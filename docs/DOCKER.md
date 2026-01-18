@@ -118,8 +118,8 @@ The main authentication and admin API backend:
 
 ### Environment Variables
 
-See `.env.example` for full list. Key variables:
-- `DEV_DB_HOST`, `DEV_DB_PORT`, `DEV_DB`, `DEV_DB_USER`, `DEV_DB_PASS`
+See `.env.development.example` / `.env.production.example` for full list. Key variables:
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 - `JWT_SECRET`
 - `ENCRYPTION_KEY`
 - `REDIRECT_URL`
@@ -150,11 +150,11 @@ Public form submission service:
 
 ```bash
 # Database
-DEV_DB_HOST=postgres
-DEV_DB_PORT=5432
-DEV_DB=formflow
-DEV_DB_USER=formflow
-DEV_DB_PASS=your_password
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=formflow
+DB_USER=formflow
+DB_PASSWORD=your_password
 
 # Security
 ENCRYPTION_KEY=your-32-character-encryption-key
@@ -260,7 +260,7 @@ npm run clean:docker
 ### Database connection failed
 
 1. Wait for PostgreSQL health check to pass
-2. Verify `DEV_DB_HOST=postgres` in Docker Compose
+2. Verify `DB_HOST=postgres` in Docker Compose
 3. Check database credentials match
 
 ### Port already in use

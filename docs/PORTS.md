@@ -130,7 +130,7 @@ npm run test-lab
 **Configuration:**
 - Used by: `docker-compose.yml`, `docker-compose.dev.yml`
 - Connection string: `postgresql://formflow:password@postgres:5432/formflow`
-- Environment: `DEV_DB_HOST=postgres`, `DEV_DB_PORT=5432`
+- Environment: `DB_HOST=postgres`, `DB_PORT=5432`
 
 **When to access:**
 - Never directly from host machine

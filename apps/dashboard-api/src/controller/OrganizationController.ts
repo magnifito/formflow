@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import { AppDataSource } from "../data-source";
+import logger from "@formflow/shared/utils/logger";
 import { Form, Organization, WhitelistedDomain, OrganizationIntegration, Submission } from "@formflow/shared/entities";
 import { verifyToken } from "../middleware/auth";
 import { injectOrgContext, verifyOrgAdmin, OrgContextRequest } from "../middleware/orgContext";
@@ -50,8 +51,8 @@ router.get('/stats', async (req: OrgContextRequest, res: Response) => {
             formCount,
             submissionsThisMonth
         });
-    } catch (error) {
-        console.error('Error fetching stats:', error);
+    } catch (error: any) {
+        logger.error('Error fetching stats', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch statistics' });
     }
 });
@@ -69,8 +70,8 @@ router.get('/forms', async (req: OrgContextRequest, res: Response) => {
         });
 
         res.json(forms);
-    } catch (error) {
-        console.error('Error fetching forms:', error);
+    } catch (error: any) {
+        logger.error('Error fetching forms', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch forms' });
     }
 });
@@ -125,8 +126,8 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
         await AppDataSource.manager.save(form);
 
         res.status(201).json(form);
-    } catch (error) {
-        console.error('Error creating form:', error);
+    } catch (error: any) {
+        logger.error('Error creating form', { error: error.message, stack: error.stack, name, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to create form' });
     }
 });
@@ -155,8 +156,8 @@ router.get('/forms/:id', async (req: OrgContextRequest, res: Response) => {
             ...form,
             submissionCount
         });
-    } catch (error) {
-        console.error('Error fetching form:', error);
+    } catch (error: any) {
+        logger.error('Error fetching form', { error: error.message, stack: error.stack, formId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch form' });
     }
 });
@@ -165,8 +166,9 @@ router.get('/forms/:id', async (req: OrgContextRequest, res: Response) => {
 router.put('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
     try {
         const formId = parseInt(req.params.id);
-        const { 
+        const {
             name, description, isActive, useOrgIntegrations,
+            captchaEnabled, csrfEnabled,
             useOrgSecuritySettings,
             rateLimitEnabled, rateLimitMaxRequests, rateLimitWindowSeconds, rateLimitMaxRequestsPerHour,
             minTimeBetweenSubmissionsEnabled, minTimeBetweenSubmissionsSeconds,
@@ -187,6 +189,8 @@ router.put('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Res
         if (description !== undefined) form.description = description;
         if (isActive !== undefined) form.isActive = isActive;
         if (useOrgIntegrations !== undefined) form.useOrgIntegrations = useOrgIntegrations;
+        if (captchaEnabled !== undefined) form.captchaEnabled = captchaEnabled;
+        if (csrfEnabled !== undefined) form.csrfEnabled = csrfEnabled;
 
         // Security settings
         if (useOrgSecuritySettings !== undefined) form.useOrgSecuritySettings = useOrgSecuritySettings;
@@ -202,8 +206,8 @@ router.put('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Res
         await AppDataSource.manager.save(form);
 
         res.json(form);
-    } catch (error) {
-        console.error('Error updating form:', error);
+    } catch (error: any) {
+        logger.error('Error updating form', { error: error.message, stack: error.stack, formId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update form' });
     }
 });
@@ -227,8 +231,8 @@ router.delete('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: 
         await AppDataSource.manager.delete(Form, { id: formId });
 
         res.json({ message: 'Form deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting form:', error);
+    } catch (error: any) {
+        logger.error('Error deleting form', { error: error.message, stack: error.stack, formId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to delete form' });
     }
 });
@@ -251,8 +255,8 @@ router.post('/forms/:id/regenerate-hash', verifyOrgAdmin, async (req: OrgContext
         await AppDataSource.manager.save(form);
 
         res.json({ submitHash: form.submitHash });
-    } catch (error) {
-        console.error('Error regenerating hash:', error);
+    } catch (error: any) {
+        logger.error('Error regenerating hash', { error: error.message, stack: error.stack, formId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to regenerate hash' });
     }
 });
@@ -268,8 +272,8 @@ router.get('/domains', async (req: OrgContextRequest, res: Response) => {
         });
 
         res.json(domains);
-    } catch (error) {
-        console.error('Error fetching domains:', error);
+    } catch (error: any) {
+        logger.error('Error fetching domains', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch domains' });
     }
 });
@@ -309,8 +313,8 @@ router.post('/domains', verifyOrgAdmin, async (req: OrgContextRequest, res: Resp
         await AppDataSource.manager.save(whitelistedDomain);
 
         res.status(201).json(whitelistedDomain);
-    } catch (error) {
-        console.error('Error adding domain:', error);
+    } catch (error: any) {
+        logger.error('Error adding domain', { error: error.message, stack: error.stack, domain, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to add domain' });
     }
 });
@@ -331,8 +335,8 @@ router.delete('/domains/:id', verifyOrgAdmin, async (req: OrgContextRequest, res
         await AppDataSource.manager.delete(WhitelistedDomain, { id: domainId });
 
         res.json({ message: 'Domain removed successfully' });
-    } catch (error) {
-        console.error('Error removing domain:', error);
+    } catch (error: any) {
+        logger.error('Error removing domain', { error: error.message, stack: error.stack, domainId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to remove domain' });
     }
 });
@@ -356,8 +360,8 @@ router.get('/integrations', async (req: OrgContextRequest, res: Response) => {
         }
 
         res.json(integration);
-    } catch (error) {
-        console.error('Error fetching integrations:', error);
+    } catch (error: any) {
+        logger.error('Error fetching integrations', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch integrations' });
     }
 });
@@ -397,8 +401,8 @@ router.put('/integrations', verifyOrgAdmin, async (req: OrgContextRequest, res: 
         await AppDataSource.manager.save(integration);
 
         res.json(integration);
-    } catch (error) {
-        console.error('Error updating integrations:', error);
+    } catch (error: any) {
+        logger.error('Error updating integrations', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update integrations' });
     }
 });
@@ -426,8 +430,8 @@ router.get('/security-settings', async (req: OrgContextRequest, res: Response) =
             defaultMaxRequestSizeBytes: organization.defaultMaxRequestSizeBytes,
             defaultRefererFallbackEnabled: organization.defaultRefererFallbackEnabled
         });
-    } catch (error) {
-        console.error('Error fetching security settings:', error);
+    } catch (error: any) {
+        logger.error('Error fetching security settings', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch security settings' });
     }
 });
@@ -475,8 +479,8 @@ router.put('/security-settings', verifyOrgAdmin, async (req: OrgContextRequest, 
             defaultMaxRequestSizeBytes: organization.defaultMaxRequestSizeBytes,
             defaultRefererFallbackEnabled: organization.defaultRefererFallbackEnabled
         });
-    } catch (error) {
-        console.error('Error updating security settings:', error);
+    } catch (error: any) {
+        logger.error('Error updating security settings', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update security settings' });
     }
 });
@@ -516,8 +520,8 @@ router.get('/submissions', async (req: OrgContextRequest, res: Response) => {
                 totalPages: Math.ceil(total / limit)
             }
         });
-    } catch (error) {
-        console.error('Error fetching submissions:', error);
+    } catch (error: any) {
+        logger.error('Error fetching submissions', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch submissions' });
     }
 });

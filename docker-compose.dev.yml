@@ -47,11 +47,11 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
-      DEV_DB_HOST: postgres
-      DEV_DB_PORT: 5432
-      DEV_DB: formflow
-      DEV_DB_USER: formflow
-      DEV_DB_PASS: formflow_dev_password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: formflow
+      DB_USER: formflow
+      DB_PASSWORD: formflow_dev_password
       JWT_SECRET: dev_jwt_secret_not_for_production
       ENCRYPTION_KEY: dev_encryption_key_not_for_production
       REDIRECT_URL: http://localhost:4200
@@ -80,11 +80,11 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3001
-      DEV_DB_HOST: postgres
-      DEV_DB_PORT: 5432
-      DEV_DB: formflow
-      DEV_DB_USER: formflow
-      DEV_DB_PASS: formflow_dev_password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: formflow
+      DB_USER: formflow
+      DB_PASSWORD: formflow_dev_password
       ENCRYPTION_KEY: dev_encryption_key_not_for_production
       CSRF_SECRET: dev_csrf_secret_not_for_production
       CSRF_TTL_MINUTES: 15
