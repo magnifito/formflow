@@ -89,7 +89,7 @@ const consoleFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
   winston.format.colorize(),
-  winston.format.printf(({ timestamp, level, message, correlationId, userId, organizationId, duration, statusCode, service, version, environment, ...meta }) => {
+  winston.format.printf(({ timestamp, level, message, correlationId, userId, organizationId, duration, statusCode, service, ...meta }) => {
     let log = `[${timestamp}] [${service}] ${level}: ${message}`;
     
     if (correlationId) log += ` [correlationId: ${correlationId}]`;

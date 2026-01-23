@@ -125,8 +125,6 @@ This allows you to have environment-specific overrides while keeping common vari
 
 | Variable | Description |
 |----------|-------------|
-| `GITHUB_CLIENT_ID` | GitHub OAuth client ID |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth client secret |
 | `GMAIL_CLIENT` | Gmail OAuth2 client ID |
 | `GMAIL_SECRET` | Gmail OAuth2 client secret |
 | `GMAIL_EMAIL` | Gmail email address |

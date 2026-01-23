@@ -23,7 +23,6 @@ FormFlow is a form backend you can deploy in 10 minutes and own forever. No mont
 
 **What it costs:**
 - Self-hosted: $0/month (just server costs you already pay)
-- Hosted version: Available at [formflow.fyi](https://formflow.fyi)
 
 ## Why This Exists
 
@@ -39,7 +38,7 @@ Use it. Fork it. Sell it. I don't care. Just stop overpaying for form backends.
 
 ```bash
 # Clone it
-git clone https://github.com/FormFlow/FormFlow.git
+git clone https://github.com/magnifito/FormFlow.git
 cd FormFlow
 
 # Install it
@@ -283,9 +282,7 @@ When you contribute, add your name below.
 
 ## Credits
 
-Built by [Jacob Dement](https://github.com/Oia20).
-
-If this saves you money, [buy me a coffee](https://buymeacoffee.com/jacobdemenl).
+Built by [Kiril Kirov](https://github.com/k2kirov).
 
 Contributors:
 - (Your name here when you contribute)
@@ -299,11 +296,11 @@ MIT. Do whatever you want. Just don't sue me.
 ---
 
 <div align="center">
-  <a href="https://github.com/FormFlow/FormFlow/issues">
-    <img alt="Issues" src="https://img.shields.io/github/issues/FormFlow/FormFlow?color=brightgreen"/>
+  <a href="https://github.com/magnifito/FormFlow/issues">
+    <img alt="Issues" src="https://img.shields.io/github/issues/magnifito/FormFlow?color=brightgreen"/>
   </a>
-  <a href="https://github.com/FormFlow/FormFlow">
-    <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/FormFlow/FormFlow?style=social"/>
+  <a href="https://github.com/magnifito/FormFlow">
+    <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/magnifito/FormFlow?style=social"/>
   </a>
 </div>
 

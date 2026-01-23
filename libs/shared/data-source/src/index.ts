@@ -42,9 +42,14 @@ if (missingEnvVars.length > 0) {
 // Create the data source with environment-specific configuration
 export const AppDataSource = new DataSource({
     ...dbConfig,
-    synchronize: true, // Set to false in production and use migrations instead
+    // Use synchronize for now - in production you should use migrations instead
+    // TODO: Set synchronize: false and use migrations for production deployments
+    synchronize: true,
     logging: !isProduction, // Enable logging in development
     entities: [User, Organization, Form, WhitelistedDomain, FormIntegration, OrganizationIntegration, Submission],
+    // Migrations are available in apps/dashboard-api/src/migrations/
+    // To run migrations manually: npm run db:migrate
     migrations: [],
+    // Auto-run migrations can be enabled for production: migrationsRun: isProduction
     subscribers: [],
 });

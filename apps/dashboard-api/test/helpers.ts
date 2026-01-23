@@ -64,7 +64,7 @@ export class TestDatabase {
     return await userRepo.save(user);
   }
 
-  async createSuperAdmin(email: string = 'admin@example.com', password: string = 'admin123'): Promise<User> {
+  async createSuperAdmin(email = 'admin@formflow.fyi', password = 'formflow123'): Promise<User> {
     return this.createTestUser({
       email,
       passwordHash: password,
@@ -90,7 +90,7 @@ export class TestDatabase {
 /**
  * Generate JWT token for testing
  */
-export function generateTestToken(userId: number, isSuperAdmin: boolean = false): string {
+export function generateTestToken(userId: number, isSuperAdmin = false): string {
   const secret = process.env.JWT_SECRET || 'test-jwt-secret';
   return jwt.sign(
     { userId, isSuperAdmin },

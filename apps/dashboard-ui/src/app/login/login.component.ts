@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { NgIf } from '@angular/common';
 import { fetchUrl } from '../global-vars';
+import { OrgContextService } from '../services/org-context.service';
 
 @Component({
   selector: 'app-login',
@@ -13,6 +14,7 @@ import { fetchUrl } from '../global-vars';
 })
 export class LoginComponent {
   private readonly router = inject(Router);
+  private readonly orgContextService = inject(OrgContextService);
   
   email = '';
   password = '';
@@ -53,7 +55,12 @@ export class LoginComponent {
       // Store auth data
       localStorage.setItem(this.TOKEN_STORAGE_KEY, data.token);
       localStorage.setItem(this.USER_ID_KEY, data.userId.toString());
-      
+
+      // Set organization context for super admins
+      if (data.user?.organizationId) {
+        this.orgContextService.setSelectedOrgId(data.user.organizationId);
+      }
+
       // Navigate to dashboard
       void this.router.navigate(['/dashboard']);
     } catch (error) {

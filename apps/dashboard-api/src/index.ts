@@ -252,7 +252,7 @@ async function createApp() {
                 { expiresIn: '24h' }
             );
 
-            res.json({ token, user: { id: user.id, name: user.name, email: user.email, isSuperAdmin: user.isSuperAdmin } });
+            res.json({ token, userId: user.id, user: { id: user.id, name: user.name, email: user.email, isSuperAdmin: user.isSuperAdmin, organizationId: user.organizationId } });
             logger.info('User logged in successfully', { userId: user.id, email: user.email, correlationId: req.correlationId });
         } catch (error: any) {
             logger.error('Login error', { error: error.message, stack: error.stack, correlationId: req.correlationId });
@@ -907,7 +907,7 @@ async function createApp() {
                             }
                         }); 
                     } else if (email && accessToken && refreshToken && await isValidEmail(emailToSendTo) === true) {
-                        logger.info('Sending return email from Gmail', { userId, emailToSendTo, correlationId: req.correlationId });
+                        logger.info('Sending return email from Gmail', { userId: user.id, emailToSendTo, correlationId: req.correlationId });
                         const transporter = nodemailer.createTransport({
                             host: 'smtp.gmail.com',
                             port: 465,
@@ -929,15 +929,15 @@ async function createApp() {
                         }
                         transporter.sendMail(mailMessage, (error) => {
                             if (error) {
-                                logger.error('Error sending return email from Gmail', { error: error.message, userId, emailToSendTo, correlationId: req.correlationId });
+                                logger.error('Error sending return email from Gmail', { error: error.message, userId: user.id, emailToSendTo, correlationId: req.correlationId });
                                 res.status(500).json('Error sending email');
                             } else {
-                                logger.info('Return email sent successfully from Gmail', { userId, emailToSendTo, correlationId: req.correlationId });
+                                logger.info('Return email sent successfully from Gmail', { userId: user.id, emailToSendTo, correlationId: req.correlationId });
                                 res.json({ message: 'Email sent successfully' });
                             }
                         });
                     } else {
-                        logger.info('Sending return email from FormFlow email', { userId, emailToSendTo, correlationId: req.correlationId });
+                        logger.info('Sending return email from FormFlow email', { userId: user.id, emailToSendTo, correlationId: req.correlationId });
                         const emailSubject = user.emailSubject;
                         const emailBody = user.emailBody;
                         const transporter = nodemailer.createTransport({

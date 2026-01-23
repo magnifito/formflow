@@ -6,6 +6,7 @@ import { OrgContextRequest } from './orgContext';
 
 // Extend Request type to include correlation ID
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       correlationId?: string;

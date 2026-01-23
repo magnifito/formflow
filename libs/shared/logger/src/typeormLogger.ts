@@ -1,4 +1,4 @@
-import { Logger, LoggerOptions, QueryRunner } from 'typeorm';
+import { Logger, QueryRunner } from 'typeorm';
 
 const LOG_QUERIES = process.env.LOG_QUERIES === 'true' || 
                     (process.env.NODE_ENV === 'development' && process.env.LOG_QUERIES !== 'false');

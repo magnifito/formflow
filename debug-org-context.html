@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Org Context</title>
+</head>
+<body>
+    <h1>LocalStorage Debug</h1>
+    <pre id="output"></pre>
+
+    <script>
+        const keys = ['FB_jwt_token', 'FB_user_id', 'FB_selected_org_id'];
+        const output = {};
+
+        keys.forEach(key => {
+            output[key] = localStorage.getItem(key);
+        });
+
+        document.getElementById('output').textContent = JSON.stringify(output, null, 2);
+
+        console.log('LocalStorage values:', output);
+    </script>
+</body>
+</html>

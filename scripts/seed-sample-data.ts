@@ -1,26 +1,45 @@
 #!/usr/bin/env ts-node
 
+import "reflect-metadata";
 import { DataSource } from 'typeorm';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { User, Organization, Form, OrganizationIntegration } from '@formflow/shared/entities';
+import { User, Organization, Form, OrganizationIntegration, FormIntegration, Submission, WhitelistedDomain } from '@formflow/shared/entities';
+import { loadEnv } from '@formflow/shared/env';
 
-// Initialize database connection
-const AppDataSource = new DataSource({
-  type: 'postgres',
+// Load environment variables
+loadEnv();
+
+// Determine environment (defaults to 'development' if not set)
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Database configuration (loaded from environment-specific .env file)
+const getDatabaseConfig = () => ({
+  type: 'postgres' as const,
   host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  username: process.env.DB_USER || 'formflow',
-  password: process.env.DB_PASSWORD || 'formflow',
-  database: process.env.DB_NAME || 'formflow',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USERNAME || process.env.DB_USER || 'formflow',
+  password: process.env.DB_PASSWORD || process.env.DB_PASS || 'formflow',
+  database: process.env.DB_NAME || process.env.DB_DATABASE || 'formflow',
+});
+
+const dbConfig = getDatabaseConfig();
+
+// Initialize database connection with schema synchronization enabled
+// This ensures all tables exist before seeding data
+const AppDataSource = new DataSource({
+  ...dbConfig,
   entities: [
     User,
     Organization,
     Form,
     OrganizationIntegration,
+    FormIntegration,
+    Submission,
+    WhitelistedDomain,
   ],
-  synchronize: false,
-  logging: false,
+  synchronize: true, // Create/update schema automatically
+  logging: NODE_ENV === 'development', // Enable logging in development
 });
 
 const TEST_LAB_URL = 'http://localhost:5177';
@@ -31,6 +50,11 @@ async function seedData() {
   try {
     await AppDataSource.initialize();
     console.log('✅ Database connected\n');
+    
+    // Wait a moment for schema synchronization to complete
+    console.log('🔄 Ensuring database schema is up to date...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('✅ Schema synchronized\n');
 
     // Create organizations
     console.log('📦 Creating organizations...');
@@ -58,9 +82,17 @@ async function seedData() {
     console.log('\n✨ Seeding completed successfully!');
   } catch (error) {
     console.error('❌ Error seeding data:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      if (error.stack) {
+        console.error('Stack trace:', error.stack);
+      }
+    }
     throw error;
   } finally {
-    await AppDataSource.destroy();
+    if (AppDataSource.isInitialized) {
+      await AppDataSource.destroy();
+    }
   }
 }
 
@@ -96,10 +128,17 @@ async function createOrganizations(): Promise<Organization[]> {
 
   const organizations: Organization[] = [];
   for (const orgData of orgsData) {
-    const org = orgRepo.create(orgData);
-    const saved = await orgRepo.save(org);
-    organizations.push(saved);
-    console.log(`  - ${orgData.name} (${orgData.slug})`);
+    // Check if organization already exists
+    let org = await orgRepo.findOne({ where: { slug: orgData.slug } });
+    if (org) {
+      console.log(`  - ${orgData.name} (${orgData.slug}) - already exists, skipping`);
+      organizations.push(org);
+    } else {
+      org = orgRepo.create(orgData);
+      const saved = await orgRepo.save(org);
+      organizations.push(saved);
+      console.log(`  - ${orgData.name} (${orgData.slug})`);
+    }
   }
 
   return organizations;
@@ -110,19 +149,24 @@ async function createUsers(organizations: Organization[]): Promise<User[]> {
   const users: User[] = [];
 
   // Create super admin (not tied to any organization)
-  const adminPassword = await bcrypt.hash('admin123', 10);
-  const superAdmin = userRepo.create({
-    email: 'admin@formflow.dev',
-    name: 'Super Admin',
-    passwordHash: adminPassword,
-    isSuperAdmin: true,
-    isActive: true,
-    role: 'super_admin',
-    organizationId: null,
-  });
-  const savedAdmin = await userRepo.save(superAdmin);
-  users.push(savedAdmin);
-  console.log(`  - ${savedAdmin.email} (Super Admin)`);
+  let admin = await userRepo.findOne({ where: { email: 'admin@formflow.dev' } });
+  if (!admin) {
+    const adminPassword = await bcrypt.hash('admin123', 10);
+    admin = userRepo.create({
+      email: 'admin@formflow.dev',
+      name: 'Super Admin',
+      passwordHash: adminPassword,
+      isSuperAdmin: true,
+      isActive: true,
+      role: 'super_admin',
+      organizationId: null,
+    });
+    admin = await userRepo.save(admin);
+    console.log(`  - ${admin.email} (Super Admin)`);
+  } else {
+    console.log(`  - ${admin.email} (Super Admin) - already exists, skipping`);
+  }
+  users.push(admin);
 
   // Create users for each organization
   const userTemplates = [
@@ -132,19 +176,25 @@ async function createUsers(organizations: Organization[]): Promise<User[]> {
 
   for (const org of organizations) {
     for (const template of userTemplates) {
-      const password = await bcrypt.hash('password123', 10);
-      const user = userRepo.create({
-        email: `${template.suffix}@${org.slug}.dev`,
-        name: `${org.name} ${template.role === 'org_admin' ? 'Admin' : 'User'}`,
-        passwordHash: password,
-        isSuperAdmin: false,
-        isActive: true,
-        role: template.role,
-        organizationId: org.id,
-      });
-      const savedUser = await userRepo.save(user);
-      users.push(savedUser);
-      console.log(`  - ${savedUser.email} (${org.name} - ${template.role})`);
+      const email = `${template.suffix}@${org.slug}.dev`;
+      let user = await userRepo.findOne({ where: { email } });
+      if (!user) {
+        const password = await bcrypt.hash('password123', 10);
+        user = userRepo.create({
+          email,
+          name: `${org.name} ${template.role === 'org_admin' ? 'Admin' : 'User'}`,
+          passwordHash: password,
+          isSuperAdmin: false,
+          isActive: true,
+          role: template.role,
+          organizationId: org.id,
+        });
+        user = await userRepo.save(user);
+        console.log(`  - ${user.email} (${org.name} - ${template.role})`);
+      } else {
+        console.log(`  - ${user.email} (${org.name} - ${template.role}) - already exists, skipping`);
+      }
+      users.push(user);
     }
   }
 
@@ -155,16 +205,23 @@ async function setupIntegrations(organizations: Organization[]): Promise<void> {
   const integrationRepo = AppDataSource.getRepository(OrganizationIntegration);
 
   for (const org of organizations) {
-    // Each organization gets different integration configurations
-    const integrationConfig = getIntegrationConfig(org.slug);
+    // Check if integration already exists
+    let integration = await integrationRepo.findOne({ where: { organizationId: org.id } });
+    
+    if (!integration) {
+      // Each organization gets different integration configurations
+      const integrationConfig = getIntegrationConfig(org.slug);
 
-    const integration = integrationRepo.create({
-      organizationId: org.id,
-      ...integrationConfig,
-    });
+      integration = integrationRepo.create({
+        organizationId: org.id,
+        ...integrationConfig,
+      });
 
-    await integrationRepo.save(integration);
-    console.log(`  - ${org.name}: ${getEnabledIntegrations(integrationConfig).join(', ')}`);
+      integration = await integrationRepo.save(integration);
+      console.log(`  - ${org.name}: ${getEnabledIntegrations(integrationConfig).join(', ')}`);
+    } else {
+      console.log(`  - ${org.name}: Integration already exists, skipping`);
+    }
   }
 }
 

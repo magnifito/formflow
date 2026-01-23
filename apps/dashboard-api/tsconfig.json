@@ -15,7 +15,6 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "outDir": "./build",
-    "rootDir": "./src",
     "sourceMap": true,
     "declaration": false,
     "emitDecoratorMetadata": true,

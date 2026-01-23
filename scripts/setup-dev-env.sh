@@ -83,14 +83,6 @@ JWT_SECRET=${JWT_SECRET}
 ENCRYPTION_KEY=${ENCRYPTION_KEY}
 
 # -----------------------------------------------------------------------------
-# GitHub OAuth (required for login - get from GitHub Developer Settings)
-# -----------------------------------------------------------------------------
-# Create an OAuth App at: https://github.com/settings/developers
-# Set callback URL to: http://localhost:3000/auth/github/callback
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-
-# -----------------------------------------------------------------------------
 # Gmail OAuth2 (optional - for sending emails)
 # -----------------------------------------------------------------------------
 # GMAIL_CLIENT=
@@ -142,15 +134,10 @@ echo ""
 echo "✅ Created .env.development file with development defaults"
 echo ""
 echo "📋 Next steps:"
-echo "   1. Set up GitHub OAuth (required for login):"
-echo "      - Go to: https://github.com/settings/developers"
-echo "      - Create OAuth App with callback: http://localhost:3000/auth/github/callback"
-echo "      - Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to .env.development"
-echo ""
-echo "   2. Start the development environment:"
+echo "   1. Start the development environment:"
 echo "      npm run dev"
 echo ""
-echo "   3. Access the services:"
+echo "   2. Access the services:"
 echo "      - Server API:  http://localhost:3000"
 echo "      - Handler:     http://localhost:3001"
 echo "      - Mailpit UI:  http://localhost:8025"
