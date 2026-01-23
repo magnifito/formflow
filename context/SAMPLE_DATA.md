@@ -71,8 +71,8 @@ This creates:
 
 #### Super Admin
 ```
-Email: admin@formflow.dev
-Password: admin123
+Email: admin@formflow.fyi
+Password: password123
 Role: Super Admin (access to all organizations)
 ```
 

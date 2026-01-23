@@ -83,9 +83,9 @@ export interface OrgStats {
   providedIn: 'root'
 })
 export class OrganizationService {
-  private readonly TOKEN_KEY = 'FB_jwt_token';
+  private readonly TOKEN_KEY = 'ff_jwt_token';
 
-  constructor(private orgContextService: OrgContextService) {}
+  constructor(private orgContextService: OrgContextService) { }
 
   private getHeaders(): HeadersInit {
     const token = localStorage.getItem(this.TOKEN_KEY);
@@ -257,7 +257,7 @@ export class OrganizationService {
   async getSubmissions(page = 1, limit = 50, formId?: number): Promise<PaginatedResponse<Submission>> {
     let url = `${fetchUrl}/org/submissions?page=${page}&limit=${limit}`;
     if (formId) url += `&formId=${formId}`;
-    
+
     const response = await fetch(url, {
       headers: this.getHeaders()
     });

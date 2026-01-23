@@ -50,7 +50,7 @@ async function seedData() {
   try {
     await AppDataSource.initialize();
     console.log('✅ Database connected\n');
-    
+
     // Wait a moment for schema synchronization to complete
     console.log('🔄 Ensuring database schema is up to date...');
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -149,11 +149,11 @@ async function createUsers(organizations: Organization[]): Promise<User[]> {
   const users: User[] = [];
 
   // Create super admin (not tied to any organization)
-  let admin = await userRepo.findOne({ where: { email: 'admin@formflow.dev' } });
+  let admin = await userRepo.findOne({ where: { email: 'admin@formflow.fyi' } });
   if (!admin) {
-    const adminPassword = await bcrypt.hash('admin123', 10);
+    const adminPassword = await bcrypt.hash('password123', 10);
     admin = userRepo.create({
-      email: 'admin@formflow.dev',
+      email: 'admin@formflow.fyi',
       name: 'Super Admin',
       passwordHash: adminPassword,
       isSuperAdmin: true,
@@ -207,7 +207,7 @@ async function setupIntegrations(organizations: Organization[]): Promise<void> {
   for (const org of organizations) {
     // Check if integration already exists
     let integration = await integrationRepo.findOne({ where: { organizationId: org.id } });
-    
+
     if (!integration) {
       // Each organization gets different integration configurations
       const integrationConfig = getIntegrationConfig(org.slug);
@@ -376,8 +376,8 @@ function printSummary(organizations: Organization[], users: User[], forms: Form[
 
   console.log('\n\n👥 LOGIN CREDENTIALS:\n');
   console.log('  Super Admin:');
-  console.log('    Email: admin@formflow.dev');
-  console.log('    Password: admin123\n');
+  console.log('    Email: admin@formflow.fyi');
+  console.log('    Password: password123\n');
 
   for (const org of organizations) {
     console.log(`  ${org.name}:`);

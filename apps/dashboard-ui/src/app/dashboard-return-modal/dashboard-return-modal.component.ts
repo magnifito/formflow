@@ -41,7 +41,7 @@ export class DashboardReturnModalComponent implements OnInit {
   emailBodyOutput = output<string>();
   returnEmailBooleanOutput = output<boolean>();
   googleEmailOutput = output<string | undefined>();
-  
+
   closeModal = () => {
     const modalElement = this.elRef.nativeElement.querySelector('.modal');
     const modalContainerElement = this.elRef.nativeElement.querySelector('.modal-container');
@@ -80,7 +80,7 @@ export class DashboardReturnModalComponent implements OnInit {
     this.smtpPassword = smtpPassword.value;
     this.emailSubject = emailSubject.value;
     this.emailBody = emailBody.value;
-  
+
     this.smtpHostOutput.emit(this.smtpHost);
     this.smtpPortOutput.emit(this.smtpPort);
     this.smtpUsernameOutput.emit(this.smtpUsername);
@@ -88,8 +88,8 @@ export class DashboardReturnModalComponent implements OnInit {
     this.emailSubjectOutput.emit(this.emailSubject);
     this.emailBodyOutput.emit(this.emailBody);
     this.returnEmailBooleanOutput.emit(this.returnEmailBoolean);
-    const jwtToken = localStorage.getItem('FB_jwt_token');
-    await fetch(fetchUrl +'/update-return-settings/' + this.userId, {
+    const jwtToken = localStorage.getItem('ff_jwt_token');
+    await fetch(fetchUrl + '/update-return-settings/' + this.userId, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

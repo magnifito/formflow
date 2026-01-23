@@ -15,7 +15,7 @@ import { OrgContextService } from '../services/org-context.service';
 export class SetupComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly orgContextService = inject(OrgContextService);
-  
+
   email = '';
   password = '';
   name = '';
@@ -25,8 +25,8 @@ export class SetupComponent implements OnInit {
   isLoading = signal(false);
   isCheckingSetup = signal(true);
 
-  private readonly TOKEN_STORAGE_KEY = 'FB_jwt_token';
-  private readonly USER_ID_KEY = 'FB_user_id';
+  private readonly TOKEN_STORAGE_KEY = 'ff_jwt_token';
+  private readonly USER_ID_KEY = 'ff_user_id';
 
   async ngOnInit(): Promise<void> {
     // Check if setup is needed

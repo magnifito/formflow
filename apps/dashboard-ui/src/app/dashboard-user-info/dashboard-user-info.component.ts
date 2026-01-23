@@ -9,13 +9,13 @@ import { fetchUrl } from '../global-vars';
 @Component({
   selector: 'app-dashboard-user-info',
   standalone: true,
-  imports: [ 
+  imports: [
     NgIf,
     DashboardReturnModalComponent,
     DashboardTelegramWidgetComponent,
     FormsModule,
     NgFor,
-   ],
+  ],
   templateUrl: './dashboard-user-info.component.html',
   styleUrl: './dashboard-user-info.component.scss'
 })
@@ -23,8 +23,8 @@ export class DashboardUserInfoComponent implements OnInit {
   @Input() userId: string | undefined;
   @Input() name: string | undefined;
   @Input() currentTheme: string | undefined;
-  
-  private readonly TOKEN_KEY = 'FB_jwt_token';
+
+  private readonly TOKEN_KEY = 'ff_jwt_token';
   apiKey: string | undefined;
   displayApiKey: string | undefined;
   email = "Loading email...";
@@ -67,9 +67,9 @@ export class DashboardUserInfoComponent implements OnInit {
   fetchApiKey = async (userId: string) => {
     const jwtToken = localStorage.getItem(this.TOKEN_KEY);
     const response = await fetch(fetchUrl + '/api/user/' + userId, {
-        headers: {
-            'Authorization': `Bearer ${jwtToken}`
-        }
+      headers: {
+        'Authorization': `Bearer ${jwtToken}`
+      }
     });
     const data = await response.json();
     console.log(data);
@@ -133,30 +133,30 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   copyToClipboard = () => {
-      if(this.apiKey) {
-        navigator.clipboard.writeText(this.apiKey);
-      }
+    if (this.apiKey) {
+      navigator.clipboard.writeText(this.apiKey);
+    }
   }
 
   newApiKey = () => {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     fetch(fetchUrl + '/regenerate-api-key/' + this.userId, {
       method: 'post',
       headers: {
         'Authorization': `Bearer ${jwtToken}`
       }
     })
-    .then((response) => response.json())
-    .then((dataman) => {
-      if (dataman.apiKey) {
-        this.apiKey = dataman.apiKey;
-        this.displayApiKey = this.apiKey;
-        if (this.apiKey) {
-          // Only show the last 4 characters of the API key
-          this.displayApiKey = '*'.repeat(this.apiKey.length - 4) + this.apiKey.slice(this.apiKey.length - 4);
+      .then((response) => response.json())
+      .then((dataman) => {
+        if (dataman.apiKey) {
+          this.apiKey = dataman.apiKey;
+          this.displayApiKey = this.apiKey;
+          if (this.apiKey) {
+            // Only show the last 4 characters of the API key
+            this.displayApiKey = '*'.repeat(this.apiKey.length - 4) + this.apiKey.slice(this.apiKey.length - 4);
+          }
         }
-      }
-     });
+      });
   }
 
   openReturnEmailModal = () => {
@@ -170,27 +170,27 @@ export class DashboardUserInfoComponent implements OnInit {
   isValidEmail(email: string) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
-}
+  }
   updateEmail = () => {
     const emailInput = document.getElementById('email-input') as HTMLInputElement;
     if (emailInput) {
       const email = emailInput.value;
       if (this.isValidEmail(email)) {
-      this.emailValid = false;
+        this.emailValid = false;
 
-      fetch(fetchUrl + '/update-email/' + this.userId, {
-        method: 'post',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: email,
-        }),
-      });
-    } else {
-      console.error('Email input element is not found.');
-      this.emailValid = true;
-    }
+        fetch(fetchUrl + '/update-email/' + this.userId, {
+          method: 'post',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: email,
+          }),
+        });
+      } else {
+        console.error('Email input element is not found.');
+        this.emailValid = true;
+      }
     } else {
       console.error('Email input element is not found.');
     }
@@ -236,7 +236,7 @@ export class DashboardUserInfoComponent implements OnInit {
     this.convertToScript();
   }
 
-  @ViewChild('script', {static: true}) script!: ElementRef;
+  @ViewChild('script', { static: true }) script!: ElementRef;
   convertToScript() {
     const script = document.createElement('script');
     script.src = 'https://telegram.org/js/telegram-widget.js?22';
@@ -255,7 +255,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async teleSwitch() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.telegramEnabled = !this.telegramEnabled;
     if (this.telegramEnabled && this.currentPlugins !== null) {
       this.currentPlugins += 1;
@@ -276,7 +276,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async unlinkTelegram() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.telegramChat = undefined;
     await fetch(fetchUrl + '/telegram/unlink/' + this.userId, {
       method: 'POST',
@@ -294,7 +294,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async discordSwitch() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.discordEnabled = !this.discordEnabled;
     if (this.discordEnabled && this.currentPlugins !== null) {
       this.currentPlugins += 1;
@@ -316,7 +316,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async unlinkDiscord() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.discordWebhook = undefined;
     await fetch(fetchUrl + '/discord/unlink/' + this.userId, {
       method: 'POST',
@@ -329,7 +329,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async saveDiscordWebhook() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     const discordInput = document.getElementById('discord-input');
     if (discordInput) {
       this.discordWebhook = (<HTMLInputElement>discordInput).value;
@@ -358,7 +358,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async slackSwitch() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.slackEnabled = !this.slackEnabled;
     if (this.slackEnabled && this.currentPlugins !== null) {
       this.currentPlugins += 1;
@@ -389,7 +389,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   unlinkSlack = async () => {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.slackChannelName = undefined;
     await fetch(fetchUrl + '/slack/unlink/' + this.userId, {
       method: 'POST',
@@ -406,7 +406,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async makeSwitch() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.makeEnabled = !this.makeEnabled;
     if (this.makeEnabled && this.currentPlugins !== null) {
       this.currentPlugins += 1;
@@ -427,7 +427,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async unlinkMake() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.makeWebhook = undefined;
     await fetch(fetchUrl + '/make/unlink/' + this.userId, {
       method: 'POST',
@@ -440,7 +440,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async saveMakeWebhook() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     const discordInput = document.getElementById('discord-input');
     if (discordInput) {
       this.makeWebhook = (<HTMLInputElement>discordInput).value;
@@ -469,7 +469,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async n8nSwitch() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.n8nEnabled = !this.n8nEnabled;
     if (this.n8nEnabled && this.currentPlugins !== null) {
       this.currentPlugins += 1;
@@ -490,7 +490,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async unlinkN8n() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.n8nWebhook = undefined;
     await fetch(fetchUrl + '/n8n/unlink/' + this.userId, {
       method: 'POST',
@@ -503,7 +503,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async saveN8nWebhook() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     const discordInput = document.getElementById('discord-input');
     if (discordInput) {
       this.n8nWebhook = (<HTMLInputElement>discordInput).value;
@@ -532,7 +532,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async webhookSwitch() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.webhookEnabled = !this.webhookEnabled;
     if (this.webhookEnabled && this.currentPlugins !== null) {
       this.currentPlugins += 1;
@@ -553,7 +553,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async unlinkWebhook() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     this.webhookWebhook = undefined;
     await fetch(fetchUrl + '/webhook/unlink/' + this.userId, {
       method: 'POST',
@@ -566,7 +566,7 @@ export class DashboardUserInfoComponent implements OnInit {
   }
 
   async saveWebhookWebhook() {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     const discordInput = document.getElementById('discord-input');
     if (discordInput) {
       this.webhookWebhook = (<HTMLInputElement>discordInput).value;
@@ -609,7 +609,7 @@ export class DashboardUserInfoComponent implements OnInit {
     window.open("https://docs.formflow.fyi/docs/integrations/Webhooks");
   }
   addDomain = () => {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     if (this.domains.length <= 50) {
       const input = document.getElementById('allowed-domains-input') as HTMLInputElement;
       if (input) {
@@ -638,18 +638,18 @@ export class DashboardUserInfoComponent implements OnInit {
         }
       } else {
         console.error('Domain input element is not found.');
-      } 
+      }
     } else {
-       alert("You can only add 50 domains");
+      alert("You can only add 50 domains");
     }
   }
   removeDomain = async (domain: string) => {
-    const jwtToken = localStorage.getItem('FB_jwt_token');
+    const jwtToken = localStorage.getItem('ff_jwt_token');
     const index = this.domains.indexOf(domain);
     if (index > -1) {
       this.domains.splice(index, 1);
     }
-  fetch(fetchUrl + '/remove-domain/' + this.userId, {
+    fetch(fetchUrl + '/remove-domain/' + this.userId, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

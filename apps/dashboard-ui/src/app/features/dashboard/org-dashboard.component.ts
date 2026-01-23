@@ -345,8 +345,8 @@ export class OrgDashboardComponent implements OnInit {
 
   async checkSuperAdminStatus() {
     // Check if user is super admin by fetching user data
-    const userId = localStorage.getItem('FB_user_id');
-    const token = localStorage.getItem('FB_jwt_token');
+    const userId = localStorage.getItem('ff_user_id');
+    const token = localStorage.getItem('ff_jwt_token');
     if (userId && token) {
       try {
         const response = await fetch(`${fetchUrl}/api/user/${userId}`, {

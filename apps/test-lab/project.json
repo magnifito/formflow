@@ -1,18 +1,28 @@
 {
-  "name": "test-lab",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "projectType": "application",
-  "tags": ["type:app", "scope:tools"],
-  "targets": {
-    "dev": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node server.js",
-        "cwd": "apps/test-lab",
-        "env": {
-          "PORT": "5177"
+    "name": "test-lab",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "tags": [
+        "type:app",
+        "scope:tools"
+    ],
+    "targets": {
+        "dev": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "vite",
+                "cwd": "apps/test-lab",
+                "env": {
+                    "PORT": "5177"
+                }
+            }
+        },
+        "build": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "tsc && vite build",
+                "cwd": "apps/test-lab"
+            }
         }
-      }
     }
-  }
 }

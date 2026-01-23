@@ -51,8 +51,8 @@ import { fetchUrl } from '../../global-vars';
   `]
 })
 export class AppShellComponent implements OnInit {
-  private readonly TOKEN_KEY = 'FB_jwt_token';
-  private readonly USER_ID_KEY = 'FB_user_id';
+  private readonly TOKEN_KEY = 'ff_jwt_token';
+  private readonly USER_ID_KEY = 'ff_user_id';
 
   organizationName = '';
   userName = '';
@@ -67,7 +67,7 @@ export class AppShellComponent implements OnInit {
     { label: 'Settings', icon: '&#9881;', route: '/settings' }
   ];
 
-  constructor(private router: Router) {}
+  constructor(private router: Router) { }
 
   ngOnInit() {
     this.loadUserData();

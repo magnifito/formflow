@@ -20,21 +20,21 @@ export class DashboardNavComponent implements OnInit {
   currentTheme = 'neutral';
   isThemeMenuOpen = false;
 
-  private readonly TOKEN_KEY = 'FB_jwt_token';
-  private readonly USER_ID_KEY = 'FB_user_id';
+  private readonly TOKEN_KEY = 'ff_jwt_token';
+  private readonly USER_ID_KEY = 'ff_user_id';
 
-  constructor(private router: Router) {}
+  constructor(private router: Router) { }
 
   ngOnInit(): void {
     if (!this.userId) {
       const userId = localStorage.getItem(this.USER_ID_KEY);
       const token = localStorage.getItem(this.TOKEN_KEY);
-      
+
       if (!token || !userId) {
         this.router.navigate(['/login']);
         return;
       }
-      
+
       this.userId = userId;
       this.getUser(userId);
     } else {
@@ -51,7 +51,7 @@ export class DashboardNavComponent implements OnInit {
             'Authorization': `Bearer ${jwtToken}`
           }
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch user data');
         }

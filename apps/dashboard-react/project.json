@@ -1,0 +1,9 @@
+{
+  "name": "dashboard-react",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/dashboard-react/src",
+  "projectType": "application",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project dashboard-react --web",
+  "targets": {}
+}

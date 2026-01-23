@@ -15,14 +15,14 @@ import { OrgContextService } from '../services/org-context.service';
 export class LoginComponent {
   private readonly router = inject(Router);
   private readonly orgContextService = inject(OrgContextService);
-  
+
   email = '';
   password = '';
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
 
-  private readonly TOKEN_STORAGE_KEY = 'FB_jwt_token';
-  private readonly USER_ID_KEY = 'FB_user_id';
+  private readonly TOKEN_STORAGE_KEY = 'ff_jwt_token';
+  private readonly USER_ID_KEY = 'ff_user_id';
 
   async login(): Promise<void> {
     if (!this.email || !this.password) {

@@ -370,7 +370,7 @@ export class AdminUsersComponent implements OnInit {
   constructor(
     private adminService: AdminService,
     private router: Router
-  ) {}
+  ) { }
 
   async ngOnInit() {
     this.loadCurrentUserId();
@@ -378,7 +378,7 @@ export class AdminUsersComponent implements OnInit {
   }
 
   loadCurrentUserId() {
-    const userId = localStorage.getItem('FB_user_id');
+    const userId = localStorage.getItem('ff_user_id');
     if (userId) {
       this.currentUserId = parseInt(userId, 10);
     }

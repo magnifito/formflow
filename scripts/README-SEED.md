@@ -18,7 +18,7 @@ This script populates the FormFlow database with sample data for testing and dev
    - Max submissions: 3,000/month
 
 ### Users
-- **1 Super Admin**: `admin@formflow.dev` / `admin123`
+- **1 Super Admin**: `admin@formflow.fyi` / `password123`
 - **2 Users per Organization**:
   - Admin: `admin@{org-slug}.dev` / `password123`
   - Member: `user@{org-slug}.dev` / `password123`

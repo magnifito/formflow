@@ -414,7 +414,7 @@ export class SettingsComponent implements OnInit {
   newDomain = '';
   addingDomain = false;
   domainError = '';
-  
+
   securitySettings: SecuritySettings = {
     defaultRateLimitEnabled: true,
     defaultRateLimitMaxRequests: 10,
@@ -429,7 +429,7 @@ export class SettingsComponent implements OnInit {
   savingSecurity = false;
   securityError = '';
 
-  constructor(private orgService: OrganizationService) {}
+  constructor(private orgService: OrganizationService) { }
 
   async ngOnInit() {
     await Promise.all([this.loadDomains(), this.loadSecuritySettings()]);
@@ -499,8 +499,8 @@ export class SettingsComponent implements OnInit {
   }
 
   logout() {
-    localStorage.removeItem('FB_jwt_token');
-    localStorage.removeItem('FB_user_id');
+    localStorage.removeItem('ff_jwt_token');
+    localStorage.removeItem('ff_user_id');
     window.location.href = '/login';
   }
 }

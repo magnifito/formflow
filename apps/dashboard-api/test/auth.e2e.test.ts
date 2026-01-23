@@ -20,7 +20,7 @@ describe('Authentication API E2E Tests', () => {
     await testDb.cleanup();
 
     // Create test users
-    superAdmin = await testDb.createSuperAdmin('admin@test.com', 'admin123');
+    superAdmin = await testDb.createSuperAdmin('admin@test.com', 'password123');
     testUser = await testDb.createTestUser({
       email: 'user@test.com',
       passwordHash: 'user123',
@@ -40,7 +40,7 @@ describe('Authentication API E2E Tests', () => {
         .post('/auth/login')
         .send({
           email: 'admin@test.com',
-          password: 'admin123',
+          password: 'password123',
         })
         .expect(200);
 
@@ -54,7 +54,7 @@ describe('Authentication API E2E Tests', () => {
         .post('/auth/login')
         .send({
           email: 'nonexistent@test.com',
-          password: 'admin123',
+          password: 'password123',
         })
         .expect(401);
     });

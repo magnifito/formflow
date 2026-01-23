@@ -56,7 +56,7 @@ export interface PaginatedResponse<T> {
   providedIn: 'root'
 })
 export class AdminService {
-  private readonly TOKEN_KEY = 'FB_jwt_token';
+  private readonly TOKEN_KEY = 'ff_jwt_token';
 
   private getHeaders(): HeadersInit {
     const token = localStorage.getItem(this.TOKEN_KEY);

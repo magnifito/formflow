@@ -50,3 +50,6 @@ logs/
 .DS_Store
 Thumbs.db
 .angular
+
+vite.config.*.timestamp*
+vitest.config.*.timestamp*

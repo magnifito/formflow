@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Debug Org Context</title>
 </head>
+
 <body>
     <h1>LocalStorage Debug</h1>
     <pre id="output"></pre>
 
     <script>
-        const keys = ['FB_jwt_token', 'FB_user_id', 'FB_selected_org_id'];
+        const keys = ['ff_jwt_token', 'ff_user_id', 'ff_selected_org_id'];
         const output = {};
 
         keys.forEach(key => {
@@ -20,4 +22,5 @@
         console.log('LocalStorage values:', output);
     </script>
 </body>
+
 </html>

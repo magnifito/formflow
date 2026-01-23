@@ -21,7 +21,7 @@ npm run seed
 - **Creative Studios** - Telegram, n8n, Discord integrations
 
 ### 7 Users
-- Super Admin: `admin@formflow.dev` / `admin123`
+- Super Admin: `admin@formflow.fyi` / `password123`
 - 6 Organization users (2 per org):
   - `admin@{org-slug}.dev` / `password123`
   - `user@{org-slug}.dev` / `password123`

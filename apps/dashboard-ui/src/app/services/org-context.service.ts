@@ -10,7 +10,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class OrgContextService {
-  private readonly STORAGE_KEY = 'FB_selected_org_id';
+  private readonly STORAGE_KEY = 'ff_selected_org_id';
 
   // null means "My Forms" (super admin's personal forms)
   // number means a specific organization ID
@@ -18,7 +18,7 @@ export class OrgContextService {
 
   selectedOrgId$: Observable<number | null> = this.selectedOrgIdSubject.asObservable();
 
-  constructor() {}
+  constructor() { }
 
   /**
    * Get the currently selected organization ID

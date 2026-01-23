@@ -7,10 +7,10 @@ import { fetchUrl } from '../global-vars';
   providedIn: 'root'
 })
 export class AdminGuard implements CanActivate {
-  private readonly TOKEN_KEY = 'FB_jwt_token';
-  private readonly USER_ID_KEY = 'FB_user_id';
+  private readonly TOKEN_KEY = 'ff_jwt_token';
+  private readonly USER_ID_KEY = 'ff_user_id';
 
-  constructor(private router: Router) {}
+  constructor(private router: Router) { }
 
   canActivate(
     route: ActivatedRouteSnapshot,

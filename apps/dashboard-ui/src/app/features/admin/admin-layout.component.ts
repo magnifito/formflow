@@ -54,8 +54,8 @@ import { fetchUrl } from '../../global-vars';
   `]
 })
 export class AdminLayoutComponent implements OnInit {
-  private readonly TOKEN_KEY = 'FB_jwt_token';
-  private readonly USER_ID_KEY = 'FB_user_id';
+  private readonly TOKEN_KEY = 'ff_jwt_token';
+  private readonly USER_ID_KEY = 'ff_user_id';
 
   userName = '';
 
@@ -66,7 +66,7 @@ export class AdminLayoutComponent implements OnInit {
     { label: 'Submissions', icon: '&#128203;', route: '/admin/submissions' }
   ];
 
-  constructor(private router: Router) {}
+  constructor(private router: Router) { }
 
   ngOnInit() {
     this.loadUserData();
@@ -85,7 +85,7 @@ export class AdminLayoutComponent implements OnInit {
       const response = await fetch(`${fetchUrl}/api/user/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!response.ok) {
         // Clear auth and redirect to login for any auth/user-related errors
         // This handles 401, 403, 404 (user not found after DB reset), etc.
@@ -98,7 +98,7 @@ export class AdminLayoutComponent implements OnInit {
         }
         return;
       }
-      
+
       const user = await response.json();
       this.userName = user.name || user.email;
     } catch (error) {
