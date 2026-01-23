@@ -131,7 +131,7 @@ TELEGRAM_BOT_TOKEN=test-bot-token
 ### Run All Tests
 
 ```bash
-# Run all E2E tests
+# Run all tests
 npm test
 
 # Run with coverage
@@ -163,9 +163,12 @@ npm run test:dashboard-api:watch
 npm run test:dashboard-api:coverage
 ```
 
-### Run E2E Tests Only
+### Run API Tests Only
 
 ```bash
+npm run test:apis
+
+# Legacy alias
 npm run test:e2e
 ```
 

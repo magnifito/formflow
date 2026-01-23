@@ -157,7 +157,8 @@ nx build dashboard-ui
 Clear cache if needed:
 
 ```bash
-npm run reset
+npm run nx:reset
+# or: npm run reset
 # or: nx reset
 ```
 
@@ -193,7 +194,7 @@ nx run-many --target=build --all --parallel=3
 ### Clear Nx cache
 
 ```bash
-npm run reset
+npm run nx:reset
 ```
 
 ### View project information

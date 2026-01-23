@@ -25,6 +25,7 @@ export const buttonVariants = cva(
         default: 'h-9 px-4 py-2 data-icon-only:size-9 data-icon-only:p-0',
         sm: 'h-8 rounded-md gap-1.5 px-3 data-icon-only:size-8 data-icon-only:p-0',
         lg: 'h-10 rounded-md px-6 data-icon-only:size-10 data-icon-only:p-0',
+        icon: 'h-9 w-9 p-0',
       },
       zShape: {
         default: 'rounded-md',

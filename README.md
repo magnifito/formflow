@@ -51,6 +51,16 @@ npm run dev
 
 Go to `localhost:4200`. You're done.
 
+### Environment Setup
+
+```bash
+# Guided setup (creates .env.development interactively)
+npm run setup:env
+
+# Quick copy (uses defaults if no env file exists)
+npm run setup:env:copy
+```
+
 ### What You Get
 
 - **Dashboard UI** (localhost:4200) - Manage forms and integrations

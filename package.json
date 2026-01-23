@@ -15,14 +15,13 @@
     "postinstall": "nx reset",
     "// --- Development ---": "",
     "dev": "docker-compose -f docker-compose.db.yml up -d --wait && NX_TUI=false nx run-many --target=dev --projects=dashboard-api,collector-api,dashboard-ui,test-lab --parallel=4",
-    "dev:stop": "docker-compose -f docker-compose.db.yml down",
     "dashboard-ui": "nx run dashboard-ui:serve",
     "dashboard-api": "nx run dashboard-api:dev",
     "collector-api": "nx run collector-api:dev",
     "test-lab": "node apps/test-lab/server.js",
     "test-lab:webhooks": "node apps/test-lab/server-webhooks.js",
     "// --- Database Seeding ---": "",
-    "seed": "npx ts-node scripts/seed-sample-data.ts",
+    "seed": "npx ts-node --project scripts/tsconfig.json -r tsconfig-paths/register scripts/seed-sample-data.ts",
     "// --- Environment ---": "",
     "test:env": "npx ts-node --esm scripts/test-env-config.ts",
     "// --- Build ---": "",
@@ -47,7 +46,9 @@
     "test:collector-api:watch": "nx test collector-api --watch",
     "test:collector-api:coverage": "nx test collector-api --codeCoverage",
     "test:collector-api:coverage:ci": "nx test collector-api --configuration=ci",
-    "test:e2e": "npm run test:dashboard-api && npm run test:collector-api",
+    "test:apis": "npm run test:dashboard-api && npm run test:collector-api",
+    "test:e2e": "npm run test:apis",
+    "test:npm-commands": "jest --config scripts/jest.config.js scripts/npm-commands.test.ts",
     "lint": "nx run-many --target=lint --all",
     "// --- Docker (database only for dev) ---": "",
     "db:up": "docker-compose -f docker-compose.db.yml up -d",
@@ -55,7 +56,7 @@
     "db:reset": "docker-compose -f docker-compose.db.yml down -v && docker-compose -f docker-compose.db.yml up -d --wait && npm run db:migrate",
     "db:destroy": "docker-compose -f docker-compose.db.yml down -v && echo '✓ Database completely wiped. Run npm run db:up to start fresh.'",
     "db:fix-types": "docker-compose -f docker-compose.db.yml exec -T postgres psql -U formflow -d formflow -c \"DO \\$\\$ DECLARE r RECORD; BEGIN FOR r IN SELECT typname, nspname FROM pg_type t JOIN pg_namespace n ON t.typnamespace = n.oid WHERE t.typtype = 'c' AND n.nspname = 'public' AND NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.reltype = t.oid) LOOP EXECUTE format('DROP TYPE IF EXISTS %I.%I CASCADE', r.nspname, r.typname); END LOOP; END \\$\\$;\" && docker-compose -f docker-compose.db.yml exec -T postgres psql -U formflow -d formflow -c 'DROP TABLE IF EXISTS form_integration CASCADE;' && echo '✅ Type cleanup complete! Restart your application.'",
-    "system:reset": "docker-compose -f docker-compose.db.yml down -v && docker-compose -f docker-compose.db.yml up -d --wait && npm run db:migrate && echo '✓ Database reset complete. System ready for fresh setup at http://localhost:4200'",
+    "db:fix-networks": "docker-compose -f docker-compose.db.yml down && docker network prune -f && echo '✅ Network cleanup complete! Run npm run db:up to start fresh.'",
     "// --- Docker Full Stack (alternative) ---": "",
     "docker:dev": "docker-compose -f docker-compose.dev.yml up --build",
     "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
@@ -75,6 +76,7 @@
     "affected:test": "nx affected -t test",
     "affected:build": "nx affected -t build",
     "reset": "nx reset",
+    "nx:reset": "nx reset",
     "// --- Migrations ---": "",
     "db:migrate": "cd apps/dashboard-api && npm run migration:run",
     "db:migrate:revert": "cd apps/dashboard-api && npm run migration:revert",
@@ -84,7 +86,8 @@
     "// --- Cleanup ---": "",
     "clean": "rm -rf dist/ node_modules/.cache",
     "clean:all": "rm -rf dist/ node_modules/ apps/dashboard-ui/node_modules/ apps/dashboard-api/node_modules/ apps/collector-api/node_modules/",
-    "clean:docker": "docker-compose down -v --rmi local && docker-compose -f docker-compose.dev.yml down -v --rmi local"
+    "clean:docker": "docker-compose down -v --rmi local && docker-compose -f docker-compose.dev.yml down -v --rmi local && docker-compose -f docker-compose.db.yml down -v && docker network prune -f && echo '✅ Docker cleanup complete!'",
+    "docker:prune:networks": "docker network prune -f && echo '✅ Orphaned networks removed'"
   },
   "devDependencies": {
     "@nx/angular": "^22.3.3",
@@ -95,6 +98,8 @@
     "@nx/node": "^22.3.3",
     "@nx/workspace": "^22.3.3",
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
     "eslint": "^9.39.2",
@@ -105,9 +110,11 @@
     "tsconfig-paths": "^4.2.0"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.4.0",
-    "typeorm": "0.3.28"
+    "typeorm": "0.3.28",
+    "uuid": "^13.0.0"
   }
 }

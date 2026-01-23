@@ -4,7 +4,7 @@ import "reflect-metadata";
 import { DataSource } from 'typeorm';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { User, Organization, Form, OrganizationIntegration, FormIntegration, Submission, WhitelistedDomain } from '@formflow/shared/entities';
+import { User, Organization, Form, OrganizationIntegration, FormIntegration, Submission, WhitelistedDomain, UserRole } from '@formflow/shared/entities';
 import { loadEnv } from '@formflow/shared/env';
 
 // Load environment variables
@@ -158,7 +158,7 @@ async function createUsers(organizations: Organization[]): Promise<User[]> {
       passwordHash: adminPassword,
       isSuperAdmin: true,
       isActive: true,
-      role: 'super_admin',
+      role: 'member', // Role doesn't matter for super admins, but must be a valid UserRole
       organizationId: null,
     });
     admin = await userRepo.save(admin);
@@ -169,7 +169,7 @@ async function createUsers(organizations: Organization[]): Promise<User[]> {
   users.push(admin);
 
   // Create users for each organization
-  const userTemplates = [
+  const userTemplates: Array<{ role: UserRole; suffix: string }> = [
     { role: 'org_admin', suffix: 'admin' },
     { role: 'member', suffix: 'user' },
   ];

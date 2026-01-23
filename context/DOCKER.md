@@ -46,6 +46,18 @@ npm run docker:up
 
 ## Docker Compose Files
 
+Use these files depending on what you are running:
+
+- `docker-compose.db.yml` for database-only development
+- `docker-compose.dev.yml` for full dev stack with hot reload
+- `docker-compose.yml` for production containers
+
+### docker-compose.db.yml (Database Only)
+
+Database-only configuration for local development:
+- PostgreSQL with a development volume
+- Health checks for readiness
+
 ### docker-compose.yml (Production)
 
 Production configuration with:
@@ -241,7 +253,7 @@ npm run docker:ps
 # Stop containers
 npm run docker:down          # Production
 npm run docker:dev:down      # Development
-npm run dev:stop             # Stop dev environment
+npm run db:down              # Database only
 
 # Clean up (removes volumes and images)
 npm run clean:docker
