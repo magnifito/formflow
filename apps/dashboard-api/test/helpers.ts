@@ -50,7 +50,7 @@ export class TestDatabase {
 
     // Prepare user data with defaults
     const userData = {
-      email: cleanData.email || 'test@example.com',
+      email: cleanData.email || 'test@formflow.fyi',
       name: cleanData.name || 'Test User',
       apiKey: cleanData.apiKey || 'test-user-api-key',
       isSuperAdmin: cleanData.isSuperAdmin || false,
@@ -119,7 +119,7 @@ export function createTestFormConfig(overrides: Partial<Form> = {}): Partial<For
     name: 'Test Contact Form',
     captchaEnabled: true,
     csrfEnabled: false,
-    redirectUrl: 'https://example.com/thank-you',
+    redirectUrl: 'https://formflow.fyi/thank-you',
     ...overrides,
   };
 }
@@ -140,7 +140,7 @@ export function createTestOrgData(overrides: Partial<Organization> = {}) {
  */
 export function createTestUserData(overrides: Partial<User> = {}) {
   return {
-    email: `test-${Date.now()}@example.com`,
+    email: `test-${Date.now()}@formflow.fyi`,
     name: 'Test User',
     password: 'password123',
     ...overrides,

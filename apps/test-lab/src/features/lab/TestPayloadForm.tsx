@@ -20,7 +20,7 @@ export function TestPayloadForm({ form, onSubmit, loading }: TestPayloadFormProp
     const [activeTab, setActiveTab] = useState('fields');
     const [formData, setFormData] = useState<Record<string, any>>({
         name: 'John Doe',
-        email: 'john@example.com',
+        email: 'john@formflow.fyi',
         message: 'Hello world from Test Lab!'
     });
     const [includeCsrf, setIncludeCsrf] = useState(true);

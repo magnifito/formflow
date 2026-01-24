@@ -24,7 +24,7 @@ curl -X POST http://localhost:$PORT/webhook/$ORG \
     "submissionId": 123,
     "data": {
       "name": "Test User",
-      "email": "test@example.com",
+      "email": "test@formflow.fyi",
       "message": "This is a test submission"
     },
     "timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
@@ -39,7 +39,7 @@ curl -X POST http://localhost:$PORT/n8n/$ORG \
     "event": "form.submitted",
     "formId": 456,
     "data": {
-      "email": "n8n-test@example.com",
+      "email": "n8n-test@formflow.fyi",
       "subject": "Test Subject"
     }
   }'

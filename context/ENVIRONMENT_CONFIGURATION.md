@@ -101,7 +101,7 @@ This allows you to have environment-specific overrides while keeping common vari
 |----------|---------------------|------------|-------------|
 | `REDIRECT_URL` | http://localhost:4200 | https://your-domain.com | Dashboard UI URL |
 | `DASHBOARD_API_URL` | http://localhost:3000 | https://api.your-domain.com | Dashboard API URL |
-| `EMAIL_USER` | test@localhost | your-email@example.com | Email sender address |
+| `EMAIL_USER` | test@localhost | your-email@formflow.fyi | Email sender address |
 
 ### Security (Optional but Recommended)
 
@@ -115,8 +115,8 @@ This allows you to have environment-specific overrides while keeping common vari
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SUPER_ADMIN_EMAIL` | admin@example.com | Super admin email |
-| `SUPER_ADMIN_PASSWORD` | changeme123456 | Super admin password |
+| `SUPER_ADMIN_EMAIL` | admin@formflow.fyi | Super admin email |
+| `SUPER_ADMIN_PASSWORD` | password123 | Super admin password |
 | `SUPER_ADMIN_NAME` | System Administrator | Super admin display name |
 
 **Usage**: Run `npm run migrate:create-super-admin` to create the initial admin account.

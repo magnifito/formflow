@@ -109,7 +109,7 @@ curl -X POST http://localhost:3100/submit/$SUBMIT_HASH \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe",
-    "email": "john@example.com",
+    "email": "john@formflow.fyi",
     "message": "Test submission"
   }'
 ```
@@ -159,7 +159,7 @@ Payload:
   "submissionId": 123,
   "data": {
     "name": "John Doe",
-    "email": "john@example.com"
+    "email": "john@formflow.fyi"
   }
 }
 ============================================================
@@ -201,7 +201,7 @@ Payload:
    ```bash
    curl -X POST http://localhost:3100/submit/<HASH> \
      -H "Content-Type: application/json" \
-     -d '{"name":"Test","email":"test@example.com"}'
+     -d '{"name":"Test","email":"test@formflow.fyi"}'
    ```
 
 5. **Watch Test Lab logs**:

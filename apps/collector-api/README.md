@@ -91,7 +91,7 @@ ALLOWED_ORIGINS=http://localhost:4200,https://yourdomain.com
 #### New Endpoint (Recommended)
 
 ```
-POST /submit/:submitHash
+POST /s/:submitHash
 Content-Type: application/json
 ```
 
@@ -101,7 +101,7 @@ Submit a form using its unique submit hash. Always uses JSON format.
 ```json
 {
   "name": "John Doe",
-  "email": "john@example.com",
+  "email": "john@formflow.fyi",
   "message": "Hello!",
   "_pow": "optional-proof-of-work-solution",
   "_csrf": "optional-csrf-token"
@@ -120,7 +120,7 @@ Submit a form using organization API key. Supports both JSON and multipart forma
 ### CSRF Tokens
 
 ```
-GET /csrf-token
+GET /s/:submitHash/csrf
 ```
 
 Get a CSRF token for protected form submissions.
@@ -197,7 +197,7 @@ Implementation is in [src/Alcha/Challenge.js](src/Alcha/Challenge.js).
 
 When `CSRF_SECRET` is configured:
 
-1. Client requests a token from `/csrf-token`
+1. Client requests a token from `/s/:submitHash/csrf`
 2. Token is included in submission as `_csrf` field
 3. Server validates token before processing
 

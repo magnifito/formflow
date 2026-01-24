@@ -27,11 +27,11 @@ describe('SubmissionController', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
-    app.use('/submit', router);
-    
+    app.use('/s', router);
+
     mockManager = AppDataSource.manager as ReturnType<typeof createMockManager>;
     jest.clearAllMocks();
-    
+
     // Set up default environment variables
     process.env = {
       ...originalEnv,
@@ -44,7 +44,7 @@ describe('SubmissionController', () => {
     process.env = originalEnv;
   });
 
-  describe('GET /submit/:submitHash/csrf', () => {
+  describe('GET /s/:submitHash/csrf', () => {
     it('should return CSRF token successfully', async () => {
       const form = {
         id: 1,
@@ -61,8 +61,8 @@ describe('SubmissionController', () => {
       mockManager.find = jest.fn().mockResolvedValue([]); // No whitelisted domains
 
       const response = await request(app)
-        .get('/submit/test-hash/csrf')
-        .set('Origin', 'https://example.com')
+        .get('/s/test-hash/csrf')
+        .set('Origin', 'https://formflow.fyi')
         .expect(200);
 
       expect(response.body).toHaveProperty('token');
@@ -73,14 +73,14 @@ describe('SubmissionController', () => {
       delete process.env.CSRF_SECRET;
 
       await request(app)
-        .get('/submit/test-hash/csrf')
-        .set('Origin', 'https://example.com')
+        .get('/s/test-hash/csrf')
+        .set('Origin', 'https://formflow.fyi')
         .expect(501);
     });
 
     it('should return 400 when origin and referer are missing', async () => {
       await request(app)
-        .get('/submit/test-hash/csrf')
+        .get('/s/test-hash/csrf')
         .expect(400);
     });
 
@@ -97,8 +97,8 @@ describe('SubmissionController', () => {
       mockManager.find = jest.fn().mockResolvedValue([]);
 
       const response = await request(app)
-        .get('/submit/test-hash/csrf')
-        .set('Referer', 'https://example.com/page')
+        .get('/s/test-hash/csrf')
+        .set('Referer', 'https://formflow.fyi/page')
         .expect(200);
 
       expect(response.body).toHaveProperty('token');
@@ -108,8 +108,8 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(null);
 
       await request(app)
-        .get('/submit/invalid-hash/csrf')
-        .set('Origin', 'https://example.com')
+        .get('/s/invalid-hash/csrf')
+        .set('Origin', 'https://formflow.fyi')
         .expect(404);
     });
 
@@ -124,8 +124,8 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(form);
 
       await request(app)
-        .get('/submit/test-hash/csrf')
-        .set('Origin', 'https://example.com')
+        .get('/s/test-hash/csrf')
+        .set('Origin', 'https://formflow.fyi')
         .expect(400);
     });
 
@@ -143,8 +143,8 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(form);
 
       await request(app)
-        .get('/submit/test-hash/csrf')
-        .set('Origin', 'https://example.com')
+        .get('/s/test-hash/csrf')
+        .set('Origin', 'https://formflow.fyi')
         .expect(400);
     });
 
@@ -167,7 +167,7 @@ describe('SubmissionController', () => {
       mockManager.find = jest.fn().mockResolvedValue([whitelistedDomain]);
 
       await request(app)
-        .get('/submit/test-hash/csrf')
+        .get('/s/test-hash/csrf')
         .set('Origin', 'https://notallowed.com')
         .expect(403);
     });
@@ -191,7 +191,7 @@ describe('SubmissionController', () => {
       mockManager.find = jest.fn().mockResolvedValue([whitelistedDomain]);
 
       const response = await request(app)
-        .get('/submit/test-hash/csrf')
+        .get('/s/test-hash/csrf')
         .set('Origin', 'http://localhost:3000')
         .expect(200);
 
@@ -202,13 +202,13 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockRejectedValue(new Error('Database error'));
 
       await request(app)
-        .get('/submit/test-hash/csrf')
-        .set('Origin', 'https://example.com')
+        .get('/s/test-hash/csrf')
+        .set('Origin', 'https://formflow.fyi')
         .expect(500);
     });
   });
 
-  describe('POST /submit/:submitHash', () => {
+  describe('POST /s/:submitHash', () => {
     const mockForm = {
       id: 1,
       submitHash: 'test-hash',
@@ -234,7 +234,7 @@ describe('SubmissionController', () => {
       const mockSubmission = {
         id: 1,
         formId: 1,
-        data: { name: 'Test', email: 'test@example.com' },
+        data: { name: 'Test', email: 'test@formflow.fyi' },
       };
 
       mockManager.findOne = jest.fn().mockResolvedValue(mockForm);
@@ -243,15 +243,15 @@ describe('SubmissionController', () => {
       mockManager.save = jest.fn().mockResolvedValue(mockSubmission);
 
       // Create a valid CSRF token
-      const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+      const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
 
       const response = await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({
           name: 'Test',
-          email: 'test@example.com',
+          email: 'test@formflow.fyi',
           csrfToken,
         })
         .expect(200);
@@ -263,8 +263,8 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(null);
 
       await request(app)
-        .post('/submit/invalid-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/invalid-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({ name: 'Test' })
         .expect(404);
@@ -275,8 +275,8 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(inactiveForm);
 
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({ name: 'Test' })
         .expect(400);
@@ -290,8 +290,8 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(formWithInactiveOrg);
 
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({ name: 'Test' })
         .expect(400);
@@ -301,8 +301,8 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(mockForm);
 
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .set('Content-Length', '200000')
         .send({ name: 'Test' })
@@ -313,7 +313,7 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(mockForm);
 
       await request(app)
-        .post('/submit/test-hash')
+        .post('/s/test-hash')
         .set('Content-Type', 'application/json')
         .send({ name: 'Test' })
         .expect(400);
@@ -324,8 +324,8 @@ describe('SubmissionController', () => {
       mockManager.find = jest.fn().mockResolvedValue([]);
 
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({
           name: 'Test',
@@ -347,7 +347,7 @@ describe('SubmissionController', () => {
       const csrfToken = createValidCsrfToken('test-hash', 'https://notallowed.com');
 
       await request(app)
-        .post('/submit/test-hash')
+        .post('/s/test-hash')
         .set('Origin', 'https://notallowed.com')
         .set('Content-Type', 'application/json')
         .send({
@@ -364,13 +364,13 @@ describe('SubmissionController', () => {
       mockManager.create = jest.fn().mockReturnValue({});
       mockManager.save = jest.fn().mockResolvedValue({});
 
-      const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+      const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
 
       // Make requests up to the limit
       for (let i = 0; i < 10; i++) {
         await request(app)
-          .post('/submit/test-hash')
-          .set('Origin', 'https://example.com')
+          .post('/s/test-hash')
+          .set('Origin', 'https://formflow.fyi')
           .set('Content-Type', 'application/json')
           .set('X-Forwarded-For', '192.168.1.1')
           .send({
@@ -382,8 +382,8 @@ describe('SubmissionController', () => {
 
       // Next request should be rate limited
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .set('X-Forwarded-For', '192.168.1.1')
         .send({
@@ -399,12 +399,12 @@ describe('SubmissionController', () => {
       mockManager.create = jest.fn().mockReturnValue({});
       mockManager.save = jest.fn().mockResolvedValue({});
 
-      const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+      const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
 
       // First submission
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .set('X-Forwarded-For', '192.168.1.2')
         .send({
@@ -415,8 +415,8 @@ describe('SubmissionController', () => {
 
       // Immediate second submission should fail
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .set('X-Forwarded-For', '192.168.1.2')
         .send({
@@ -430,11 +430,11 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(mockForm);
       mockManager.find = jest.fn().mockResolvedValue([]);
 
-      const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+      const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
 
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({
           csrfToken,
@@ -446,12 +446,12 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(mockForm);
       mockManager.find = jest.fn().mockResolvedValue([]);
 
-      const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+      const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
       const largeData = 'x'.repeat(5000);
 
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({
           message: largeData,
@@ -464,8 +464,8 @@ describe('SubmissionController', () => {
       mockManager.findOne = jest.fn().mockResolvedValue(mockForm);
 
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'text/plain')
         .send('invalid content')
         .expect(400);
@@ -476,7 +476,7 @@ describe('SubmissionController', () => {
         ...mockForm,
         integration: {
           id: 1,
-          webhookUrl: 'https://webhook.example.com',
+          webhookUrl: 'https://webhook.formflow.fyi',
           webhookEnabled: true,
         },
       };
@@ -493,12 +493,12 @@ describe('SubmissionController', () => {
       mockManager.save = jest.fn().mockResolvedValue(mockSubmission);
       (axios.post as jest.Mock) = jest.fn().mockRejectedValue(new Error('Webhook failed'));
 
-      const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+      const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
 
       // Submission should still succeed even if webhook fails
       const response = await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({
           name: 'Test',
@@ -515,11 +515,11 @@ describe('SubmissionController', () => {
       mockManager.create = jest.fn().mockReturnValue({});
       mockManager.save = jest.fn().mockRejectedValue(new Error('Database error'));
 
-      const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+      const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
 
       await request(app)
-        .post('/submit/test-hash')
-        .set('Origin', 'https://example.com')
+        .post('/s/test-hash')
+        .set('Origin', 'https://formflow.fyi')
         .set('Content-Type', 'application/json')
         .send({
           name: 'Test',
@@ -545,11 +545,11 @@ describe('SubmissionController', () => {
         mockManager.create = jest.fn().mockReturnValue({});
         mockManager.save = jest.fn().mockResolvedValue({});
 
-        const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+        const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
 
         await request(app)
-          .post('/submit/test-hash')
-          .set('Origin', 'https://example.com')
+          .post('/s/test-hash')
+          .set('Origin', 'https://formflow.fyi')
           .set('X-Forwarded-For', '192.168.1.100, 10.0.0.1')
           .set('Content-Type', 'application/json')
           .send({
@@ -575,11 +575,11 @@ describe('SubmissionController', () => {
         mockManager.create = jest.fn().mockReturnValue({});
         mockManager.save = jest.fn().mockResolvedValue({});
 
-        const csrfToken = createValidCsrfToken('test-hash', 'https://example.com');
+        const csrfToken = createValidCsrfToken('test-hash', 'https://formflow.fyi');
 
         await request(app)
-          .post('/submit/test-hash')
-          .set('Referer', 'https://example.com/page')
+          .post('/s/test-hash')
+          .set('Referer', 'https://formflow.fyi/page')
           .set('Content-Type', 'application/json')
           .send({
             name: 'Test',

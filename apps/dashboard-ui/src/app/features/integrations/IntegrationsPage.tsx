@@ -64,7 +64,7 @@ export function IntegrationsPage() {
                                     <Input
                                         defaultValue={integrations.emailRecipients || ''}
                                         onBlur={(e) => handleUpdate('emailRecipients', e.target.value)}
-                                        placeholder="email@example.com, team@example.com"
+                                        placeholder="email@formflow.fyi, team@formflow.fyi"
                                     />
                                 </div>
                             )}

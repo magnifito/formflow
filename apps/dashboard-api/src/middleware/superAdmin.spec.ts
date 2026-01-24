@@ -30,7 +30,7 @@ describe('superAdmin middleware', () => {
     it('should call next() when user is super admin', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'admin@example.com',
+        email: 'admin@formflow.fyi',
         isSuperAdmin: true,
       };
 
@@ -49,7 +49,7 @@ describe('superAdmin middleware', () => {
     it('should attach adminUser to request when user is super admin', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'admin@example.com',
+        email: 'admin@formflow.fyi',
         isSuperAdmin: true,
       };
 
@@ -102,7 +102,7 @@ describe('superAdmin middleware', () => {
     it('should return 403 when user is not super admin', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'user@example.com',
+        email: 'user@formflow.fyi',
         isSuperAdmin: false,
       };
 
@@ -119,7 +119,7 @@ describe('superAdmin middleware', () => {
     it('should return 403 when isSuperAdmin is explicitly false', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'user@example.com',
+        email: 'user@formflow.fyi',
         isSuperAdmin: false,
         role: 'org_admin',
       };
@@ -160,7 +160,7 @@ describe('superAdmin middleware', () => {
     it('should handle user with isSuperAdmin as null', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'user@example.com',
+        email: 'user@formflow.fyi',
         isSuperAdmin: null as any,
       };
 
@@ -176,7 +176,7 @@ describe('superAdmin middleware', () => {
     it('should handle user with isSuperAdmin as undefined', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'user@example.com',
+        email: 'user@formflow.fyi',
         isSuperAdmin: undefined as any,
       };
 

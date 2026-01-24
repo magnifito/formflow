@@ -116,16 +116,7 @@ export function FormModal({ isOpen, onClose, onSave, initialData }: FormModalPro
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     />
-                                    {/* Slug Display/Edit */}
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
-                                        <span className="font-semibold text-[10px] uppercase tracking-wider text-primary/70">Slug:</span>
-                                        <Input
-                                            value={formData.slug || ''}
-                                            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                            className="h-6 text-xs border-transparent hover:border-border focus:border-border bg-transparent shadow-none px-2 w-full font-mono text-primary"
-                                            placeholder="auto-generated-slug"
-                                        />
-                                    </div>
+
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium">Description</label>
@@ -166,7 +157,7 @@ export function FormModal({ isOpen, onClose, onSave, initialData }: FormModalPro
                                 />
                             </div>
 
-                            {showSecurity && !formData.useOrgSecuritySettings && (
+                            {showSecurity && (
                                 <div className="space-y-6 mt-4 p-4 rounded-xl bg-orange-50/30 border border-orange-200/50 animate-in slide-in-from-top-2">
                                     {/* Rate Limiting */}
                                     <div className="space-y-4">
@@ -189,6 +180,7 @@ export function FormModal({ isOpen, onClose, onSave, initialData }: FormModalPro
                                                         value={formData.rateLimitMaxRequests}
                                                         onChange={(e) => setFormData({ ...formData, rateLimitMaxRequests: parseInt(e.target.value) })}
                                                         className="h-8"
+                                                        disabled={formData.useOrgSecuritySettings}
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
@@ -198,6 +190,7 @@ export function FormModal({ isOpen, onClose, onSave, initialData }: FormModalPro
                                                         value={formData.rateLimitWindowSeconds}
                                                         onChange={(e) => setFormData({ ...formData, rateLimitWindowSeconds: parseInt(e.target.value) })}
                                                         className="h-8"
+                                                        disabled={formData.useOrgSecuritySettings}
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
@@ -207,6 +200,7 @@ export function FormModal({ isOpen, onClose, onSave, initialData }: FormModalPro
                                                         value={formData.rateLimitMaxRequestsPerHour}
                                                         onChange={(e) => setFormData({ ...formData, rateLimitMaxRequestsPerHour: parseInt(e.target.value) })}
                                                         className="h-8"
+                                                        disabled={formData.useOrgSecuritySettings}
                                                     />
                                                 </div>
                                             </div>
@@ -234,6 +228,7 @@ export function FormModal({ isOpen, onClose, onSave, initialData }: FormModalPro
                                                         value={formData.minTimeBetweenSubmissionsSeconds}
                                                         onChange={(e) => setFormData({ ...formData, minTimeBetweenSubmissionsSeconds: parseInt(e.target.value) })}
                                                         className="h-8"
+                                                        disabled={formData.useOrgSecuritySettings}
                                                     />
                                                 </div>
                                                 <p className="text-xs text-muted-foreground mt-4">Minimum time required between two submissions from the same source.</p>
@@ -255,6 +250,7 @@ export function FormModal({ isOpen, onClose, onSave, initialData }: FormModalPro
                                                     value={formData.maxRequestSizeBytes}
                                                     onChange={(e) => setFormData({ ...formData, maxRequestSizeBytes: parseInt(e.target.value) })}
                                                     className="h-8"
+                                                    disabled={formData.useOrgSecuritySettings}
                                                 />
                                             </div>
                                             <p className="text-xs text-muted-foreground mt-4">1MB = 1,000,000 bytes</p>

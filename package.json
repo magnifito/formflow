@@ -87,7 +87,7 @@
     "clean:all": "rm -rf dist/ node_modules/ .nx/ && find apps -name node_modules -type d -exec rm -rf {} + 2>/dev/null || true",
     "clean:docker": "docker-compose -f docker-compose.db.yml -f docker-compose.yml -f docker-compose.dev.yml down -v --rmi all && docker network prune -f && echo '✅ Docker cleanup complete!'",
     "nuke": "docker-compose -f docker-compose.db.yml -f docker-compose.yml -f docker-compose.dev.yml down -v --rmi all 2>/dev/null; docker network prune -f 2>/dev/null; rm -rf dist/ node_modules/ .nx/ package-lock.json pnpm-lock.yaml .env .env.development logs/ coverage/ && find apps -name node_modules -type d -exec rm -rf {} + 2>/dev/null; echo '✅ Project nuked! Run: pnpm run setup'",
-    "cycle": "pnpm run nuke && pnpm run setup && pnpm run dev",
+    "cycle": "pnpm run nuke && pnpm run db:destroy && pnpm run setup && pnpm run dev",
     "docker:prune:networks": "docker network prune -f && echo '✅ Orphaned networks removed'"
   },
   "devDependencies": {

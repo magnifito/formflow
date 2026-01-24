@@ -98,7 +98,7 @@ export function SettingsPage() {
 
                     <div className="flex gap-2">
                         <Input
-                            placeholder="example.com"
+                            placeholder="formflow.fyi"
                             value={newDomain}
                             onChange={(e) => setNewDomain(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}

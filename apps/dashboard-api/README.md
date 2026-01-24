@@ -75,7 +75,7 @@ EMAIL_USER=your-email@gmail.com
 EMAIL_PASS=your-app-password
 
 # Super Admin Setup
-SUPER_ADMIN_EMAIL=admin@example.com
+SUPER_ADMIN_EMAIL=admin@formflow.fyi
 SUPER_ADMIN_PASSWORD=your-secure-password
 SUPER_ADMIN_NAME=System Administrator
 

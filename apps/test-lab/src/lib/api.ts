@@ -55,6 +55,10 @@ export const api = {
         createApiKey: async (userId: number) => {
             const { data } = await dashboardApi.post<{ apiKey: string }>(`/create-api-key/${userId}`);
             return data;
+        },
+        setup: async (payload: any) => {
+            const { data } = await dashboardApi.post<LoginResponse>('/setup', payload);
+            return data;
         }
     },
     org: {
@@ -67,7 +71,7 @@ export const api = {
         getCsrfToken: async (submitHash: string, origin: string) => {
             // CSRF endpoint requires Origin/Referer to match whitelist
             const { data } = await collectorApi.get<{ token: string; expiresInSeconds: number }>(
-                `/submit/${submitHash}/csrf`,
+                `/s/${submitHash}/csrf`,
                 { headers: { 'X-Forwarded-Host': origin, 'Origin': origin } } // Mocking origin for local dev if needed, though browser sets Origin
             );
             return data;
@@ -110,12 +114,8 @@ export const api = {
                 config.headers!['Content-Type'] = 'application/json';
             }
 
-            const response = await collectorApi.post<SubmissionResponse>(`/submit/${submitHash}`, data, config);
+            const response = await collectorApi.post<SubmissionResponse>(`/s/${submitHash}`, data, config);
             return response.data;
-        },
-        submitLegacy: async (apiKey: string, payload: any) => {
-            const { data } = await collectorApi.post(`/formflow/${apiKey}`, payload);
-            return data;
         }
     }
 };

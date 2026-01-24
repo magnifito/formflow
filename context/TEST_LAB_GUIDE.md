@@ -89,7 +89,7 @@ The Test Lab provides extensive form fields:
 1. **Click "Fill Sample Data"** - Auto-fills all fields with realistic test data
 2. **Or manually fill**:
    - Full Name: `John Doe`
-   - Email: `john@example.com`
+   - Email: `john@formflow.fyi`
    - Message: `Testing FormFlow integrations`
    - Company: `Acme Corporation`
    - etc.
@@ -110,7 +110,7 @@ The Test Lab provides extensive form fields:
    ```json
    {
      "fullName": "John Doe",
-     "email": "john@example.com",
+     "email": "john@formflow.fyi",
      "message": "Testing FormFlow integrations",
      "company": "Acme Corporation",
      ...
@@ -148,7 +148,7 @@ Payload:
   "organizationId": 1,
   "data": {
     "fullName": "John Doe",
-    "email": "john@example.com",
+    "email": "john@formflow.fyi",
     "message": "Testing FormFlow integrations",
     ...
   },

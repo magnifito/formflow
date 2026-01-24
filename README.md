@@ -74,7 +74,7 @@ Create your admin account:
 
 ```bash
 # Add to your env file (.env.development or .env)
-SUPER_ADMIN_EMAIL=admin@example.com
+SUPER_ADMIN_EMAIL=admin@formflow.fyi
 SUPER_ADMIN_PASSWORD=your-password
 SUPER_ADMIN_NAME=Your Name
 

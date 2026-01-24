@@ -34,7 +34,7 @@ export class TestDatabase {
   async createTestUser(data: Partial<User> = {}): Promise<User> {
     const userRepo = this.dataSource.getRepository(User);
     const user = userRepo.create({
-      email: data.email || 'test@example.com',
+      email: data.email || 'test@formflow.fyi',
       apiKey: data.apiKey || 'test-user-api-key',
       allowedDomains: data.allowedDomains || [],
       ...data,
@@ -84,7 +84,7 @@ export function solveTestCaptcha(challenge: string): string {
 export function createTestFormData(overrides: Record<string, any> = {}) {
   return {
     name: 'John Doe',
-    email: 'john@example.com',
+    email: 'john@formflow.fyi',
     message: 'This is a test message',
     ...overrides,
   };

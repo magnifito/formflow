@@ -6,7 +6,7 @@
  * 2. MANUAL: Running with an email argument promotes an existing user to Super Admin.
  *
  * Usage (Automated): npx ts-node src/migrations/manage-super-admin.ts
- * Usage (Manual):    npx ts-node src/migrations/manage-super-admin.ts admin@example.com
+ * Usage (Manual):    npx ts-node src/migrations/manage-super-admin.ts admin@formflow.fyi
  */
 
 import "reflect-metadata";

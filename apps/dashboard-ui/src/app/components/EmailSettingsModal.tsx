@@ -98,7 +98,7 @@ export function EmailSettingsModal({ isOpen, onClose, initialSettings, onSave }:
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">SMTP Host</label>
                                 <Input
-                                    placeholder="smtp.example.com"
+                                    placeholder="smtp.formflow.fyi"
                                     value={settings.smtpHost}
                                     onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
                                 />
@@ -115,7 +115,7 @@ export function EmailSettingsModal({ isOpen, onClose, initialSettings, onSave }:
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Username</label>
                                 <Input
-                                    placeholder="user@example.com"
+                                    placeholder="user@formflow.fyi"
                                     value={settings.smtpUsername}
                                     onChange={(e) => setSettings({ ...settings, smtpUsername: e.target.value })}
                                 />

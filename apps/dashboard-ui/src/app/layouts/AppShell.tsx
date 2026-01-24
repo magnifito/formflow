@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
 import { useAuth } from '../hooks/useAuth';
+import { useOrganization } from '../hooks/useOrganization';
 
 import { LayoutDashboard, FileText, ClipboardList, ArrowLeftRight, Settings } from 'lucide-react';
 
@@ -15,6 +16,7 @@ const TENANT_NAV_ITEMS = [
 
 export function AppShell() {
     const { user, logout } = useAuth();
+    const { organization } = useOrganization();
 
     return (
         <div className="min-h-screen bg-muted/30">
@@ -22,7 +24,7 @@ export function AppShell() {
 
             <div className="ml-60">
                 <Header
-                    organizationName={user?.organization?.name}
+                    organizationName={organization?.name || user?.organization?.name}
                     userName={user?.name || user?.email}
                     role={user?.role}
                     isSuperAdmin={user?.isSuperAdmin}

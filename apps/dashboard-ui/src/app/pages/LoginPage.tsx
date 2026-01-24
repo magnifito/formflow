@@ -114,7 +114,7 @@ export function LoginPage() {
                                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     id="email"
-                                    placeholder="name@example.com"
+                                    placeholder="name@formflow.fyi"
                                     type="email"
                                     className="pl-10"
                                     value={email}

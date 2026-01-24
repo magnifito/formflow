@@ -237,7 +237,7 @@ const verifyCsrfToken = (token: string, submitHash: string, origin: string): boo
     return true;
 };
 
-// GET /submit/:identifier/csrf - CSRF token for form submissions
+// GET /s/:identifier/csrf - CSRF token for form submissions
 router.get('/:identifier/csrf', async (req: Request, res: Response) => {
     try {
         if (!csrfSecret) {
@@ -286,14 +286,14 @@ router.get('/:identifier/csrf', async (req: Request, res: Response) => {
 
         const token = createCsrfToken(form.submitHash, origin);
         res.json({ token, expiresInSeconds: Math.floor(csrfTtlMs / 1000) });
-        logger.info('CSRF token issued', { submitHash, origin, correlationId: req.correlationId });
+        logger.info('CSRF token issued', { submitHash: form.submitHash, origin, correlationId: req.correlationId });
     } catch (error: any) {
-        logger.error('CSRF token error', { error: error.message, stack: error.stack, submitHash, correlationId: req.correlationId });
+        logger.error('CSRF token error', { error: error.message, stack: error.stack, submitHash: req.params.identifier, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to issue CSRF token' });
     }
 });
 
-// POST /submit/:identifier - Public form submission endpoint
+// POST /t/:identifier - Public form submission endpoint
 router.post('/:identifier', async (req: Request, res: Response) => {
     try {
         // Set security headers
@@ -312,7 +312,7 @@ router.post('/:identifier', async (req: Request, res: Response) => {
                 logger.warn('Request body too large (initial check)', {
                     size,
                     limit: 100000,
-                    submitHash,
+                    submitHash: identifier,
                     ip: clientIp,
                     correlationId: req.correlationId,
                 });
@@ -325,9 +325,9 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         delete formData.csrfToken;
         delete formData._csrf;
 
-        // Find form by submitHash
+        // Find form by submitHash only
         const form = await AppDataSource.manager.findOne(Form, {
-            where: { submitHash },
+            where: { submitHash: identifier },
             relations: ['organization', 'integration']
         });
 
@@ -370,7 +370,7 @@ router.post('/:identifier', async (req: Request, res: Response) => {
                 logger.warn('Request body too large (form-specific limit)', {
                     size,
                     limit: securitySettings.maxRequestSizeBytes,
-                    submitHash,
+                    submitHash: identifier,
                     formId: form.id,
                     ip: clientIp,
                     correlationId: req.correlationId,

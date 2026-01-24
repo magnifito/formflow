@@ -22,6 +22,13 @@ export interface Form {
     updatedAt: string;
 }
 
+export interface Organization {
+    id: number;
+    name: string;
+    slug: string;
+    isActive: boolean;
+}
+
 export interface OrgStats {
     formCount: number;
     submissionsThisMonth: number;
@@ -93,6 +100,7 @@ export interface PaginatedResponse<T> {
 export function useOrganization() {
     const { selectedOrgId } = useOrganizationContext();
     const [forms, setForms] = useState<Form[]>([]);
+    const [organization, setOrganization] = useState<Organization | null>(null);
     const [stats, setStats] = useState<OrgStats | null>(null);
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [integrations, setIntegrations] = useState<OrganizationIntegration | null>(null);
@@ -106,12 +114,14 @@ export function useOrganization() {
         setLoading(true);
         setError(null);
         try {
-            const [formsData, statsData] = await Promise.all([
+            const [formsData, statsData, orgData] = await Promise.all([
                 apiFetch<Form[]>('/org/forms'),
-                apiFetch<OrgStats>('/org/stats').catch(() => ({ formCount: 0, submissionsThisMonth: 0, submissionLimit: null }))
+                apiFetch<OrgStats>('/org/stats').catch(() => ({ formCount: 0, submissionsThisMonth: 0, submissionLimit: null })),
+                apiFetch<Organization>('/org/current').catch(() => null)
             ]);
             setForms(formsData);
             setStats(statsData);
+            setOrganization(orgData);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -288,6 +298,7 @@ export function useOrganization() {
 
     return {
         forms,
+        organization,
         stats,
         submissions,
         integrations,

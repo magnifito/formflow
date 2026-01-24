@@ -106,6 +106,31 @@ function App() {
             Auto-Login Failed
           </h1>
           <p className="mt-2 text-muted-foreground">Please ensure the dashboard-api is running and a super admin user exists.</p>
+          <div className="mt-6">
+            <Button
+              variant="default"
+              size="lg"
+              onClick={async () => {
+                if (confirm('This will create a new Super Admin user (admin@formflow.fyi). Continue?')) {
+                  try {
+                    const data = await api.auth.setup({
+                      email: 'admin@formflow.fyi',
+                      password: 'password123',
+                      name: 'System Administrator',
+                      organizationName: 'Default Organization',
+                      organizationSlug: 'default-org'
+                    });
+                    setAuthToken(data.token);
+                    setUser(data.user);
+                  } catch (e: any) {
+                    alert('Failed to initialize admin: ' + (e.response?.data?.error || e.message));
+                  }
+                }
+              }}
+            >
+              Initialize Admin
+            </Button>
+          </div>
         </header>
       </div>
     );

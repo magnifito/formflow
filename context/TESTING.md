@@ -390,7 +390,7 @@ import { createTestFormData, createTestFormConfig } from './helpers';
 // Form submission data
 const formData = createTestFormData({
   name: 'John Doe',
-  email: 'john@example.com',
+  email: 'john@formflow.fyi',
 });
 
 // Form configuration
@@ -519,7 +519,7 @@ await request(app)
 // Valid data
 await request(app)
   .post('/endpoint')
-  .send({ email: 'valid@example.com' })
+  .send({ email: 'valid@formflow.fyi' })
   .expect(200);
 
 // Invalid data

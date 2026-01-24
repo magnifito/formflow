@@ -33,7 +33,7 @@ describe('AdminController', () => {
       next();
     });
     app.use('/admin', router);
-    
+
     mockManager = AppDataSource.manager as ReturnType<typeof createMockManager>;
     mockQueryBuilder = createMockQueryBuilder();
     jest.clearAllMocks();
@@ -369,8 +369,8 @@ describe('AdminController', () => {
   describe('GET /admin/organizations/:id/users', () => {
     it('should return users in organization successfully', async () => {
       const mockUsers = [
-        { id: 1, email: 'user1@example.com', role: 'member' },
-        { id: 2, email: 'user2@example.com', role: 'org_admin' },
+        { id: 1, email: 'user1@formflow.fyi', role: 'member' },
+        { id: 2, email: 'user2@formflow.fyi', role: 'org_admin' },
       ];
 
       mockManager.find = jest.fn().mockResolvedValue(mockUsers);
@@ -396,7 +396,7 @@ describe('AdminController', () => {
   describe('POST /admin/organizations/:id/users', () => {
     it('should add user to organization successfully', async () => {
       const org = { id: 1, name: 'Test Org' };
-      const user = { id: 2, email: 'user@example.com', role: 'member' };
+      const user = { id: 2, email: 'user@formflow.fyi', role: 'member' };
       const updatedUser = { ...user, organizationId: 1, role: 'org_admin' };
 
       mockManager.findOne = jest.fn()
@@ -463,8 +463,8 @@ describe('AdminController', () => {
   describe('GET /admin/users', () => {
     it('should return paginated users successfully', async () => {
       const mockUsers = [
-        { id: 1, email: 'user1@example.com' },
-        { id: 2, email: 'user2@example.com' },
+        { id: 1, email: 'user1@formflow.fyi' },
+        { id: 2, email: 'user2@formflow.fyi' },
       ];
 
       mockManager.findAndCount = jest.fn().mockResolvedValue([mockUsers, 2]);
@@ -533,7 +533,7 @@ describe('AdminController', () => {
       const org = { id: 1, isActive: true };
       const newUser = {
         id: 1,
-        email: 'newuser@example.com',
+        email: 'newuser@formflow.fyi',
         name: 'New User',
         organizationId: 1,
         role: 'member',
@@ -552,7 +552,7 @@ describe('AdminController', () => {
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
         .send({
-          email: 'newuser@example.com',
+          email: 'newuser@formflow.fyi',
           password: 'password123',
           name: 'New User',
           organizationId: 1,
@@ -560,7 +560,7 @@ describe('AdminController', () => {
         })
         .expect(201);
 
-      expect(response.body.email).toBe('newuser@example.com');
+      expect(response.body.email).toBe('newuser@formflow.fyi');
       expect(response.body.passwordHash).toBeUndefined();
     });
 
@@ -576,7 +576,7 @@ describe('AdminController', () => {
       await request(app)
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
-        .send({ email: 'user@example.com', organizationId: 1 })
+        .send({ email: 'user@formflow.fyi', organizationId: 1 })
         .expect(400);
     });
 
@@ -584,7 +584,7 @@ describe('AdminController', () => {
       await request(app)
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
-        .send({ email: 'user@example.com', password: 'password123' })
+        .send({ email: 'user@formflow.fyi', password: 'password123' })
         .expect(400);
     });
 
@@ -593,7 +593,7 @@ describe('AdminController', () => {
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
         .send({
-          email: 'user@example.com',
+          email: 'user@formflow.fyi',
           password: 'short',
           organizationId: 1,
         })
@@ -605,7 +605,7 @@ describe('AdminController', () => {
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
         .send({
-          email: 'user@example.com',
+          email: 'user@formflow.fyi',
           password: 'password123',
           organizationId: 1,
           role: 'invalid_role',
@@ -614,14 +614,14 @@ describe('AdminController', () => {
     });
 
     it('should return 400 when user email already exists', async () => {
-      const existingUser = { id: 1, email: 'existing@example.com' };
+      const existingUser = { id: 1, email: 'existing@formflow.fyi' };
       mockManager.findOne = jest.fn().mockResolvedValue(existingUser);
 
       await request(app)
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
         .send({
-          email: 'existing@example.com',
+          email: 'existing@formflow.fyi',
           password: 'password123',
           organizationId: 1,
         })
@@ -637,7 +637,7 @@ describe('AdminController', () => {
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
         .send({
-          email: 'user@example.com',
+          email: 'user@formflow.fyi',
           password: 'password123',
           organizationId: 999,
         })
@@ -654,7 +654,7 @@ describe('AdminController', () => {
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
         .send({
-          email: 'user@example.com',
+          email: 'user@formflow.fyi',
           password: 'password123',
           organizationId: 1,
         })
@@ -674,7 +674,7 @@ describe('AdminController', () => {
         .post('/admin/users')
         .set('Authorization', `Bearer ${mockToken}`)
         .send({
-          email: 'user@example.com',
+          email: 'user@formflow.fyi',
           password: 'password123',
           organizationId: 1,
         })

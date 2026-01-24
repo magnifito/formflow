@@ -33,10 +33,10 @@ export function DashboardPage() {
         }
     };
 
-    const getSubmitUrl = (form: Form) => `${import.meta.env.VITE_COLLECTOR_URL || "http://localhost:3000"}/submit/${form.submitHash}`;
+    const getSubmitUrl = (form: Form) => `${import.meta.env.VITE_COLLECTOR_URL || "http://localhost:3000"}/s/${form.submitHash}`;
 
     const copyUrl = (hash: string) => {
-        navigator.clipboard.writeText(`${import.meta.env.VITE_COLLECTOR_URL || "http://localhost:3000"}/submit/${hash}`);
+        navigator.clipboard.writeText(`${import.meta.env.VITE_COLLECTOR_URL || "http://localhost:3000"}/s/${hash}`);
     };
 
     return (
@@ -95,7 +95,7 @@ export function DashboardPage() {
                                             <TableCell className="font-medium">{form.name}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs text-muted-foreground group-hover:text-foreground transition-colors max-w-[200px] truncate">
+                                                    <code className="relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                                                         {getSubmitUrl(form)}
                                                     </code>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyUrl(form.submitHash)}>

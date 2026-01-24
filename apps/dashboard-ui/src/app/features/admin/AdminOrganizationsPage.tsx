@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdmin, Organization } from '../../hooks/useAdmin';
 import { useOrganizationContext } from '../../hooks/useOrganizationContext';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/Table';
@@ -71,9 +72,10 @@ export function AdminOrganizationsPage() {
 
     const { setSelectedOrgId, selectedOrgId } = useOrganizationContext();
 
+    const navigate = useNavigate();
     const handleSwitchOrg = (org: Organization) => {
         setSelectedOrgId(org.id);
-        // Data will reload automatically via useOrganization hook's dependency on selectedOrgId
+        navigate('/dashboard');
     };
 
     if (loading && !organizations) {

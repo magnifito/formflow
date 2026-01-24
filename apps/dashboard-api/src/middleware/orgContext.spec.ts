@@ -31,7 +31,7 @@ describe('orgContext middleware', () => {
     it('should inject organization context for regular user with organization', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'user@example.com',
+        email: 'user@formflow.fyi',
         isSuperAdmin: false,
         organizationId: 1,
         organization: {
@@ -59,7 +59,7 @@ describe('orgContext middleware', () => {
     it('should allow super admin without organization context', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'admin@example.com',
+        email: 'admin@formflow.fyi',
         isSuperAdmin: true,
         organizationId: null,
       };
@@ -78,7 +78,7 @@ describe('orgContext middleware', () => {
     it('should allow super admin with organization context header', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'admin@example.com',
+        email: 'admin@formflow.fyi',
         isSuperAdmin: true,
         organizationId: null,
       };
@@ -134,7 +134,7 @@ describe('orgContext middleware', () => {
     it('should return 403 when regular user has no organization', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'user@example.com',
+        email: 'user@formflow.fyi',
         isSuperAdmin: false,
         organizationId: null,
         organization: null,
@@ -152,7 +152,7 @@ describe('orgContext middleware', () => {
     it('should return 403 when organization is inactive', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'user@example.com',
+        email: 'user@formflow.fyi',
         isSuperAdmin: false,
         organizationId: 1,
         organization: {
@@ -177,7 +177,7 @@ describe('orgContext middleware', () => {
     it('should handle invalid organization context header for super admin', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'admin@example.com',
+        email: 'admin@formflow.fyi',
         isSuperAdmin: true,
         organizationId: null,
       };
@@ -200,7 +200,7 @@ describe('orgContext middleware', () => {
     it('should handle organization context header with non-existent organization', async () => {
       const mockUser: Partial<User> = {
         id: 1,
-        email: 'admin@example.com',
+        email: 'admin@formflow.fyi',
         isSuperAdmin: true,
         organizationId: null,
       };

@@ -28,7 +28,7 @@ export function Header({
         <header className="fixed left-60 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-background px-6">
             <div className="flex items-center gap-6">
                 <h1 className="text-xl font-semibold text-foreground">{organizationName || 'Organization'}</h1>
-                {isSuperAdmin && <OrgSelector selectedOrgId={selectedOrgId} selectedOrgName={organizationName} />}
+                {isSuperAdmin && <OrgSelector />}
             </div>
 
             <div className="flex items-center gap-4">

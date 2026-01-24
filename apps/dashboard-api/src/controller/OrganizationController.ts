@@ -4,9 +4,17 @@ import logger from "@formflow/shared/logger";
 import { Form, Organization, WhitelistedDomain, OrganizationIntegration, Submission } from "@formflow/shared/entities";
 import { verifyToken } from "../middleware/auth";
 import { injectOrgContext, verifyOrgAdmin, OrgContextRequest } from "../middleware/orgContext";
-import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 
 const router = Router();
+
+// Helper to generate a short, URL-friendly submit hash (12 characters)
+const generateSubmitHash = (): string => {
+    return crypto.randomBytes(9).toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+};
 
 // Helper function to determine the effective organization ID for the current request
 const getEffectiveOrgId = (req: OrgContextRequest): number | null => {
@@ -21,6 +29,23 @@ const getEffectiveOrgId = (req: OrgContextRequest): number | null => {
 // All org routes require authentication and organization context
 router.use(verifyToken);
 router.use(injectOrgContext);
+
+// ============ DETAILS ============
+
+// GET /org/current - Get current organization details
+router.get('/current', async (req: OrgContextRequest, res: Response) => {
+    try {
+        // We can just return req.organization because injectOrgContext middleware
+        // has already loaded it based on the header or user default
+        if (!req.organization) {
+            return res.status(404).json({ error: 'Organization not found' });
+        }
+        res.json(req.organization);
+    } catch (error: any) {
+        logger.error('Error fetching current organization', { error: error.message, stack: error.stack, correlationId: req.correlationId });
+        res.status(500).json({ error: 'Failed to fetch organization details' });
+    }
+});
 
 // ============ STATS ============
 
@@ -132,7 +157,7 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
             name,
             slug,
             description: description || null,
-            submitHash: uuidv4(),
+            submitHash: generateSubmitHash(),
             isActive: true,
             useOrgIntegrations: useOrgIntegrations !== false, // default to true
             useOrgSecuritySettings: true, // default to using org settings
@@ -293,7 +318,7 @@ router.post('/forms/:id/regenerate-hash', verifyOrgAdmin, async (req: OrgContext
             return res.status(404).json({ error: 'Form not found' });
         }
 
-        form.submitHash = uuidv4();
+        form.submitHash = generateSubmitHash();
         await AppDataSource.manager.save(form);
 
         res.json({ submitHash: form.submitHash });

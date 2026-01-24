@@ -62,7 +62,7 @@ export function AdminUserModal({ isOpen, onClose, onSave, organizations }: Admin
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium">Email Address</label>
                         <Input
-                            placeholder="user@example.com"
+                            placeholder="user@formflow.fyi"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />

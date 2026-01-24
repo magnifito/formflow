@@ -44,7 +44,7 @@ describe('OrganizationController', () => {
       next();
     });
     app.use('/org', router);
-    
+
     mockManager = AppDataSource.manager as ReturnType<typeof createMockManager>;
     mockQueryBuilder = createMockQueryBuilder();
     jest.clearAllMocks();
@@ -323,7 +323,7 @@ describe('OrganizationController', () => {
   describe('GET /org/domains', () => {
     it('should return whitelisted domains successfully', async () => {
       const mockDomains = [
-        { id: 1, domain: 'example.com' },
+        { id: 1, domain: 'formflow.fyi' },
         { id: 2, domain: 'test.com' },
       ];
 
@@ -349,7 +349,7 @@ describe('OrganizationController', () => {
 
   describe('POST /org/domains', () => {
     it('should add domain successfully', async () => {
-      const newDomain = { id: 1, domain: 'example.com', organizationId: 1 };
+      const newDomain = { id: 1, domain: 'formflow.fyi', organizationId: 1 };
 
       mockManager.findOne = jest.fn().mockResolvedValue(null); // No duplicate
       mockManager.count = jest.fn().mockResolvedValue(5); // Under limit
@@ -359,10 +359,10 @@ describe('OrganizationController', () => {
       const response = await request(app)
         .post('/org/domains')
         .set('Authorization', `Bearer ${mockToken}`)
-        .send({ domain: 'example.com' })
+        .send({ domain: 'formflow.fyi' })
         .expect(201);
 
-      expect(response.body.domain).toBe('example.com');
+      expect(response.body.domain).toBe('formflow.fyi');
     });
 
     it('should return 400 when domain is missing', async () => {
@@ -374,13 +374,13 @@ describe('OrganizationController', () => {
     });
 
     it('should return 400 when domain already exists', async () => {
-      const existingDomain = { id: 1, domain: 'example.com' };
+      const existingDomain = { id: 1, domain: 'formflow.fyi' };
       mockManager.findOne = jest.fn().mockResolvedValue(existingDomain);
 
       await request(app)
         .post('/org/domains')
         .set('Authorization', `Bearer ${mockToken}`)
-        .send({ domain: 'example.com' })
+        .send({ domain: 'formflow.fyi' })
         .expect(400);
     });
 
@@ -391,7 +391,7 @@ describe('OrganizationController', () => {
       await request(app)
         .post('/org/domains')
         .set('Authorization', `Bearer ${mockToken}`)
-        .send({ domain: 'example.com' })
+        .send({ domain: 'formflow.fyi' })
         .expect(400);
     });
 
@@ -404,7 +404,7 @@ describe('OrganizationController', () => {
       await request(app)
         .post('/org/domains')
         .set('Authorization', `Bearer ${mockToken}`)
-        .send({ domain: 'example.com' })
+        .send({ domain: 'formflow.fyi' })
         .expect(500);
     });
   });

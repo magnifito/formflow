@@ -47,7 +47,7 @@ describe('Submission API E2E Tests', () => {
       const formData = createTestFormData();
 
       const response = await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send(formData)
         .expect(200);
 
@@ -59,14 +59,14 @@ describe('Submission API E2E Tests', () => {
       const formData = createTestFormData();
 
       await request(app)
-        .post('/submit/99999')
+        .post('/s/99999')
         .send(formData)
         .expect(404);
     });
 
     it('should reject empty submission', async () => {
       await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send({})
         .expect(400);
     });
@@ -77,7 +77,7 @@ describe('Submission API E2E Tests', () => {
       });
 
       const response = await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send(largeFormData)
         .expect(200);
 
@@ -90,7 +90,7 @@ describe('Submission API E2E Tests', () => {
       });
 
       await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send(oversizedData)
         .expect(400);
     });
@@ -107,7 +107,7 @@ describe('Submission API E2E Tests', () => {
 
       // Add whitelisted domain
       const formRepo = AppDataSource.getRepository(Form);
-      testForm.whitelistedDomains = ['example.com'];
+      testForm.whitelistedDomains = ['formflow.fyi'];
       await formRepo.save(testForm);
     });
 
@@ -115,8 +115,8 @@ describe('Submission API E2E Tests', () => {
       const formData = createTestFormData();
 
       await request(app)
-        .post(`/submit/${testForm.id}`)
-        .set('Origin', 'https://example.com')
+        .post(`/s/${testForm.submitHash}`)
+        .set('Origin', 'https://formflow.fyi')
         .send(formData)
         .expect(200);
     });
@@ -125,7 +125,7 @@ describe('Submission API E2E Tests', () => {
       const formData = createTestFormData();
 
       await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .set('Origin', 'https://evil.com')
         .send(formData)
         .expect(403);
@@ -135,7 +135,7 @@ describe('Submission API E2E Tests', () => {
       const formData = createTestFormData();
 
       await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .set('Origin', 'http://localhost:3000')
         .send(formData)
         .expect(200);
@@ -149,7 +149,7 @@ describe('Submission API E2E Tests', () => {
       // Send 3 requests (under typical limit)
       for (let i = 0; i < 3; i++) {
         await request(app)
-          .post(`/submit/${testForm.id}`)
+          .post(`/s/${testForm.submitHash}`)
           .send(formData)
           .expect(200);
       }
@@ -159,7 +159,7 @@ describe('Submission API E2E Tests', () => {
       const formData = createTestFormData();
 
       const response = await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send(formData);
 
       expect(response.headers).toHaveProperty('x-ratelimit-limit');
@@ -183,7 +183,7 @@ describe('Submission API E2E Tests', () => {
       const formData = createTestFormData();
 
       await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send(formData)
         .expect(403);
     });
@@ -198,11 +198,11 @@ describe('Submission API E2E Tests', () => {
   describe('Field Validation', () => {
     it('should accept valid email format', async () => {
       const formData = createTestFormData({
-        email: 'valid@example.com',
+        email: 'valid@formflow.fyi',
       });
 
       await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send(formData)
         .expect(200);
     });
@@ -213,7 +213,7 @@ describe('Submission API E2E Tests', () => {
       });
 
       const response = await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send(formData)
         .expect(200);
 
@@ -228,7 +228,7 @@ describe('Submission API E2E Tests', () => {
       });
 
       await request(app)
-        .post(`/submit/${testForm.id}`)
+        .post(`/s/${testForm.submitHash}`)
         .send(formData)
         .expect(200);
     });
