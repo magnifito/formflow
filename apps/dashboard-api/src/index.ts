@@ -24,7 +24,7 @@ const BCRYPT_ROUNDS = 10;
 loadEnv();
 
 const redirectUrl = getEnv("REDIRECT_URL") || "https://formflow.fyi";
-const PORT = getEnv("PORT") || 3000;
+const DASHBOARD_API_PORT = getEnv("DASHBOARD_API_PORT") || 4000;
 
 /**
  * Create and configure Express app
@@ -38,7 +38,7 @@ async function createApp() {
         await AppDataSource.initialize();
     }
 
-    const allowedOrigins = [redirectUrl, 'http://localhost:4200', 'http://localhost:5177'];
+    const allowedOrigins = [redirectUrl, 'http://localhost:4100', 'http://localhost:4200', 'http://127.0.0.1:4100', 'http://127.0.0.1:4200'];
     const strictCorsOptions = {
         origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
             // Allow requests with no origin (like curl, mobile apps)
@@ -57,7 +57,7 @@ async function createApp() {
 
     // Health check endpoints
     const startTime = Date.now();
-    
+
     app.get('/health', (req, res) => {
         res.status(200).json({
             status: 'healthy',
@@ -89,7 +89,7 @@ async function createApp() {
     app.get('/', (req, res) => {
         res.send('Hello, from FormFlow Dashboard API!');
     });
-  
+
     app.use(bodyParser.json());
 
     // Request logging middleware (after body parser to capture request body)
@@ -102,7 +102,7 @@ async function createApp() {
             const superAdminCount = await AppDataSource.manager.count(User, {
                 where: { isSuperAdmin: true }
             });
-            
+
             res.json({
                 setupNeeded: superAdminCount === 0
             });
@@ -161,10 +161,10 @@ async function createApp() {
             });
 
             const savedOrganization = await AppDataSource.manager.save(organization);
-            logger.info('Initial organization created during setup', { 
-                organizationId: savedOrganization.id, 
+            logger.info('Initial organization created during setup', {
+                organizationId: savedOrganization.id,
                 organizationName: savedOrganization.name,
-                correlationId: req.correlationId 
+                correlationId: req.correlationId
             });
 
             // Create super admin user
@@ -181,11 +181,11 @@ async function createApp() {
             });
 
             const savedUser = await AppDataSource.manager.save(superAdmin);
-            logger.info('Initial super admin created during setup', { 
-                userId: savedUser.id, 
+            logger.info('Initial super admin created during setup', {
+                userId: savedUser.id,
                 email: savedUser.email,
                 organizationId: savedOrganization.id,
-                correlationId: req.correlationId 
+                correlationId: req.correlationId
             });
 
             // Generate JWT for immediate login
@@ -257,6 +257,43 @@ async function createApp() {
         } catch (error: any) {
             logger.error('Login error', { error: error.message, stack: error.stack, correlationId: req.correlationId });
             res.status(500).json({ error: 'Login failed' });
+        }
+    });
+
+    // POST /auth/lab-login - Automatic login for Test Lab (local testing only)
+    app.post('/auth/lab-login', cors(strictCorsOptions), async (req: Request, res: Response) => {
+        try {
+            const superAdmin = await AppDataSource.manager.findOne(User, {
+                where: { isSuperAdmin: true, isActive: true },
+                order: { id: 'ASC' }
+            });
+
+            if (!superAdmin) {
+                return res.status(404).json({ error: 'No active super admin found for auto-login' });
+            }
+
+            // Generate JWT
+            const token = jwt.sign(
+                { userId: superAdmin.id },
+                getEnv("JWT_SECRET")!,
+                { expiresIn: '24h' }
+            );
+
+            res.json({
+                token,
+                userId: superAdmin.id,
+                user: {
+                    id: superAdmin.id,
+                    name: superAdmin.name,
+                    email: superAdmin.email,
+                    isSuperAdmin: superAdmin.isSuperAdmin,
+                    organizationId: superAdmin.organizationId
+                }
+            });
+            logger.info('Test Lab auto-login successful', { userId: superAdmin.id, email: superAdmin.email, correlationId: req.correlationId });
+        } catch (error: any) {
+            logger.error('Lab login error', { error: error.message, stack: error.stack, correlationId: req.correlationId });
+            res.status(500).json({ error: 'Lab login failed' });
         }
     });
 
@@ -336,12 +373,12 @@ async function createApp() {
             const { v4: uuidv4 } = require('uuid');
             user.apiKey = uuidv4();
             AppDataSource.manager.save(user)
-            .then(() => {
-                res.json({ apiKey: user.apiKey });
-            })
-            .catch(error => {
-                res.status(500).json('Internal Server Error');
-            });
+                .then(() => {
+                    res.json({ apiKey: user.apiKey });
+                })
+                .catch(error => {
+                    res.status(500).json('Internal Server Error');
+                });
         });
     });
 
@@ -356,12 +393,12 @@ async function createApp() {
             const { v4: uuidv4 } = require('uuid');
             user.apiKey = uuidv4();
             AppDataSource.manager.save(user)
-            .then(() => {
-                res.json({ apiKey: user.apiKey });
-            })
-            .catch(error => {
-                res.status(500).json('Internal Server Error');
-            });
+                .then(() => {
+                    res.json({ apiKey: user.apiKey });
+                })
+                .catch(error => {
+                    res.status(500).json('Internal Server Error');
+                });
         });
     });
 
@@ -379,9 +416,9 @@ async function createApp() {
                     res.json({ message: 'Email updated successfully' });
                 });
         })
-        .catch(error => {
-            res.status(500).json('Internal Server Error');
-        });
+            .catch(error => {
+                res.status(500).json('Internal Server Error');
+            });
     });
 
     // Integration endpoints - Telegram
@@ -440,7 +477,7 @@ async function createApp() {
             const sendTelegramMessage = async (chatId, message) => {
                 const url = `https://api.telegram.org/bot${getEnv("TELEGRAM_API_TOKEN")}/sendMessage`;
                 logger.debug('Sending Telegram message', { chatId, url: maskUrl(url), correlationId: req.correlationId });
-            
+
                 try {
                     await axios.post(url, {
                         chat_id: chatId,
@@ -466,7 +503,7 @@ async function createApp() {
             await axios.post(url, {
                 chat_id: user.telegramChatId,
                 text: "FormFlow will no longer be sending your form submission data to this chat!",
-            }).catch(() => {});
+            }).catch(() => { });
             user.telegramChatId = null;
             await AppDataSource.manager.save(user);
             res.json({ message: 'Telegram unlinked successfully' });
@@ -739,11 +776,11 @@ async function createApp() {
         const userId = parseInt(req.params.userId, 10);
         const domain = req.body.domain;
         const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    
+
         if (!user) {
             res.status(400).send('User not found');
             return;
-        } 
+        }
         if (user.allowedDomains.length <= 50) {
             user.allowedDomains.push(domain);
             await AppDataSource.manager.save(user);
@@ -810,24 +847,24 @@ async function createApp() {
                 .sort()
                 .map(key => `${key}=${authData[key]}`)
                 .join('\n');
-        
+
             const hmac = crypto.createHmac('sha256', secretKey)
                 .update(dataCheckString)
                 .digest('hex');
-        
+
             return hmac === authData.hash;
         };
-        
+
         const { id, first_name, last_name, username, photo_url, auth_date, hash } = req.query;
         const botToken = getEnv("TELEGRAM_API_TOKEN");
-    
+
         try {
             const isValid = await verifyTelegramHash(req.query, botToken);
 
             if (isValid) {
                 const sendTelegramMessage = async (chatId, message) => {
                     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-                
+
                     try {
                         await axios.post(url, {
                             chat_id: chatId,
@@ -905,7 +942,7 @@ async function createApp() {
                             } else {
                                 res.json({ message: 'Email sent successfully' });
                             }
-                        }); 
+                        });
                     } else if (email && accessToken && refreshToken && await isValidEmail(emailToSendTo) === true) {
                         logger.info('Sending return email from Gmail', { userId: user.id, emailToSendTo, correlationId: req.correlationId });
                         const transporter = nodemailer.createTransport({
@@ -986,8 +1023,8 @@ async function createApp() {
 async function startServer() {
     const app = await createApp();
 
-    const server = app.listen(PORT, () => {
-        logger.info(`Dashboard API server has started on port ${PORT}`, { port: PORT, environment: process.env.NODE_ENV || 'development' });
+    const server = app.listen(DASHBOARD_API_PORT, () => {
+        logger.info(`Dashboard API server has started on port ${DASHBOARD_API_PORT}`, { port: DASHBOARD_API_PORT, environment: process.env.NODE_ENV || 'development' });
     });
 
     return { app, server };
@@ -997,7 +1034,7 @@ async function startServer() {
 if (require.main === module) {
     // Setup global error handlers
     setupGlobalErrorHandlers();
-    
+
     startServer().catch((error) => {
         logger.error('Failed to start server', { error: error.message, stack: error.stack });
         process.exit(1);

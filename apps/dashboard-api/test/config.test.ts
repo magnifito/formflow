@@ -9,7 +9,7 @@ describe('Jest Configuration Test', () => {
 
   it('should have test environment variables set', () => {
     expect(process.env.NODE_ENV).toBe('test');
-    expect(process.env.PORT).toBe('3098');
+    expect(process.env.DASHBOARD_API_PORT).toBe('3098');
     expect(process.env.JWT_SECRET).toBeDefined();
     expect(process.env.ENCRYPTION_KEY).toBeDefined();
   });

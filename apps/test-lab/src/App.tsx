@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, setAuthToken } from './lib/api';
 import type { User, Form, SubmissionResponse } from './lib/types';
-import { LoginForm } from './features/auth/LoginForm';
 import { FormSelector } from './features/lab/FormSelector';
 import { TestPayloadForm } from './features/lab/TestPayloadForm';
 import { ResponseViewer } from './features/lab/ResponseViewer';
@@ -32,20 +31,29 @@ function App() {
           const userData = await api.auth.me();
           setUser(userData);
         } catch {
-          // Token invalid
-          setAuthToken(null);
+          // Token invalid, try lab login
+          try {
+            const loginData = await api.auth.labLogin();
+            setAuthToken(loginData.token);
+            setUser(loginData.user);
+          } catch (e) {
+            setAuthToken(null);
+          }
+        }
+      } else {
+        // No token, try lab login
+        try {
+          const loginData = await api.auth.labLogin();
+          setAuthToken(loginData.token);
+          setUser(loginData.user);
+        } catch (e) {
+          console.error("Auto-login failed:", e);
         }
       }
       setLoading(false);
     };
     initAuth();
   }, []);
-
-  const handleLoginSuccess = async (token: string, _userId: number) => {
-    setAuthToken(token);
-    const userData = await api.auth.me();
-    setUser(userData);
-  };
 
   const handleLogout = () => {
     setAuthToken(null);
@@ -92,14 +100,13 @@ function App() {
   if (!user) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
-        <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent flex items-center justify-center gap-3">
-            <Beaker className="w-10 h-10 text-blue-600" />
-            FormFlow Lab
+        <header className="mb-8 text-center text-destructive">
+          <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
+            <Beaker className="w-10 h-10" />
+            Auto-Login Failed
           </h1>
-          <p className="text-muted-foreground mt-2">Dev tools for testing integration endpoints</p>
+          <p className="mt-2 text-muted-foreground">Please ensure the dashboard-api is running and a super admin user exists.</p>
         </header>
-        <LoginForm onLoginSuccess={handleLoginSuccess} />
       </div>
     );
   }

@@ -3,16 +3,23 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/dashboard-api/src",
   "projectType": "application",
-  "tags": ["type:app", "scope:dashboard-api"],
+  "tags": [
+    "type:app",
+    "scope:dashboard-api"
+  ],
   "targets": {
     "build": {
       "executor": "@nx/node:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/apps/dashboard-api",
         "main": "apps/dashboard-api/src/index.ts",
         "tsConfig": "apps/dashboard-api/tsconfig.json",
-        "assets": ["apps/dashboard-api/src"]
+        "assets": [
+          "apps/dashboard-api/src"
+        ]
       },
       "configurations": {
         "production": {
@@ -35,7 +42,7 @@
         "cwd": "apps/dashboard-api",
         "env": {
           "NODE_ENV": "development",
-          "PORT": "3000",
+          "DASHBOARD_API_PORT": "4000",
           "DB_HOST": "localhost",
           "DB_PORT": "5433",
           "DB_USER": "formflow",
@@ -55,7 +62,9 @@
     },
     "test": {
       "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
       "options": {
         "jestConfig": "apps/dashboard-api/jest.config.ts",
         "passWithNoTests": true
@@ -72,7 +81,9 @@
     },
     "lint": {
       "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
+      "outputs": [
+        "{options.outputFile}"
+      ]
     }
   }
 }

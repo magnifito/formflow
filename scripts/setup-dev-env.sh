@@ -47,9 +47,9 @@ cat > "$ENV_FILE" << EOF
 # Server Configuration
 # -----------------------------------------------------------------------------
 NODE_ENV=development
-PORT=3000
+DASHBOARD_API_PORT=4000
 REDIRECT_URL=http://localhost:4200
-DASHBOARD_API_URL=http://localhost:3000
+DASHBOARD_API_URL=http://localhost:4000
 EMAIL_USER=test@localhost
 
 # -----------------------------------------------------------------------------
@@ -135,11 +135,11 @@ echo "✅ Created .env.development file with development defaults"
 echo ""
 echo "📋 Next steps:"
 echo "   1. Start the development environment:"
-echo "      npm run dev"
+echo "      pnpm dev"
 echo ""
 echo "   2. Access the services:"
-echo "      - Server API:  http://localhost:3000"
-echo "      - Handler:     http://localhost:3001"
+echo "      - Server API:  http://localhost:4000"
+echo "      - Handler:     http://localhost:3000"
 echo "      - Mailpit UI:  http://localhost:8025"
 echo "      - PostgreSQL:  localhost:5433"
 echo ""

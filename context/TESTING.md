@@ -15,7 +15,7 @@ The testing suite provides comprehensive coverage across multiple layers:
 2. **Unit Tests**: Isolated component and function tests
    - **API Middleware**: Authentication, authorization, organization context
    - **Controllers**: Business logic validation
-   - **UI Components**: Angular component testing
+   - **UI Components**: React component testing
 
 3. **Configuration Tests**: Environment and setup validation
    - Environment variable loading
@@ -27,7 +27,7 @@ The testing suite provides comprehensive coverage across multiple layers:
 - **Total Test Files**: 21 project tests
 - **Dashboard API Tests**: 9 files (5 E2E + 4 unit)
 - **Collector API Tests**: 4 files (2 E2E + 2 unit)
-- **Dashboard UI Tests**: 7 Angular component tests
+- **Dashboard UI Tests**: 7 React component tests
 - **Configuration Tests**: 1 file
 
 ## Test Structure
@@ -801,4 +801,4 @@ See [docs/TEST_LAB_GUIDE.md](TEST_LAB_GUIDE.md) for complete Test Lab documentat
 - [Supertest Documentation](https://github.com/visionmedia/supertest)
 - [TypeORM Testing Guide](https://typeorm.io/testing)
 - [Testing Best Practices](https://testingjavascript.com/)
-- [Angular Testing Guide](https://angular.dev/guide/testing)
+- [React Testing Guide](https://React.dev/guide/testing)

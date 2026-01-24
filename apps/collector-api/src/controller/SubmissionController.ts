@@ -47,7 +47,7 @@ const getClientIp = (req: Request): string | null => {
 const getOrigin = (req: Request): string | null => {
     const origin = req.headers.origin;
     if (origin) return origin;
-    
+
     const referer = req.headers.referer || req.headers.referrer;
     if (referer) {
         try {
@@ -120,7 +120,7 @@ const checkMinTimeBetweenSubmissions = (
 ): { allowed: boolean; waitSeconds: number } => {
     const key = `${ip}:${formId}`;
     const entry = rateLimitCache.get(key);
-    
+
     if (!entry || entry.lastSubmissionTime === 0) {
         return { allowed: true, waitSeconds: 0 };
     }
@@ -237,8 +237,8 @@ const verifyCsrfToken = (token: string, submitHash: string, origin: string): boo
     return true;
 };
 
-// GET /submit/:submitHash/csrf - CSRF token for form submissions
-router.get('/:submitHash/csrf', async (req: Request, res: Response) => {
+// GET /submit/:identifier/csrf - CSRF token for form submissions
+router.get('/:identifier/csrf', async (req: Request, res: Response) => {
     try {
         if (!csrfSecret) {
             return res.status(501).json({ error: 'CSRF protection not configured' });
@@ -249,9 +249,12 @@ router.get('/:submitHash/csrf', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Origin or Referer header required' });
         }
 
-        const { submitHash } = req.params;
+        const { identifier } = req.params;
         const form = await AppDataSource.manager.findOne(Form, {
-            where: { submitHash },
+            where: [
+                { submitHash: identifier },
+                { slug: identifier }
+            ],
             relations: ['organization']
         });
 
@@ -281,7 +284,7 @@ router.get('/:submitHash/csrf', async (req: Request, res: Response) => {
             }
         }
 
-        const token = createCsrfToken(submitHash, origin);
+        const token = createCsrfToken(form.submitHash, origin);
         res.json({ token, expiresInSeconds: Math.floor(csrfTtlMs / 1000) });
         logger.info('CSRF token issued', { submitHash, origin, correlationId: req.correlationId });
     } catch (error: any) {
@@ -290,14 +293,14 @@ router.get('/:submitHash/csrf', async (req: Request, res: Response) => {
     }
 });
 
-// POST /submit/:submitHash - Public form submission endpoint
-router.post('/:submitHash', async (req: Request, res: Response) => {
+// POST /submit/:identifier - Public form submission endpoint
+router.post('/:identifier', async (req: Request, res: Response) => {
     try {
         // Set security headers
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('X-Frame-Options', 'DENY');
 
-        const { submitHash } = req.params;
+        const { identifier } = req.params;
         const clientIp = getClientIp(req);
         const origin = getOrigin(req);  // Uses Referer fallback
 
@@ -381,7 +384,7 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
             if (!origin) {
                 return res.status(400).json({ error: 'Origin or Referer header required' });
             }
-            if (!csrfToken || !verifyCsrfToken(csrfToken, submitHash, origin)) {
+            if (!csrfToken || !verifyCsrfToken(csrfToken, form.submitHash, origin)) {
                 return res.status(403).json({ error: 'Invalid CSRF token' });
             }
         }
@@ -392,9 +395,9 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
         });
 
         if (whitelistedDomains.length > 0 && origin) {
-            const isAllowed = whitelistedDomains.some(d => origin.includes(d.domain)) 
+            const isAllowed = whitelistedDomains.some(d => origin.includes(d.domain))
                 || origin.includes("localhost");
-            
+
             if (!isAllowed) {
                 console.log("Domain not allowed:", origin);
                 return res.status(403).json({ error: 'Origin not whitelisted' });
@@ -409,8 +412,8 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
                 securitySettings.minTimeBetweenSubmissionsSeconds || 10
             );
             if (!timeCheck.allowed) {
-                return res.status(429).json({ 
-                    error: 'Submission rate limit exceeded', 
+                return res.status(429).json({
+                    error: 'Submission rate limit exceeded',
                     message: `Please wait ${timeCheck.waitSeconds} seconds before submitting again`,
                     retryAfter: timeCheck.waitSeconds
                 });
@@ -427,7 +430,7 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
                 securitySettings.rateLimitMaxRequestsPerHour || 50
             );
             if (!rateLimit.allowed) {
-                return res.status(429).json({ 
+                return res.status(429).json({
                     error: 'Rate limit exceeded',
                     message: 'Too many requests. Please try again later.',
                     resetAt: new Date(rateLimit.resetAt).toISOString()
@@ -461,7 +464,7 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
 
         // Get integration settings (form-specific or org defaults)
         let integration: FormIntegration | OrganizationIntegration | null;
-        
+
         if (form.useOrgIntegrations) {
             integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
                 where: { organizationId: form.organizationId }
@@ -551,7 +554,7 @@ router.post('/:submitHash', async (req: Request, res: Response) => {
         res.json({ message: 'Submission received successfully' });
 
     } catch (error: any) {
-        logger.error('Submission error', { error: error.message, stack: error.stack, submitHash, correlationId: req.correlationId });
+        logger.error('Submission error', { error: error.message, stack: error.stack, identifier: req.params.identifier, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to process submission' });
     }
 });

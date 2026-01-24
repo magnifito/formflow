@@ -3,7 +3,7 @@
 
 // Set test environment variables
 process.env.NODE_ENV = 'test';
-process.env.PORT = '3098';
+process.env.DASHBOARD_API_PORT = '3098';
 process.env.DB_HOST = 'localhost';
 process.env.DB_PORT = '5433';
 process.env.DB_NAME = 'formflow_test';

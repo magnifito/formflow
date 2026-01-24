@@ -13,7 +13,7 @@
                 "command": "vite",
                 "cwd": "apps/test-lab",
                 "env": {
-                    "PORT": "5177"
+                    "PORT": "4200"
                 }
             }
         },

@@ -119,7 +119,7 @@ npm run test
 # Or individually
 npm run test:dashboard-api  # ~42 tests
 npm run test:collector-api  # E2E tests
-npm run test:dashboard-ui   # Angular tests
+npm run test:dashboard-ui   # React tests
 ```
 
 **Expected**: All tests should pass without modification

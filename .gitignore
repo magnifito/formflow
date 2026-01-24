@@ -49,7 +49,7 @@ logs/
 # Misc
 .DS_Store
 Thumbs.db
-.angular
 
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+.env.development

@@ -2,15 +2,15 @@ import "reflect-metadata";
 import path from "path";
 import { DataSource } from "typeorm";
 import {
-  Form,
-  FormIntegration,
-  Organization,
-  OrganizationIntegration,
-  Submission,
-  User,
-  WhitelistedDomain,
-} from "@formflow/shared/entities";
-import { loadEnv } from "@formflow/shared/env";
+  // Form,
+  // FormIntegration,
+  // Organization,
+  // OrganizationIntegration,
+  // Submission,
+  // User,
+  // WhitelistedDomain,
+} from "../../../libs/shared/entities/src";
+import { loadEnv } from "../../../libs/shared/env/src";
 
 loadEnv();
 
@@ -38,17 +38,18 @@ export const AppDataSource = new DataSource({
   migrationsRun: true,
   logging: !isProduction,
   entities: [
-    User,
-    Organization,
-    Form,
-    WhitelistedDomain,
-    FormIntegration,
-    OrganizationIntegration,
-    Submission,
+    // User,
+    // Organization,
+    // Form,
+    // WhitelistedDomain,
+    // FormIntegration,
+    // OrganizationIntegration,
+    // Submission,
   ],
   migrations: [
-    path.join(__dirname, "migrations/1737227400000-InitialSchema.ts")
-    // Exclude standalone scripts: migrate-to-multi-org.ts, create-initial-super-admin.ts, create-super-admin.ts
+    path.join(__dirname, "migrations/initial-schema.ts"),
+    path.join(__dirname, "migrations/1769255116211-AddFormSlug.ts")
+    // Exclude standalone scripts: manage-super-admin.ts
     // These are run manually, not via TypeORM migration system
   ],
 });

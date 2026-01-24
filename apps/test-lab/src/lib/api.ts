@@ -2,8 +2,8 @@ import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import type { LoginResponse, User, Form, SubmissionResponse } from './types';
 
 // Configuration
-export const DASHBOARD_API_URL = 'http://localhost:3000';
-export const COLLECTOR_API_URL = 'http://localhost:3001';
+export const DASHBOARD_API_URL = 'http://localhost:4000';
+export const COLLECTOR_API_URL = 'http://localhost:3000';
 
 // State
 let authToken: string | null = localStorage.getItem('lab.authToken');
@@ -42,6 +42,10 @@ export const api = {
     auth: {
         login: async (email: string, password: string) => {
             const { data } = await dashboardApi.post<LoginResponse>('/auth/login', { email, password });
+            return data;
+        },
+        labLogin: async () => {
+            const { data } = await dashboardApi.post<LoginResponse>('/auth/lab-login');
             return data;
         },
         me: async () => {

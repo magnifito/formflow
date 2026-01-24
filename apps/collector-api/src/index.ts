@@ -17,8 +17,8 @@ const createChallenge = require("./Alcha/Challenge.js");
 
 loadEnv();
 
-const PORT = getEnv("PORT") || 3001;
-const DASHBOARD_API_URL = getEnv("DASHBOARD_API_URL") || "http://localhost:3000";
+const COLLECTOR_API_PORT = getEnv("COLLECTOR_API_PORT") || 3000;
+const DASHBOARD_API_URL = getEnv("DASHBOARD_API_URL") || "http://localhost:4000";
 
 /**
  * Create and configure Express app
@@ -42,7 +42,7 @@ async function createApp() {
 
     // Health check endpoints
     const startTime = Date.now();
-    
+
     app.get('/health', (req, res) => {
         res.status(200).json({
             status: 'healthy',
@@ -74,7 +74,7 @@ async function createApp() {
     app.get('/', (req, res) => {
         res.send('Hello, from FormFlow Form API!');
     });
-  
+
     app.use(bodyParser.json());
 
     // Request logging middleware (after body parser to capture request body)
@@ -128,7 +128,7 @@ async function createApp() {
 
                 // Check allowed domains
                 if (user.allowedDomains.length > 0 && req.headers.origin) {
-                    const isAllowed = user.allowedDomains.some(domain => req.headers.origin.includes(domain)) 
+                    const isAllowed = user.allowedDomains.some(domain => req.headers.origin.includes(domain))
                         || req.headers.origin.includes("localhost");
                     if (!isAllowed) {
                         logger.warn('Domain not allowed for legacy endpoint', { origin: req.headers.origin, userId: user.id, correlationId: req.correlationId });
@@ -181,7 +181,7 @@ async function createApp() {
                 res.status(500).json(`Internal Server Error: ${error}`);
             });
 
-        async function sendMail(recEmail, name, email, message, file, res) {      
+        async function sendMail(recEmail, name, email, message, file, res) {
             if (niceMessage === "") {
                 return;
             }
@@ -257,7 +257,7 @@ async function createApp() {
                             } else {
                                 res.json({ message: 'Email sent successfully' });
                             }
-                        }); 
+                        });
                     } else if (email && accessToken && refreshToken && await isValidEmail(emailToSendTo) === true) {
                         logger.info('Sending return email from Gmail', { userId: user.id, emailToSendTo, correlationId: req.correlationId });
                         const transporter = nodemailer.createTransport({
@@ -317,7 +317,7 @@ async function createApp() {
 
     // Legacy endpoint: Challenge endpoint
     app.get('/challenge/:apikey', async (req, res) => {
-        const apiKey  = req.params.apikey;
+        const apiKey = req.params.apikey;
         const user = await AppDataSource.manager.findOne(User, { where: { apiKey: apiKey } });
         if (!user) {
             res.status(400).send('User not found');
@@ -340,8 +340,8 @@ async function createApp() {
 async function startServer() {
     const app = await createApp();
 
-    const server = app.listen(PORT, () => {
-        logger.info(`Form API server has started on port ${PORT}`, { port: PORT, environment: process.env.NODE_ENV || 'development' });
+    const server = app.listen(COLLECTOR_API_PORT, () => {
+        logger.info(`Form API server has started on port ${COLLECTOR_API_PORT}`, { port: COLLECTOR_API_PORT, environment: process.env.NODE_ENV || 'development' });
     });
 
     return { app, server };
@@ -351,7 +351,7 @@ async function startServer() {
 if (require.main === module) {
     // Setup global error handlers
     setupGlobalErrorHandlers();
-    
+
     startServer().catch((error) => {
         logger.error('Failed to start server', { error: error.message, stack: error.stack });
         process.exit(1);

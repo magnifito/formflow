@@ -6,7 +6,7 @@ This document defines the port allocation scheme for all FormFlow services.
 
 | Service | Port | Environment | Description |
 |---------|------|-------------|-------------|
-| **Dashboard UI** | 4200 | Development | Angular frontend application |
+| **Dashboard UI** | 4200 | Development | React frontend application |
 | **Dashboard API** | 3000 | Development/Production | Authentication and admin backend |
 | **Collector API** | 3001 | Development/Production | Public form submission endpoint |
 | **Test Lab** | 5177 | Development | Testing and experimentation environment |
@@ -23,7 +23,7 @@ This document defines the port allocation scheme for all FormFlow services.
 
 #### Dashboard UI - Port 4200
 ```bash
-# Default Angular CLI development server port
+# Default React CLI development server port
 npm run dashboard-ui
 # Access: http://localhost:4200
 ```
@@ -203,7 +203,7 @@ npm run dev
 ```
 
 **Active Ports:**
-- 4200 - Dashboard UI (Angular dev server)
+- 4200 - Dashboard UI (React dev server)
 - 3000 - Dashboard API (ts-node-dev with hot reload)
 - 3001 - Collector API (ts-node-dev with hot reload)
 - 5177 - Test Lab (node server)
@@ -248,8 +248,8 @@ npm run docker:up
 - Solution: Stop conflicting service or change FormFlow port
 
 **Port 4200:**
-- Angular CLI default port
-- Usually available unless running multiple Angular apps
+- React CLI default port
+- Usually available unless running multiple React apps
 - Solution: Use `ng serve --port 4201` for other apps
 
 **Port 5432:**
@@ -424,5 +424,5 @@ lsof -i :3000 -i :3001 -i :4200 -i :5177 -i :5433
 - [DOCKER.md](DOCKER.md) - Docker configuration details
 - [NX_SETUP.md](NX_SETUP.md) - Nx workspace commands
 - [SECURITY.md](SECURITY.md) - Security best practices
-- [Angular CLI Port Configuration](https://angular.io/cli/serve)
+- [React CLI Port Configuration](https://React.io/cli/serve)
 - [Express.js Port Configuration](https://expressjs.com/en/4x/api.html#app.listen)

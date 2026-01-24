@@ -186,7 +186,7 @@ MIT License. Do whatever you want with it. Sell it. Rebrand it. Integrate it int
 
 ## Tech Stack (If You Care)
 
-**Frontend:** Angular 17 + Tailwind CSS v4 + Spartan UI
+**Frontend:** React + Tailwind CSS v4 + Shadcn
 **Backend:** Node.js + Express + TypeScript
 **Database:** PostgreSQL + TypeORM
 **Monorepo:** Nx
@@ -201,7 +201,7 @@ It's modern. It's fast. It works.
 ```
 FormFlow/
 ├── apps/
-│   ├── dashboard-ui/     # Angular frontend (manage everything)
+│   ├── dashboard-ui/     # React frontend (manage everything)
 │   ├── dashboard-api/    # Backend for dashboard (auth, admin)
 │   ├── collector-api/    # Public submission API (the actual form backend)
 │   └── test-lab/         # Testing playground

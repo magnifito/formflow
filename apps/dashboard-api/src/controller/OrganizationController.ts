@@ -78,8 +78,10 @@ router.get('/forms', async (req: OrgContextRequest, res: Response) => {
 
 // POST /org/forms - Create new form (org admin only)
 router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
+    let name, slug;
     try {
-        const { name, description, useOrgIntegrations } = req.body;
+        ({ name, slug } = req.body);
+        const { description, useOrgIntegrations } = req.body;
         const user = req.orgUser!;
 
         if (!name) {
@@ -88,15 +90,36 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
 
         // Determine organization context
         let organizationId: number | null;
-        if (user.isSuperAdmin && req.organization) {
-            // Super admin working in an organization context
-            organizationId = req.organization.id;
-        } else if (user.isSuperAdmin) {
-            // Super admin working in their own context (no org)
-            organizationId = null;
+        if (user.isSuperAdmin) {
+            // Super admin can explicitly specify an organization
+            if (req.body.organizationId !== undefined) {
+                organizationId = req.body.organizationId === 'null' || req.body.organizationId === null
+                    ? null
+                    : parseInt(req.body.organizationId as string);
+            } else {
+                organizationId = req.organization ? req.organization.id : null;
+            }
         } else {
-            // Regular user
+            // Regular user always tied to their organization
             organizationId = req.organization!.id;
+        }
+
+        // Check if slug is provided and unique
+        if (slug) {
+            const slugRegex = /^[a-z0-9-]+$/;
+            if (!slugRegex.test(slug)) {
+                return res.status(400).json({ error: 'Slug must be lowercase alphanumeric with hyphens only' });
+            }
+
+            const existingForm = await AppDataSource.manager.findOne(Form, { where: { slug } });
+            if (existingForm) {
+                return res.status(400).json({ error: 'Form with this slug already exists' });
+            }
+        } else {
+            // Generate a default slug: name-hex
+            const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            const randomSuffix = Math.random().toString(36).substring(2, 6);
+            slug = `${baseSlug}-${randomSuffix}`;
         }
 
         // Get organization for default security settings
@@ -107,6 +130,7 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
         const form = AppDataSource.manager.create(Form, {
             organizationId,
             name,
+            slug,
             description: description || null,
             submitHash: uuidv4(),
             isActive: true,
@@ -134,8 +158,9 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
 
 // GET /org/forms/:id - Get form details
 router.get('/forms/:id', async (req: OrgContextRequest, res: Response) => {
+    let formId;
     try {
-        const formId = parseInt(req.params.id);
+        formId = parseInt(req.params.id);
         const organizationId = getEffectiveOrgId(req);
 
         const form = await AppDataSource.manager.findOne(Form, {
@@ -164,10 +189,11 @@ router.get('/forms/:id', async (req: OrgContextRequest, res: Response) => {
 
 // PUT /org/forms/:id - Update form (org admin only)
 router.put('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
+    let formId;
     try {
-        const formId = parseInt(req.params.id);
+        formId = parseInt(req.params.id);
         const {
-            name, description, isActive, useOrgIntegrations,
+            name, slug, description, isActive, useOrgIntegrations,
             captchaEnabled, csrfEnabled,
             useOrgSecuritySettings,
             rateLimitEnabled, rateLimitMaxRequests, rateLimitWindowSeconds, rateLimitMaxRequestsPerHour,
@@ -189,6 +215,20 @@ router.put('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Res
         if (description !== undefined) form.description = description;
         if (isActive !== undefined) form.isActive = isActive;
         if (useOrgIntegrations !== undefined) form.useOrgIntegrations = useOrgIntegrations;
+
+        if (slug !== undefined && slug !== form.slug) {
+            const slugRegex = /^[a-z0-9-]+$/;
+            if (!slugRegex.test(slug)) {
+                return res.status(400).json({ error: 'Slug must be lowercase alphanumeric with hyphens only' });
+            }
+
+            const existingForm = await AppDataSource.manager.findOne(Form, { where: { slug } });
+            if (existingForm) {
+                return res.status(400).json({ error: 'Form with this slug already exists' });
+            }
+            form.slug = slug;
+        }
+
         if (captchaEnabled !== undefined) form.captchaEnabled = captchaEnabled;
         if (csrfEnabled !== undefined) form.csrfEnabled = csrfEnabled;
 
@@ -214,8 +254,9 @@ router.put('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Res
 
 // DELETE /org/forms/:id - Delete form (org admin only)
 router.delete('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
+    let formId;
     try {
-        const formId = parseInt(req.params.id);
+        formId = parseInt(req.params.id);
         const organizationId = getEffectiveOrgId(req);
 
         const form = await AppDataSource.manager.findOne(Form, {
@@ -239,8 +280,9 @@ router.delete('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: 
 
 // POST /org/forms/:id/regenerate-hash - Generate new submit hash (org admin only)
 router.post('/forms/:id/regenerate-hash', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
+    let formId;
     try {
-        const formId = parseInt(req.params.id);
+        formId = parseInt(req.params.id);
         const organizationId = getEffectiveOrgId(req);
 
         const form = await AppDataSource.manager.findOne(Form, {
@@ -280,8 +322,9 @@ router.get('/domains', async (req: OrgContextRequest, res: Response) => {
 
 // POST /org/domains - Add whitelisted domain (org admin only)
 router.post('/domains', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
+    let domain;
     try {
-        const { domain } = req.body;
+        ({ domain } = req.body);
 
         if (!domain) {
             return res.status(400).json({ error: 'Domain is required' });
@@ -321,8 +364,9 @@ router.post('/domains', verifyOrgAdmin, async (req: OrgContextRequest, res: Resp
 
 // DELETE /org/domains/:id - Remove whitelisted domain (org admin only)
 router.delete('/domains/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
+    let domainId;
     try {
-        const domainId = parseInt(req.params.id);
+        domainId = parseInt(req.params.id);
 
         const domain = await AppDataSource.manager.findOne(WhitelistedDomain, {
             where: { id: domainId, organizationId: req.organization!.id }

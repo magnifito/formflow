@@ -13,7 +13,7 @@ Nx has been added to the FormFlow monorepo to provide:
 ```
 FormFlow/
 ├── apps/
-│   ├── dashboard/        # Angular frontend
+│   ├── dashboard/        # React frontend
 │   ├── dashboard-api/    # Dashboard and admin API backend
 │   ├── form-api/         # Public form submission API backend
 │   └── lab/              # Development/testing lab
@@ -35,7 +35,7 @@ npm install
 
 | Project | Description | Location |
 |---------|-------------|----------|
-| **dashboard-ui** | Angular frontend application | `apps/dashboard/` |
+| **dashboard-ui** | React frontend application | `apps/dashboard/` |
 | **dashboard-api** | Dashboard and admin API backend with TypeORM | `apps/dashboard-api/` |
 | **collector-api** | Public form submission API backend | `apps/form-api/` |
 | **test-lab** | Testing environment | `apps/lab/` |
@@ -45,7 +45,7 @@ npm install
 ### Development
 
 ```bash
-# Run Angular dashboard UI
+# Run React dashboard UI
 npm run dashboard-ui
 # or: nx serve dashboard-ui
 
@@ -113,7 +113,7 @@ npm run dev            # Development with hot reload
 
 Each project has a `project.json` file:
 
-- `apps/dashboard/project.json` - Angular application targets
+- `apps/dashboard/project.json` - React application targets
 - `apps/dashboard-api/project.json` - Dashboard API server targets
 - `apps/form-api/project.json` - Collector API server targets
 - `apps/lab/project.json` - Test lab targets

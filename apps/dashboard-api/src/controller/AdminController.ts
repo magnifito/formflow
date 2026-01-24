@@ -33,7 +33,7 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
         // Get submissions in last 30 days
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
+
         const recentSubmissions = await AppDataSource.manager
             .createQueryBuilder(Submission, 'submission')
             .where('submission.createdAt >= :date', { date: thirtyDaysAgo })
@@ -92,8 +92,9 @@ router.get('/organizations', async (req: AuthRequest, res: Response) => {
 
 // POST /admin/organizations - Create organization
 router.post('/organizations', async (req: AuthRequest, res: Response) => {
+    let name, slug;
     try {
-        const { name, slug } = req.body;
+        ({ name, slug } = req.body);
 
         if (!name || !slug) {
             return res.status(400).json({ error: 'Name and slug are required' });
@@ -137,7 +138,7 @@ router.post('/organizations', async (req: AuthRequest, res: Response) => {
 router.get('/organizations/:id', async (req: AuthRequest, res: Response) => {
     try {
         const orgId = parseInt(req.params.id);
-        
+
         const organization = await AppDataSource.manager.findOne(Organization, {
             where: { id: orgId },
             relations: ['users', 'forms', 'whitelistedDomains', 'integration']
@@ -171,8 +172,9 @@ router.get('/organizations/:id', async (req: AuthRequest, res: Response) => {
 
 // PUT /admin/organizations/:id - Update organization
 router.put('/organizations/:id', async (req: AuthRequest, res: Response) => {
+    let orgId;
     try {
-        const orgId = parseInt(req.params.id);
+        orgId = parseInt(req.params.id);
         const { name, slug, isActive } = req.body;
 
         const organization = await AppDataSource.manager.findOne(Organization, {
@@ -251,9 +253,11 @@ router.get('/organizations/:id/users', async (req: AuthRequest, res: Response) =
 
 // POST /admin/organizations/:id/users - Add user to organization
 router.post('/organizations/:id/users', async (req: AuthRequest, res: Response) => {
+    let orgId, userId;
     try {
-        const orgId = parseInt(req.params.id);
-        const { userId, role } = req.body;
+        orgId = parseInt(req.params.id);
+        ({ userId } = req.body);
+        const { role } = req.body;
 
         if (!userId) {
             return res.status(400).json({ error: 'userId is required' });
@@ -318,8 +322,9 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
 
 // PUT /admin/users/:id/super-admin - Toggle super admin status
 router.put('/users/:id/super-admin', async (req: AuthRequest, res: Response) => {
+    let userId;
     try {
-        const userId = parseInt(req.params.id);
+        userId = parseInt(req.params.id);
         const { isSuperAdmin } = req.body;
 
         const user = await AppDataSource.manager.findOne(User, {
@@ -342,8 +347,10 @@ router.put('/users/:id/super-admin', async (req: AuthRequest, res: Response) => 
 
 // POST /admin/users - Create new user
 router.post('/users', async (req: AuthRequest, res: Response) => {
+    let email, organizationId;
     try {
-        const { email, password, name, organizationId, role } = req.body;
+        ({ email, organizationId } = req.body);
+        const { password, name, role } = req.body;
 
         // Validation
         if (!email || !password || !organizationId) {
@@ -459,6 +466,35 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to delete user' });
     }
 });
+// GET /admin/forms - List all forms (paginated)
+router.get('/forms', async (req: AuthRequest, res: Response) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const skip = (page - 1) * limit;
+
+        const [forms, total] = await AppDataSource.manager.findAndCount(Form, {
+            relations: ['organization'],
+            order: { createdAt: 'DESC' },
+            skip,
+            take: limit
+        });
+
+        res.json({
+            data: forms,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error: any) {
+        logger.error('Error fetching forms', { error: error.message, stack: error.stack, correlationId: req.correlationId });
+        res.status(500).json({ error: 'Failed to fetch forms' });
+    }
+});
+
 
 // GET /admin/submissions - All submissions (paginated)
 router.get('/submissions', async (req: AuthRequest, res: Response) => {

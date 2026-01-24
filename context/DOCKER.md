@@ -10,7 +10,7 @@ FormFlow uses Docker for both development and production deployments. All applic
 |-----|-------------|------|----------|
 | **dashboard-api** | Dashboard and admin API backend with TypeORM/PostgreSQL | 3000 | `apps/dashboard-api/` |
 | **collector-api** | Public form submission API backend | 3001 | `apps/collector-api/` |
-| **dashboard-ui** | Angular frontend (built, served via nginx/CDN) | - | `apps/dashboard-ui/` |
+| **dashboard-ui** | React frontend (built, served via nginx/CDN) | - | `apps/dashboard-ui/` |
 
 ---
 
