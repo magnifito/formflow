@@ -107,7 +107,7 @@ const consoleFormat = winston.format.combine(
 
     // Add key identifiers in a readable format
     const identifiers: string[] = [];
-    if (correlationId) identifiers.push(`cid:${correlationId.substring(0, 8)}`);
+    if (correlationId) identifiers.push(`cid:${String(correlationId).substring(0, 8)}`);
     if (userId) identifiers.push(`uid:${userId}`);
     if (organizationId) identifiers.push(`org:${organizationId}`);
     if (duration !== undefined) identifiers.push(`${duration}ms`);
@@ -120,8 +120,8 @@ const consoleFormat = winston.format.combine(
     // Add error message if present
     if (error && typeof error === 'string') {
       log += ` - ${error}`;
-    } else if (error && typeof error === 'object' && error.message) {
-      log += ` - ${error.message}`;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+      log += ` - ${(error as any).message}`;
     }
 
     // Add any additional metadata (filtered)
@@ -159,7 +159,7 @@ const fileFormat = winston.format.combine(
     if (info.headers) {
       info.headers = maskHeaders(info.headers);
     }
-    if (info.url) {
+    if (info.url && typeof info.url === 'string') {
       info.url = maskUrl(info.url);
     }
     if (info.meta) {
@@ -214,7 +214,7 @@ logger.stream = {
   write: (message: string) => {
     logger.info(message.trim());
   },
-};
+} as any;
 
 export default logger;
 

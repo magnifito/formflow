@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join the Waitlist - FormFlow Example</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Animated gradient background */
+        .bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                45deg,
+                #0f0f0f,
+                #1a1a2e,
+                #16213e,
+                #0f0f0f
+            );
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            z-index: -1;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 40px;
+            margin-bottom: 30px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin: 0 0 20px 0;
+            line-height: 1.1;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #a1a1aa;
+            margin-bottom: 40px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .form-container {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #d1d5db;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            font-size: 16px;
+            color: white;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input::placeholder {
+            color: #6b7280;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #a5b4fc;
+            box-shadow: 0 0 0 3px rgba(165, 180, 252, 0.15);
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        button[type="submit"]:disabled {
+            background: #4b5563;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .status-message.success {
+            display: block;
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-message.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .waitlist-count {
+            margin-top: 25px;
+            font-size: 14px;
+            color: #71717a;
+        }
+
+        .waitlist-count strong {
+            color: #a5b4fc;
+        }
+
+        .success-view {
+            padding: 20px 0;
+        }
+
+        .success-view .checkmark {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+        }
+
+        .success-view .checkmark svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+        }
+
+        .success-view h2 {
+            font-size: 32px;
+            margin: 0 0 15px 0;
+            background: linear-gradient(135deg, #fff 0%, #6ee7b7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .success-view p {
+            color: #a1a1aa;
+            font-size: 16px;
+        }
+
+        .success-view .position {
+            display: inline-block;
+            background: rgba(165, 180, 252, 0.15);
+            color: #a5b4fc;
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-size: 14px;
+            margin-top: 20px;
+            border: 1px solid rgba(165, 180, 252, 0.3);
+        }
+
+        .share-section {
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .share-section p {
+            font-size: 13px;
+            color: #71717a;
+            margin-bottom: 15px;
+        }
+
+        .share-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .share-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .share-btn:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+        }
+
+        .share-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #d1d5db;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Configuration banner */
+        .config-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(254, 243, 199, 0.95);
+            border-bottom: 1px solid #f59e0b;
+            padding: 12px 20px;
+            font-size: 13px;
+            text-align: center;
+            color: #92400e;
+            z-index: 100;
+        }
+
+        .config-banner code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Code snippet section */
+        .code-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: left;
+        }
+
+        .code-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .code-section-header h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #d1d5db;
+            font-weight: 600;
+        }
+
+        .copy-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #d1d5db;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .copy-btn.copied {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: rgba(16, 185, 129, 0.5);
+            color: #6ee7b7;
+        }
+
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .code-block {
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+            padding: 15px;
+            overflow-x: auto;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 11px;
+            color: #a1a1aa;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .code-note {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #71717a;
+        }
+    </style>
+</head>
+<body>
+    <!-- Remove this banner in production -->
+    <div class="config-banner">
+        <strong>Setup:</strong> Replace <code>YOUR_FORM_SUBMIT_HASH</code> in the script section.
+    </div>
+
+    <div class="bg-gradient"></div>
+
+    <div class="container">
+        <div class="logo">🚀</div>
+
+        <div id="formSection">
+            <span class="badge">Coming Soon</span>
+            <h1>Something Big is Coming</h1>
+            <p class="subtitle">Be the first to know when we launch. Join our waitlist for early access and exclusive updates.</p>
+
+            <div class="form-container">
+                <form id="waitlistForm">
+                    <div class="form-group">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" placeholder="Your name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input type="email" id="email" name="email" required placeholder="you@example.com">
+                    </div>
+
+                    <button type="submit" id="submitBtn">Join the Waitlist</button>
+
+                    <div id="statusMessage" class="status-message"></div>
+                </form>
+
+                <p class="waitlist-count"><strong>2,847</strong> people already on the waitlist</p>
+
+                <!-- Embeddable Code Section - Remove in production -->
+                <div class="code-section">
+                    <div class="code-section-header">
+                        <h3>Embed Code</h3>
+                        <button class="copy-btn" onclick="copyEmbedCode()">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                            <span>Copy Code</span>
+                        </button>
+                    </div>
+                    <div class="code-block">
+                        <pre id="embedCode"></pre>
+                    </div>
+                    <p class="code-note">Replace YOUR_FORM_SUBMIT_HASH with your actual form hash.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="successSection" class="success-view hidden">
+            <div class="checkmark">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+            </div>
+            <h2>You're on the List!</h2>
+            <p>We'll notify you as soon as we launch. Keep an eye on your inbox.</p>
+            <span class="position">You're #<span id="positionNumber">2,848</span> on the waitlist</span>
+
+            <div class="share-section">
+                <p>Share with friends and move up the list</p>
+                <div class="share-buttons">
+                    <button class="share-btn" onclick="shareTwitter()" title="Share on Twitter">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </button>
+                    <button class="share-btn" onclick="shareLinkedIn()" title="Share on LinkedIn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                        </svg>
+                    </button>
+                    <button class="share-btn" onclick="copyLink()" title="Copy Link">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ====================
+        // CONFIGURATION
+        // ====================
+        const FORMFLOW_API_URL = 'https://api.formflow.fyi';
+        const FORM_SUBMIT_HASH = 'YOUR_FORM_SUBMIT_HASH';
+        const SHARE_URL = window.location.href;  // Change to your actual landing page URL
+
+        // ====================
+        // FORM HANDLING
+        // ====================
+        const form = document.getElementById('waitlistForm');
+        const formSection = document.getElementById('formSection');
+        const successSection = document.getElementById('successSection');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusMessage = document.getElementById('statusMessage');
+
+        function showStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${isError ? 'error' : 'success'}`;
+        }
+
+        function hideStatus() {
+            statusMessage.className = 'status-message';
+        }
+
+        async function getCsrfToken() {
+            const response = await fetch(`${FORMFLOW_API_URL}/s/${FORM_SUBMIT_HASH}/csrf`, {
+                method: 'GET',
+                credentials: 'include'
+            });
+            if (!response.ok) throw new Error('Failed to get CSRF token');
+            const data = await response.json();
+            return data.token;
+        }
+
+        async function submitForm(formData) {
+            const csrfToken = await getCsrfToken();
+            const response = await fetch(`${FORMFLOW_API_URL}/s/${FORM_SUBMIT_HASH}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify(formData),
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Submission failed');
+            }
+            return response.json();
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideStatus();
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Joining...';
+
+            try {
+                const formData = {
+                    name: document.getElementById('name').value || '',
+                    email: document.getElementById('email').value,
+                    source: 'Waitlist Signup',
+                    joinedAt: new Date().toISOString()
+                };
+
+                await submitForm(formData);
+
+                // Update position number (in real app, this would come from server)
+                document.getElementById('positionNumber').textContent = '2,848';
+
+                formSection.classList.add('hidden');
+                successSection.classList.remove('hidden');
+
+            } catch (error) {
+                showStatus(error.message || 'Something went wrong. Please try again.', true);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Join the Waitlist';
+            }
+        });
+
+        // ====================
+        // SHARE FUNCTIONS
+        // ====================
+        function shareTwitter() {
+            const text = encodeURIComponent("I just joined the waitlist for something exciting! 🚀");
+            const url = encodeURIComponent(SHARE_URL);
+            window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
+        }
+
+        function shareLinkedIn() {
+            const url = encodeURIComponent(SHARE_URL);
+            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}`, '_blank');
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(SHARE_URL).then(() => {
+                const btn = event.currentTarget;
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+                setTimeout(() => {
+                    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+                }, 2000);
+            });
+        }
+
+        // ====================
+        // EMBED CODE GENERATOR
+        // ====================
+        const embedCodeTemplate = `<!-- FormFlow Waitlist Signup -->
+<form id="ff-waitlist" style="max-width:400px;font-family:system-ui,sans-serif;">
+  <div style="margin-bottom:12px;">
+    <input type="text" name="name" placeholder="Your name" style="width:100%;padding:14px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;">
+  </div>
+  <div style="margin-bottom:12px;">
+    <input type="email" name="email" required placeholder="Email address" style="width:100%;padding:14px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;">
+  </div>
+  <button type="submit" style="width:100%;padding:14px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;">Join the Waitlist</button>
+  <p id="ff-status" style="margin-top:12px;padding:10px;border-radius:6px;font-size:14px;display:none;"></p>
+</form>
+<script>
+(function(){
+  const API = 'https://api.formflow.fyi';
+  const HASH = 'YOUR_FORM_SUBMIT_HASH';
+  const form = document.getElementById('ff-waitlist');
+  const status = document.getElementById('ff-status');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button');
+    btn.disabled = true;
+    btn.textContent = 'Joining...';
+    status.style.display = 'none';
+
+    try {
+      const csrf = await fetch(API + '/s/' + HASH + '/csrf', {credentials:'include'}).then(r => r.json());
+      const res = await fetch(API + '/s/' + HASH, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRF-Token':csrf.token},
+        body: JSON.stringify({
+          name: form.name.value,
+          email: form.email.value,
+          source: 'Waitlist'
+        }),
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      status.style.display = 'block';
+      status.style.background = '#dcfce7';
+      status.style.color = '#166534';
+      status.textContent = "You're on the list!";
+      form.reset();
+    } catch (err) {
+      status.style.display = 'block';
+      status.style.background = '#fee2e2';
+      status.style.color = '#991b1b';
+      status.textContent = err.message || 'Something went wrong';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Join the Waitlist';
+  });
+})();
+<\/script>`;
+
+        document.getElementById('embedCode').textContent = embedCodeTemplate;
+
+        function copyEmbedCode() {
+            navigator.clipboard.writeText(embedCodeTemplate).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.classList.add('copied');
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg><span>Copied!</span>';
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg><span>Copy Code</span>';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -9,7 +9,8 @@ const ADMIN_NAV_ITEMS = [
     { label: 'Organizations', icon: Building2, route: '/admin/organizations' },
     { label: 'Users', icon: Users, route: '/admin/users' },
     { label: 'Forms', icon: FileText, route: '/admin/forms' },
-    { label: 'Submissions', icon: ClipboardList, route: '/admin/submissions' }
+    { label: 'Submissions', icon: ClipboardList, route: '/admin/submissions' },
+    { label: 'System Queue', icon: FileText, route: '/admin/queue' }
 ];
 
 export function AdminLayout() {

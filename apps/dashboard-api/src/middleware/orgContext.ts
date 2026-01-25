@@ -55,8 +55,12 @@ export const injectOrgContext = async (req: OrgContextRequest, res: Response, ne
                 }
             }
 
-            // No context header or invalid org - use super admin's personal context (null org)
-            req.organization = undefined;
+            // No context header or invalid org - fallback to user's own organization if available
+            if (user.organization && user.organization.isActive) {
+                req.organization = user.organization;
+            } else {
+                req.organization = undefined;
+            }
             return next();
         }
 

@@ -36,28 +36,36 @@ export class FormIntegration {
     @Column({ nullable: true })
     smtpUsername: string | null
 
-    @Column({ nullable: true, transformer: {
-        to: (value: string | null) => encrypt(value),
-        from: (value: string | null) => decrypt(value),
-    }})
+    @Column({
+        nullable: true, transformer: {
+            to: (value: string | null) => encrypt(value),
+            from: (value: string | null) => decrypt(value),
+        }
+    })
     smtpPassword: string | null
 
-    @Column({ nullable: true, transformer: {
-        to: (value: string | null) => encrypt(value),
-        from: (value: string | null) => decrypt(value),
-    }})
+    @Column({
+        nullable: true, transformer: {
+            to: (value: string | null) => encrypt(value),
+            from: (value: string | null) => decrypt(value),
+        }
+    })
     fromEmail: string | null
 
-    @Column({ nullable: true, transformer: {
-        to: (value: string | null) => encrypt(value),
-        from: (value: string | null) => decrypt(value),
-    }})
+    @Column({
+        nullable: true, transformer: {
+            to: (value: string | null) => encrypt(value),
+            from: (value: string | null) => decrypt(value),
+        }
+    })
     fromEmailAccessToken: string | null
 
-    @Column({ nullable: true, transformer: {
-        to: (value: string | null) => encrypt(value),
-        from: (value: string | null) => decrypt(value),
-    }})
+    @Column({
+        nullable: true, transformer: {
+            to: (value: string | null) => encrypt(value),
+            from: (value: string | null) => decrypt(value),
+        }
+    })
     fromEmailRefreshToken: string | null
 
     // Telegram settings

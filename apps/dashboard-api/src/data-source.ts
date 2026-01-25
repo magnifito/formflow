@@ -48,7 +48,5 @@ export const AppDataSource = new DataSource({
   ],
   migrations: [
     path.join(__dirname, "migrations/initial-schema.ts"),
-    // Exclude standalone scripts: manage-super-admin.ts
-    // These are run manually, not via TypeORM migration system
   ],
 });

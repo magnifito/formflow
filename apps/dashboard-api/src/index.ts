@@ -14,6 +14,7 @@ import { setupGlobalErrorHandlers } from "./middleware/errorHandlers";
 import AdminController from "./controller/AdminController";
 import OrganizationController from "./controller/OrganizationController";
 import IntegrationController from "./controller/IntegrationController";
+import QueueController from "./controller/QueueController";
 import logger from "@formflow/shared/logger";
 
 const BCRYPT_ROUNDS = 10;
@@ -215,10 +216,12 @@ async function createApp() {
         }
     });
 
-    // Dashboard routes
-    app.use('/admin', AdminController);
+    // Routes
+
     app.use('/org', OrganizationController);
-    app.use('/', IntegrationController);
+    app.use('/admin', AdminController);
+    app.use('/integrations', IntegrationController);
+    app.use('/queue', QueueController);
 
     // Auth endpoints
     app.post('/auth/login', cors(strictCorsOptions), async (req: Request, res: Response) => {

@@ -7,6 +7,7 @@ import axios from "axios";
 import crypto from "crypto";
 import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
 import { getTelegramService } from "@formflow/shared/telegram";
+import { getBoss, QUEUE_NAMES, IntegrationType, IntegrationJobData, JOB_OPTIONS } from "@formflow/shared/queue";
 
 const router = Router();
 const csrfSecret = getEnv("CSRF_SECRET") || "default-dev-secret-do-not-use-in-prod";
@@ -525,6 +526,193 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         }
 
         // Process integrations
+        // Check if queue processing is enabled
+        if (getEnv('QUEUE_ENABLED') === 'true') {
+            try {
+                const boss = await getBoss();
+                const jobsToQueue: Array<{ name: string, data: IntegrationJobData, options: any }> = [];
+
+                const baseJobData = {
+                    submissionId: submission.id,
+                    formId: form.id,
+                    organizationId: form.organizationId,
+                    formData,
+                    formattedMessage: niceMessage,
+                    formName: form.name,
+                    config: {}
+                };
+
+                // Email integration
+                if (integration.emailEnabled && integration.emailRecipients) {
+                    const recipients = integration.emailRecipients.split(',').map(e => e.trim());
+                    jobsToQueue.push({
+                        name: QUEUE_NAMES[IntegrationType.EMAIL_SMTP],
+                        data: {
+                            ...baseJobData,
+                            integrationType: IntegrationType.EMAIL_SMTP,
+                            config: {
+                                recipients,
+                                // Pass env vars for Gmail OAuth if needed, or handler reads them?
+                                // Handler reads them if not provided. We can pass specific config if form had it.
+                                // Currently form only has recipients.
+                            }
+                        },
+                        options: {
+                            ...JOB_OPTIONS[IntegrationType.EMAIL_SMTP],
+                            singletonKey: `${submission.id}-email`,
+                        }
+                    });
+                }
+
+                // Telegram integration
+                if (integration.telegramEnabled && integration.telegramChatId) {
+                    jobsToQueue.push({
+                        name: QUEUE_NAMES[IntegrationType.TELEGRAM],
+                        data: {
+                            ...baseJobData,
+                            integrationType: IntegrationType.TELEGRAM,
+                            config: {
+                                chatId: integration.telegramChatId
+                            }
+                        },
+                        options: {
+                            ...JOB_OPTIONS[IntegrationType.TELEGRAM],
+                            singletonKey: `${submission.id}-telegram`,
+                        }
+                    });
+                }
+
+                // Discord integration
+                if (integration.discordEnabled && integration.discordWebhook) {
+                    jobsToQueue.push({
+                        name: QUEUE_NAMES[IntegrationType.DISCORD],
+                        data: {
+                            ...baseJobData,
+                            integrationType: IntegrationType.DISCORD,
+                            config: {
+                                webhookUrl: integration.discordWebhook
+                            }
+                        },
+                        options: {
+                            ...JOB_OPTIONS[IntegrationType.DISCORD],
+                            singletonKey: `${submission.id}-discord`,
+                        }
+                    });
+                }
+
+                // Slack integration
+                if (integration.slackEnabled && integration.slackAccessToken && integration.slackChannelId) {
+                    jobsToQueue.push({
+                        name: QUEUE_NAMES[IntegrationType.SLACK],
+                        data: {
+                            ...baseJobData,
+                            integrationType: IntegrationType.SLACK,
+                            config: {
+                                accessToken: integration.slackAccessToken,
+                                channelId: integration.slackChannelId
+                            }
+                        },
+                        options: {
+                            ...JOB_OPTIONS[IntegrationType.SLACK],
+                            singletonKey: `${submission.id}-slack`,
+                        }
+                    });
+                }
+
+                // Webhook (Generic)
+                if (integration.webhookEnabled && integration.webhookUrl) {
+                    jobsToQueue.push({
+                        name: QUEUE_NAMES[IntegrationType.WEBHOOK],
+                        data: {
+                            ...baseJobData,
+                            integrationType: IntegrationType.WEBHOOK,
+                            config: {
+                                webhook: integration.webhookUrl,
+                                webhookSource: 'generic'
+                            }
+                        },
+                        options: {
+                            ...JOB_OPTIONS[IntegrationType.WEBHOOK],
+                            singletonKey: `${submission.id}-webhook`,
+                        }
+                    });
+                }
+
+                // Make.com
+                if (integration.makeEnabled && integration.makeWebhook) {
+                    jobsToQueue.push({
+                        name: QUEUE_NAMES[IntegrationType.WEBHOOK],
+                        data: {
+                            ...baseJobData,
+                            integrationType: IntegrationType.WEBHOOK,
+                            config: {
+                                webhook: integration.makeWebhook,
+                                webhookSource: 'make'
+                            }
+                        },
+                        options: {
+                            ...JOB_OPTIONS[IntegrationType.WEBHOOK],
+                            singletonKey: `${submission.id}-make`,
+                        }
+                    });
+                }
+
+                // n8n
+                if (integration.n8nEnabled && integration.n8nWebhook) {
+                    jobsToQueue.push({
+                        name: QUEUE_NAMES[IntegrationType.WEBHOOK],
+                        data: {
+                            ...baseJobData,
+                            integrationType: IntegrationType.WEBHOOK,
+                            config: {
+                                webhook: integration.n8nWebhook,
+                                webhookSource: 'n8n'
+                            }
+                        },
+                        options: {
+                            ...JOB_OPTIONS[IntegrationType.WEBHOOK],
+                            singletonKey: `${submission.id}-n8n`,
+                        }
+                    });
+                }
+
+                // Enqueue all jobs
+                // pg-boss 9+ supports sending array? No, send() is for single job usually?
+                // send(name, data, options)
+                // We'll iterate.
+                for (const job of jobsToQueue) {
+                    await boss.send(job.name, job.data, job.options);
+                }
+
+                logger.info('Submitted integration jobs to queue', {
+                    operation: LogOperation.FORM_SUBMIT,
+                    formId: form.id,
+                    submissionId: submission.id,
+                    jobCount: jobsToQueue.length,
+                    correlationId: req.correlationId
+                });
+
+                // Respond immediately
+                return res.json({ message: 'Submission received successfully' });
+
+            } catch (error: any) {
+                // If queueing fails, fallback to synchronous? Or just error?
+                // Failure to queue is a system error (DB down?). 
+                // If DB is down, we probably failed to save submission earlier anyway.
+                // We'll log and attempt synchronous fallback as "best effort", or just return error.
+                // But wait, "failed to save submission" would throw before this.
+                // If pg-boss fails but submission saved, we might lose integrations if we don't fallback.
+                logger.error('Failed to queue jobs, falling back to synchronous execution', {
+                    operation: LogOperation.FORM_SUBMIT,
+                    error: error.message,
+                    formId: form.id,
+                    submissionId: submission.id
+                });
+                // Fall through to synchronous code
+            }
+        }
+
+        // Process integrations (Synchronous Fallback)
         // Email integration
         if (integration.emailEnabled && integration.emailRecipients) {
             try {

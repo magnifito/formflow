@@ -13,6 +13,7 @@ import { AdminOrganizationsPage } from './features/admin/AdminOrganizationsPage'
 import { AdminUsersPage } from './features/admin/AdminUsersPage';
 import { AdminSubmissionsPage } from './features/admin/AdminSubmissionsPage';
 import { AdminFormsPage } from './features/admin/AdminFormsPage';
+import { QueuePage } from './features/queue/QueuePage';
 
 export const router = createBrowserRouter([
     {
@@ -69,7 +70,8 @@ export const router = createBrowserRouter([
             { path: 'organizations', element: <AdminOrganizationsPage /> },
             { path: 'users', element: <AdminUsersPage /> },
             { path: 'forms', element: <AdminFormsPage /> },
-            { path: 'submissions', element: <AdminSubmissionsPage /> }
+            { path: 'submissions', element: <AdminSubmissionsPage /> },
+            { path: 'queue', element: <QueuePage /> }
         ]
     }
 ]);

@@ -206,7 +206,7 @@ export function useAdmin() {
         }
     }, []);
 
-    const createSystemForm = async (data: { name: string; description?: string; organizationId: number | null }) => {
+    const createSystemForm = async (data: { name: string; slug?: string; description?: string; organizationId: number | null }) => {
         try {
             await apiFetch('/org/forms', {
                 method: 'POST',

@@ -32,11 +32,26 @@ async function createApp() {
     }
 
     // CORS - Allow all origins for public form submissions
+    // CORS - Allow all origins for public form submissions, referencing the request origin if needed
+    // We need to be dynamic to support specific localhost development ports
     const corsOptions = {
-        origin: "*",
+        origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!origin) return callback(null, true);
+
+            // Allow localhost/127.0.0.1 for development (any port) including Lab
+            if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+                return callback(null, true);
+            }
+
+            // Allow all others for now (public forms)
+            // Ideally we would check against whitelisted domains here too if we wanted strict CORS at middleware level
+            callback(null, true);
+        },
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'x-altcha-spam-filter', 'x-api-key', 'Authorization', 'X-Organization-Context', 'X-CSRF-Token', 'X-Correlation-Id', 'X-Request-Id'],
         exposedHeaders: ['x-correlation-id'],
+        credentials: true
     };
     app.use(cors(corsOptions));
 
@@ -96,9 +111,37 @@ async function createApp() {
 async function startServer() {
     const app = await createApp();
 
+    const { startWorker, stopBoss } = await import("@formflow/shared/queue");
+
+    // Start queue worker
+    try {
+        await startWorker();
+        logger.info('Queue worker started');
+    } catch (err: any) {
+        logger.error('Failed to start queue worker', { error: err.message });
+    }
+
     const server = app.listen(COLLECTOR_API_PORT, () => {
         logger.info(`Form API server has started on port ${COLLECTOR_API_PORT}`, { port: COLLECTOR_API_PORT, environment: process.env.NODE_ENV || 'development' });
     });
+
+    const shutdown = async () => {
+        logger.info('Shutting down server...');
+        server.close(async () => {
+            logger.info('HTTP server closed');
+            await stopBoss();
+            process.exit(0);
+        });
+
+        // Force exit if hanging
+        setTimeout(() => {
+            logger.error('Forcing shutdown after timeout');
+            process.exit(1);
+        }, 10000);
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
 
     return { app, server };
 }

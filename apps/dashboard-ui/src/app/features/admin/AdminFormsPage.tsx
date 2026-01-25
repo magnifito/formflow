@@ -17,6 +17,7 @@ export function AdminFormsPage() {
     const [createError, setCreateError] = useState('');
     const [newForm, setNewForm] = useState({
         name: '',
+        slug: '',
         description: '',
         organizationId: '' // Store as string for select value
     });
@@ -53,13 +54,14 @@ export function AdminFormsPage() {
         try {
             await createSystemForm({
                 name: newForm.name,
+                slug: newForm.slug,
                 description: newForm.description,
                 organizationId: newForm.organizationId === 'null' || !newForm.organizationId
                     ? null
                     : parseInt(newForm.organizationId)
             });
             setShowCreateModal(false);
-            setNewForm({ name: '', description: '', organizationId: '' });
+            setNewForm({ name: '', slug: '', description: '', organizationId: '' });
             fetchForms();
         } catch (err: any) {
             setCreateError(err.message);
@@ -204,8 +206,27 @@ export function AdminFormsPage() {
                                         required
                                         placeholder="Contact Us"
                                         value={newForm.name}
-                                        onChange={(e) => setNewForm(prev => ({ ...prev, name: e.target.value }))}
+                                        onChange={(e) => {
+                                            const name = e.target.value;
+                                            setNewForm(prev => ({
+                                                ...prev,
+                                                name,
+                                                // Auto-generate slug if it hasn't been manually edited
+                                                slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+                                            }));
+                                        }}
                                     />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Slug</label>
+                                    <Input
+                                        placeholder="contact-us"
+                                        value={newForm.slug}
+                                        onChange={(e) => setNewForm(prev => ({ ...prev, slug: e.target.value }))}
+                                    />
+                                    <p className="text-[10px] text-muted-foreground italic">
+                                        Unique identifier for the form URL.
+                                    </p>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Description</label>

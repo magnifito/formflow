@@ -78,6 +78,11 @@ export enum LogOperation {
   SYSTEM_STARTUP = 'system.startup',
   SYSTEM_SHUTDOWN = 'system.shutdown',
   SYSTEM_ERROR = 'system.error',
+
+  // Dashboard Queue Operations
+  DASHBOARD_QUEUE_STATS = 'dashboard.queue.stats',
+  DASHBOARD_QUEUE_JOBS = 'dashboard.queue.jobs',
+  DASHBOARD_QUEUE_RETRY = 'dashboard.queue.retry',
 }
 
 /**

@@ -15,7 +15,7 @@ interface SerializedError {
 /**
  * Serialize an error object for logging
  */
-export function serializeError(error: any, depth = 0, maxDepth = 5, seen = new WeakSet()): SerializedError | string {
+export function serializeError(error: any, depth = 0, maxDepth = 5, seen = new WeakSet()): any {
   // Prevent infinite recursion
   if (depth > maxDepth) {
     return '[Max Depth Reached]';
