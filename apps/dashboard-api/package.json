@@ -37,7 +37,7 @@
       "winston-daily-rotate-file": "^5.0.0"
    },
    "scripts": {
-      "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+      "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/index.ts",
       "start": "ts-node src/index.ts",
       "typeorm": "ts-node ../../node_modules/typeorm/cli.js",
       "migration:generate": "ts-node --project tsconfig.json -r tsconfig-paths/register ../../node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",

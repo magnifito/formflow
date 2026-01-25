@@ -5,7 +5,7 @@ import { getEnv } from "@formflow/shared/env";
 import nodemailer from "nodemailer";
 import axios from "axios";
 import crypto from "crypto";
-import logger from "@formflow/shared/logger";
+import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
 
 const router = Router();
 const csrfSecret = getEnv("CSRF_SECRET");
@@ -279,16 +279,36 @@ router.get('/:identifier/csrf', async (req: Request, res: Response) => {
                 || origin.includes("localhost");
 
             if (!isAllowed) {
-                console.log("Domain not allowed:", origin);
+                logger.warn(LogMessages.domainNotAllowed, {
+                    operation: LogOperation.DOMAIN_CHECK,
+                    origin,
+                    submitHash: form.submitHash,
+                    formId: form.id,
+                    endpoint: 'csrf',
+                    correlationId: req.correlationId,
+                });
                 return res.status(403).json({ error: 'Origin not whitelisted' });
             }
         }
 
         const token = createCsrfToken(form.submitHash, origin);
         res.json({ token, expiresInSeconds: Math.floor(csrfTtlMs / 1000) });
-        logger.info('CSRF token issued', { submitHash: form.submitHash, origin, correlationId: req.correlationId });
+        logger.info(LogMessages.csrfTokenIssued, {
+            operation: LogOperation.CSRF_TOKEN_ISSUE,
+            submitHash: form.submitHash,
+            formId: form.id,
+            origin,
+            expiresInSeconds: Math.floor(csrfTtlMs / 1000),
+            correlationId: req.correlationId,
+        });
     } catch (error: any) {
-        logger.error('CSRF token error', { error: error.message, stack: error.stack, submitHash: req.params.identifier, correlationId: req.correlationId });
+        logger.error('CSRF token generation failed', {
+            operation: LogOperation.CSRF_TOKEN_ISSUE,
+            error: error.message,
+            stack: error.stack,
+            submitHash: req.params.identifier,
+            correlationId: req.correlationId,
+        });
         res.status(500).json({ error: 'Failed to issue CSRF token' });
     }
 });
@@ -399,7 +419,14 @@ router.post('/:identifier', async (req: Request, res: Response) => {
                 || origin.includes("localhost");
 
             if (!isAllowed) {
-                console.log("Domain not allowed:", origin);
+                logger.warn(LogMessages.domainNotAllowed, {
+                    operation: LogOperation.DOMAIN_CHECK,
+                    origin,
+                    submitHash: form.submitHash,
+                    formId: form.id,
+                    endpoint: 'submit',
+                    correlationId: req.correlationId,
+                });
                 return res.status(403).json({ error: 'Origin not whitelisted' });
             }
         }
@@ -499,7 +526,22 @@ router.post('/:identifier', async (req: Request, res: Response) => {
 
             transporter.sendMail(mailMessage, (error) => {
                 if (error) {
-                    logger.error('Error sending email', { error: error.message, formId: form.id, correlationId: req.correlationId });
+                    logger.error(LogMessages.integrationSendFailed('Email'), {
+                        operation: LogOperation.INTEGRATION_EMAIL_SEND,
+                        error: error.message,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        recipientCount: recipients.length,
+                        correlationId: req.correlationId,
+                    });
+                } else {
+                    logger.info(LogMessages.integrationSendSuccess('Email'), {
+                        operation: LogOperation.INTEGRATION_EMAIL_SEND,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        recipientCount: recipients.length,
+                        correlationId: req.correlationId,
+                    });
                 }
             });
         }
@@ -510,32 +552,111 @@ router.post('/:identifier', async (req: Request, res: Response) => {
             axios.post(url, {
                 chat_id: integration.telegramChatId,
                 text: niceMessage,
-            }).catch(err => logger.error('Telegram error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
+            }).then(() => {
+                logger.info(LogMessages.integrationSendSuccess('Telegram'), {
+                    operation: LogOperation.INTEGRATION_TELEGRAM_SEND,
+                    formId: form.id,
+                    submissionId: submission.id,
+                    correlationId: req.correlationId,
+                });
+            }).catch(err => {
+                logger.error(LogMessages.integrationSendFailed('Telegram'), {
+                    operation: LogOperation.INTEGRATION_TELEGRAM_SEND,
+                    error: err.message,
+                    formId: form.id,
+                    submissionId: submission.id,
+                    correlationId: req.correlationId,
+                });
+            });
         }
 
         // Discord integration
         if (integration.discordEnabled && integration.discordWebhook) {
             const discordMessage = `\`\`\`${niceMessage}\`\`\``;
             axios.post(integration.discordWebhook, { content: discordMessage })
-                .catch(err => logger.error('Discord error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
+                .then(() => {
+                    logger.info(LogMessages.integrationSendSuccess('Discord'), {
+                        operation: LogOperation.INTEGRATION_DISCORD_SEND,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        correlationId: req.correlationId,
+                    });
+                })
+                .catch(err => {
+                    logger.error(LogMessages.integrationSendFailed('Discord'), {
+                        operation: LogOperation.INTEGRATION_DISCORD_SEND,
+                        error: err.message,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        correlationId: req.correlationId,
+                    });
+                });
         }
 
         // Make.com integration
         if (integration.makeEnabled && integration.makeWebhook) {
             axios.post(integration.makeWebhook, formData)
-                .catch(err => logger.error('Make error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
+                .then(() => {
+                    logger.info(LogMessages.integrationSendSuccess('Make.com'), {
+                        operation: LogOperation.INTEGRATION_MAKE_SEND,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        correlationId: req.correlationId,
+                    });
+                })
+                .catch(err => {
+                    logger.error(LogMessages.integrationSendFailed('Make.com'), {
+                        operation: LogOperation.INTEGRATION_MAKE_SEND,
+                        error: err.message,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        correlationId: req.correlationId,
+                    });
+                });
         }
 
         // n8n integration
         if (integration.n8nEnabled && integration.n8nWebhook) {
             axios.post(integration.n8nWebhook, formData)
-                .catch(err => logger.error('n8n error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
+                .then(() => {
+                    logger.info(LogMessages.integrationSendSuccess('n8n'), {
+                        operation: LogOperation.INTEGRATION_N8N_SEND,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        correlationId: req.correlationId,
+                    });
+                })
+                .catch(err => {
+                    logger.error(LogMessages.integrationSendFailed('n8n'), {
+                        operation: LogOperation.INTEGRATION_N8N_SEND,
+                        error: err.message,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        correlationId: req.correlationId,
+                    });
+                });
         }
 
         // Generic webhook integration
         if (integration.webhookEnabled && integration.webhookUrl) {
             axios.post(integration.webhookUrl, formData)
-                .catch(err => logger.error('Webhook error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
+                .then(() => {
+                    logger.info(LogMessages.integrationSendSuccess('Webhook'), {
+                        operation: LogOperation.INTEGRATION_WEBHOOK_SEND,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        correlationId: req.correlationId,
+                    });
+                })
+                .catch(err => {
+                    logger.error(LogMessages.integrationSendFailed('Webhook'), {
+                        operation: LogOperation.INTEGRATION_WEBHOOK_SEND,
+                        error: err.message,
+                        formId: form.id,
+                        submissionId: submission.id,
+                        correlationId: req.correlationId,
+                    });
+                });
         }
 
         // Slack integration
@@ -548,13 +669,43 @@ router.post('/:identifier', async (req: Request, res: Response) => {
                     'Authorization': `Bearer ${integration.slackAccessToken}`,
                     'Content-Type': 'application/json'
                 }
-            }).catch(err => logger.error('Slack error', { error: err.message, formId: form.id, correlationId: req.correlationId }));
+            }).then(() => {
+                logger.info(LogMessages.integrationSendSuccess('Slack'), {
+                    operation: LogOperation.INTEGRATION_SLACK_SEND,
+                    formId: form.id,
+                    submissionId: submission.id,
+                    correlationId: req.correlationId,
+                });
+            }).catch(err => {
+                logger.error(LogMessages.integrationSendFailed('Slack'), {
+                    operation: LogOperation.INTEGRATION_SLACK_SEND,
+                    error: err.message,
+                    formId: form.id,
+                    submissionId: submission.id,
+                    correlationId: req.correlationId,
+                });
+            });
         }
+
+        logger.info(LogMessages.formSubmissionProcessed, {
+            operation: LogOperation.FORM_SUBMIT,
+            formId: form.id,
+            submissionId: submission.id,
+            formName: form.name,
+            origin,
+            correlationId: req.correlationId,
+        });
 
         res.json({ message: 'Submission received successfully' });
 
     } catch (error: any) {
-        logger.error('Submission error', { error: error.message, stack: error.stack, identifier: req.params.identifier, correlationId: req.correlationId });
+        logger.error(LogMessages.formSubmissionFailed, {
+            operation: LogOperation.FORM_SUBMIT,
+            error: error.message,
+            stack: error.stack,
+            identifier: req.params.identifier,
+            correlationId: req.correlationId,
+        });
         res.status(500).json({ error: 'Failed to process submission' });
     }
 });

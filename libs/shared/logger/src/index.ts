@@ -89,24 +89,57 @@ const consoleFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
   winston.format.colorize(),
-  winston.format.printf(({ timestamp, level, message, correlationId, userId, organizationId, duration, statusCode, service, ...meta }) => {
-    let log = `[${timestamp}] [${service}] ${level}: ${message}`;
-    
-    if (correlationId) log += ` [correlationId: ${correlationId}]`;
-    if (userId) log += ` [userId: ${userId}]`;
-    if (organizationId) log += ` [organizationId: ${organizationId}]`;
-    if (duration !== undefined) log += ` [duration: ${duration}ms]`;
-    if (statusCode) log += ` [status: ${statusCode}]`;
-    
-    // Add any additional metadata
-    const metaKeys = Object.keys(meta).filter(key => 
-      !['timestamp', 'level', 'message', 'correlationId', 'userId', 'organizationId', 'duration', 'statusCode', 'service', 'version', 'environment', 'splat', 'Symbol(level)', 'Symbol(message)'].includes(key)
-    );
-    
-    if (metaKeys.length > 0) {
-      log += ` ${JSON.stringify(meta)}`;
+  winston.format.printf(({ timestamp, level, message, correlationId, userId, organizationId, duration, statusCode, service, operation, outcome, error, ...meta }) => {
+    // Build the main log line
+    let log = `[${timestamp}] [${service}]`;
+
+    // Add operation context if present (e.g., [integration.telegram.send])
+    if (operation) {
+      log += ` [${operation}]`;
     }
-    
+
+    log += ` ${level}: ${message}`;
+
+    // Add outcome if present
+    if (outcome) {
+      log += ` (${outcome})`;
+    }
+
+    // Add key identifiers in a readable format
+    const identifiers: string[] = [];
+    if (correlationId) identifiers.push(`cid:${correlationId.substring(0, 8)}`);
+    if (userId) identifiers.push(`uid:${userId}`);
+    if (organizationId) identifiers.push(`org:${organizationId}`);
+    if (duration !== undefined) identifiers.push(`${duration}ms`);
+    if (statusCode) identifiers.push(`status:${statusCode}`);
+
+    if (identifiers.length > 0) {
+      log += ` [${identifiers.join(' | ')}]`;
+    }
+
+    // Add error message if present
+    if (error && typeof error === 'string') {
+      log += ` - ${error}`;
+    } else if (error && typeof error === 'object' && error.message) {
+      log += ` - ${error.message}`;
+    }
+
+    // Add any additional metadata (filtered)
+    const excludeKeys = [
+      'timestamp', 'level', 'message', 'correlationId', 'userId', 'organizationId',
+      'duration', 'statusCode', 'service', 'version', 'environment', 'splat',
+      'Symbol(level)', 'Symbol(message)', 'operation', 'outcome', 'error', 'stack'
+    ];
+    const metaKeys = Object.keys(meta).filter(key => !excludeKeys.includes(key));
+
+    if (metaKeys.length > 0) {
+      const filteredMeta: Record<string, unknown> = {};
+      for (const key of metaKeys) {
+        filteredMeta[key] = meta[key];
+      }
+      log += ` ${JSON.stringify(filteredMeta)}`;
+    }
+
     return log;
   })
 );
@@ -189,6 +222,16 @@ export default logger;
 export { maskSensitiveData, maskHeaders, maskUrl } from './maskSensitiveData';
 export { serializeError } from './errorSerializer';
 export { WinstonTypeORMLogger } from './typeormLogger';
+export {
+  LogOperation,
+  LogOutcome,
+  LogMessages,
+  createLogContext,
+  successContext,
+  failureContext,
+  extractRequestContext,
+} from './logContext';
+export type { LogContext } from './logContext';
 
 // Export types for TypeScript
 export type Logger = typeof logger;

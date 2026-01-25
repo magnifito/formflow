@@ -2,6 +2,7 @@ import "reflect-metadata"
 import { DataSource } from "typeorm"
 import { User, Organization, Form, WhitelistedDomain, FormIntegration, OrganizationIntegration, Submission } from "@formflow/shared/entities"
 import { loadEnv } from "@formflow/shared/env";
+import { WinstonTypeORMLogger } from "@formflow/shared/logger";
 
 loadEnv();
 
@@ -44,8 +45,9 @@ export const AppDataSource = new DataSource({
     ...dbConfig,
     // Use synchronize for now - in production you should use migrations instead
     // TODO: Set synchronize: false and use migrations for production deployments
-    synchronize: true,
+    synchronize: false,
     logging: !isProduction, // Enable logging in development
+    logger: isProduction ? undefined : new WinstonTypeORMLogger(),
     entities: [User, Organization, Form, WhitelistedDomain, FormIntegration, OrganizationIntegration, Submission],
     // Migrations are available in apps/dashboard-api/src/migrations/
     // To run migrations manually: npm run db:migrate

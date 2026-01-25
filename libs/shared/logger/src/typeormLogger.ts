@@ -1,6 +1,6 @@
 import { Logger, QueryRunner } from 'typeorm';
 
-const LOG_QUERIES = process.env.LOG_QUERIES === 'true' || 
+const LOG_QUERIES = process.env.LOG_QUERIES === 'true' ||
                     (process.env.NODE_ENV === 'development' && process.env.LOG_QUERIES !== 'false');
 const LOG_SLOW_QUERY_THRESHOLD = parseInt(process.env.LOG_SLOW_QUERY_THRESHOLD || '500', 10);
 
@@ -8,6 +8,38 @@ const LOG_SLOW_QUERY_THRESHOLD = parseInt(process.env.LOG_SLOW_QUERY_THRESHOLD |
 function getLogger() {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   return require('./index').default;
+}
+
+/**
+ * Format SQL query for better readability in logs
+ */
+function formatSql(query: string): string {
+  const keywords = [
+    'SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'ORDER BY', 'GROUP BY',
+    'HAVING', 'LIMIT', 'OFFSET', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN',
+    'INNER JOIN', 'OUTER JOIN', 'ON', 'INSERT INTO', 'VALUES',
+    'UPDATE', 'SET', 'DELETE FROM', 'CREATE', 'ALTER', 'DROP',
+    'RETURNING', 'AS', 'DISTINCT', 'UNION', 'EXCEPT', 'INTERSECT'
+  ];
+
+  let formatted = query;
+
+  // Add newlines before major keywords
+  for (const keyword of keywords) {
+    const regex = new RegExp(`\\s+${keyword}\\s+`, 'gi');
+    formatted = formatted.replace(regex, `\n  ${keyword} `);
+  }
+
+  // Clean up the start (remove leading newline if present)
+  formatted = formatted.replace(/^\n\s*/, '');
+
+  // Add indentation for nested content
+  formatted = formatted
+    .replace(/\(\s*/g, '(\n    ')
+    .replace(/\s*\)/g, '\n  )')
+    .replace(/,\s*/g, ',\n    ');
+
+  return '\n' + formatted;
 }
 
 /**
@@ -26,7 +58,7 @@ export class WinstonTypeORMLogger implements Logger {
     }
 
     getLogger().debug('TypeORM Query', {
-      query,
+      query: formatSql(query),
       parameters: parameters ? '[Parameters]' : undefined, // Don't log actual parameters (may contain sensitive data)
       queryRunnerId: queryRunner?.connection?.name,
     });
@@ -46,7 +78,7 @@ export class WinstonTypeORMLogger implements Logger {
         message: error.message,
         stack: error.stack,
       },
-      query,
+      query: formatSql(query),
       parameters: parameters ? '[Parameters]' : undefined,
       duration,
       queryRunnerId: queryRunner?.connection?.name,
@@ -58,7 +90,7 @@ export class WinstonTypeORMLogger implements Logger {
    */
   logQuerySlow(time: number, query: string, parameters?: any[], queryRunner?: QueryRunner) {
     getLogger().warn('TypeORM Slow Query', {
-      query,
+      query: formatSql(query),
       duration: time,
       threshold: LOG_SLOW_QUERY_THRESHOLD,
       parameters: parameters ? '[Parameters]' : undefined,

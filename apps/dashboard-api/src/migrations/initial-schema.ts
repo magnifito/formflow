@@ -6,7 +6,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
     public async up(queryRunner: QueryRunner): Promise<void> {
         // 1. Create Organization table
         await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS "organization" (
+            CREATE TABLE "organization" (
                 "id" SERIAL NOT NULL,
                 "name" character varying NOT NULL,
                 "slug" character varying NOT NULL,
@@ -28,7 +28,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
 
         // 2. Create User table
         await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS "user" (
+            CREATE TABLE "user" (
                 "id" SERIAL NOT NULL,
                 "email" character varying NOT NULL,
                 "passwordHash" character varying NOT NULL,
@@ -73,7 +73,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
 
         // 3. Create WhitelistedDomain table
         await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS "whitelisted_domain" (
+            CREATE TABLE "whitelisted_domain" (
                 "id" SERIAL NOT NULL,
                 "organizationId" integer NOT NULL,
                 "domain" character varying NOT NULL,
@@ -84,7 +84,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
 
         // 4. Create Form table
         await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS "form" (
+            CREATE TABLE "form" (
                 "id" SERIAL NOT NULL,
                 "organizationId" integer DEFAULT NULL,
                 "name" character varying NOT NULL,
@@ -112,7 +112,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
 
         // 5. Create FormIntegration table
         await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS "form_integration" (
+            CREATE TABLE "form_integration" (
                 "id" SERIAL NOT NULL,
                 "formId" integer NOT NULL,
                 "emailEnabled" boolean NOT NULL DEFAULT true,
@@ -148,7 +148,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
 
         // 6. Create OrganizationIntegration table
         await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS "organization_integration" (
+            CREATE TABLE "organization_integration" (
                 "id" SERIAL NOT NULL,
                 "organizationId" integer NOT NULL,
                 "emailEnabled" boolean NOT NULL DEFAULT true,
@@ -183,7 +183,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
 
         // 7. Create Submission table
         await queryRunner.query(`
-            CREATE TABLE IF NOT EXISTS "submission" (
+            CREATE TABLE "submission" (
                 "id" SERIAL NOT NULL,
                 "formId" integer NOT NULL,
                 "data" jsonb NOT NULL,
@@ -195,57 +195,45 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         `);
 
         // 8. Create unique constraints
-        await queryRunner.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_organization_slug') THEN ALTER TABLE "organization" ADD CONSTRAINT "UQ_organization_slug" UNIQUE ("slug"); END IF; END $$`);
-        await queryRunner.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_user_email') THEN ALTER TABLE "user" ADD CONSTRAINT "UQ_user_email" UNIQUE ("email"); END IF; END $$`);
-        await queryRunner.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_form_submitHash') THEN ALTER TABLE "form" ADD CONSTRAINT "UQ_form_submitHash" UNIQUE ("submitHash"); END IF; END $$`);
-        await queryRunner.query(`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UQ_form_slug') THEN ALTER TABLE "form" ADD CONSTRAINT "UQ_form_slug" UNIQUE ("slug"); END IF; END $$`);
+        await queryRunner.query(`ALTER TABLE "organization" ADD CONSTRAINT "UQ_organization_slug" UNIQUE ("slug")`);
+        await queryRunner.query(`ALTER TABLE "user" ADD CONSTRAINT "UQ_user_email" UNIQUE ("email")`);
+        await queryRunner.query(`ALTER TABLE "form" ADD CONSTRAINT "UQ_form_submitHash" UNIQUE ("submitHash")`);
+        await queryRunner.query(`ALTER TABLE "form" ADD CONSTRAINT "UQ_form_slug" UNIQUE ("slug")`);
         // Note: form_integration.formId unique constraint is already created in table definition above
 
         // 9. Create indexes for performance
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_organization_slug" ON "organization" ("slug")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_user_email" ON "user" ("email")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_user_organizationId" ON "user" ("organizationId")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_form_submitHash" ON "form" ("submitHash")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_form_slug" ON "form" ("slug")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_form_organizationId" ON "form" ("organizationId")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_submission_formId" ON "submission" ("formId")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_submission_createdAt" ON "submission" ("createdAt")`);
+        await queryRunner.query(`CREATE INDEX "IDX_organization_slug" ON "organization" ("slug")`);
+        await queryRunner.query(`CREATE INDEX "IDX_user_email" ON "user" ("email")`);
+        await queryRunner.query(`CREATE INDEX "IDX_user_organizationId" ON "user" ("organizationId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_form_submitHash" ON "form" ("submitHash")`);
+        await queryRunner.query(`CREATE INDEX "IDX_form_slug" ON "form" ("slug")`);
+        await queryRunner.query(`CREATE INDEX "IDX_form_organizationId" ON "form" ("organizationId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_submission_formId" ON "submission" ("formId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_submission_createdAt" ON "submission" ("createdAt")`);
 
         // 10. Add foreign key constraints
         await queryRunner.query(`
-            DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_user_organizationId') THEN
-                ALTER TABLE "user" ADD CONSTRAINT "FK_user_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
-            END IF; END $$
+            ALTER TABLE "user" ADD CONSTRAINT "FK_user_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE NO ACTION
         `);
 
         await queryRunner.query(`
-            DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_whitelisted_domain_organizationId') THEN
-                ALTER TABLE "whitelisted_domain" ADD CONSTRAINT "FK_whitelisted_domain_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
-            END IF; END $$
+            ALTER TABLE "whitelisted_domain" ADD CONSTRAINT "FK_whitelisted_domain_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
 
         await queryRunner.query(`
-            DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_form_organizationId') THEN
-                ALTER TABLE "form" ADD CONSTRAINT "FK_form_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
-            END IF; END $$
+            ALTER TABLE "form" ADD CONSTRAINT "FK_form_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE NO ACTION
         `);
 
         await queryRunner.query(`
-            DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_form_integration_formId') THEN
-                ALTER TABLE "form_integration" ADD CONSTRAINT "FK_form_integration_formId" FOREIGN KEY ("formId") REFERENCES "form"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
-            END IF; END $$
+            ALTER TABLE "form_integration" ADD CONSTRAINT "FK_form_integration_formId" FOREIGN KEY ("formId") REFERENCES "form"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
 
         await queryRunner.query(`
-            DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_organization_integration_organizationId') THEN
-                ALTER TABLE "organization_integration" ADD CONSTRAINT "FK_organization_integration_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
-            END IF; END $$
+            ALTER TABLE "organization_integration" ADD CONSTRAINT "FK_organization_integration_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
 
         await queryRunner.query(`
-            DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_submission_formId') THEN
-                ALTER TABLE "submission" ADD CONSTRAINT "FK_submission_formId" FOREIGN KEY ("formId") REFERENCES "form"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
-            END IF; END $$
+            ALTER TABLE "submission" ADD CONSTRAINT "FK_submission_formId" FOREIGN KEY ("formId") REFERENCES "form"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
     }
 
@@ -259,29 +247,29 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "FK_user_organizationId"`);
 
         // Drop indexes
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_submission_createdAt"`);
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_submission_formId"`);
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_form_organizationId"`);
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_form_submitHash"`);
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_form_slug"`);
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_user_organizationId"`);
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_user_email"`);
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_organization_slug"`);
+        await queryRunner.query(`DROP INDEX "IDX_submission_createdAt"`);
+        await queryRunner.query(`DROP INDEX "IDX_submission_formId"`);
+        await queryRunner.query(`DROP INDEX "IDX_form_organizationId"`);
+        await queryRunner.query(`DROP INDEX "IDX_form_submitHash"`);
+        await queryRunner.query(`DROP INDEX "IDX_form_slug"`);
+        await queryRunner.query(`DROP INDEX "IDX_user_organizationId"`);
+        await queryRunner.query(`DROP INDEX "IDX_user_email"`);
+        await queryRunner.query(`DROP INDEX "IDX_organization_slug"`);
 
         // Drop unique constraints
-        await queryRunner.query(`ALTER TABLE "form_integration" DROP CONSTRAINT IF EXISTS "UQ_form_integration_formId"`);
+        await queryRunner.query(`ALTER TABLE "form_integration" DROP CONSTRAINT "UQ_form_integration_formId"`);
         await queryRunner.query(`ALTER TABLE "form" DROP CONSTRAINT "UQ_form_submitHash"`);
         await queryRunner.query(`ALTER TABLE "form" DROP CONSTRAINT "UQ_form_slug"`);
         await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "UQ_user_email"`);
         await queryRunner.query(`ALTER TABLE "organization" DROP CONSTRAINT "UQ_organization_slug"`);
 
         // Drop tables in reverse order (respecting FK dependencies)
-        await queryRunner.query(`DROP TABLE IF EXISTS "submission"`);
-        await queryRunner.query(`DROP TABLE IF EXISTS "organization_integration"`);
-        await queryRunner.query(`DROP TABLE IF EXISTS "form_integration"`);
-        await queryRunner.query(`DROP TABLE IF EXISTS "form"`);
-        await queryRunner.query(`DROP TABLE IF EXISTS "whitelisted_domain"`);
-        await queryRunner.query(`DROP TABLE IF EXISTS "user"`);
-        await queryRunner.query(`DROP TABLE IF EXISTS "organization"`);
+        await queryRunner.query(`DROP TABLE "submission"`);
+        await queryRunner.query(`DROP TABLE "organization_integration"`);
+        await queryRunner.query(`DROP TABLE "form_integration"`);
+        await queryRunner.query(`DROP TABLE "form"`);
+        await queryRunner.query(`DROP TABLE "whitelisted_domain"`);
+        await queryRunner.query(`DROP TABLE "user"`);
+        await queryRunner.query(`DROP TABLE "organization"`);
     }
 }
