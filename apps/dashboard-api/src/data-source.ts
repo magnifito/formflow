@@ -9,6 +9,7 @@ import {
   Submission,
   User,
   WhitelistedDomain,
+  Integration,
 } from "../../../libs/shared/entities/src";
 import { loadEnv } from "../../../libs/shared/env/src";
 
@@ -36,7 +37,7 @@ export const AppDataSource = new DataSource({
   ...dbConfig,
   synchronize: false,
   migrationsRun: true,
-  logging: !isProduction,
+  logging: process.env.LOG_QUERIES === 'true',
   entities: [
     User,
     Organization,
@@ -45,6 +46,7 @@ export const AppDataSource = new DataSource({
     FormIntegration,
     OrganizationIntegration,
     Submission,
+    Integration,
   ],
   migrations: [
     path.join(__dirname, "migrations/initial-schema.ts"),

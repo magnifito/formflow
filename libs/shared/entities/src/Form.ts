@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { Organization } from "./Organization"
 import { FormIntegration } from "./FormIntegration"
 import { Submission } from "./Submission"
+import { Integration } from "./Integration"
 
 @Entity()
 export class Form {
@@ -84,4 +85,7 @@ export class Form {
 
     @OneToMany(() => Submission, submission => submission.form)
     submissions: Submission[]
+
+    @OneToMany(() => Integration, integration => integration.form)
+    integrations: Integration[]
 }

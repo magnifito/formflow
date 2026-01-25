@@ -49,7 +49,7 @@ async function createApp() {
             callback(null, true);
         },
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'x-altcha-spam-filter', 'x-api-key', 'Authorization', 'X-Organization-Context', 'X-CSRF-Token', 'X-Correlation-Id', 'X-Request-Id'],
+        allowedHeaders: ['Content-Type', 'x-altcha-spam-filter', 'Authorization', 'X-Organization-Context', 'X-CSRF-Token', 'X-Correlation-Id', 'X-Request-Id'],
         exposedHeaders: ['x-correlation-id'],
         credentials: true
     };

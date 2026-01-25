@@ -108,22 +108,13 @@ Submit a form using its unique submit hash. Always uses JSON format.
 }
 ```
 
-#### Legacy Endpoint
-
-```
-POST /formflow/:apiKey
-Content-Type: application/json or multipart/form-data
-```
-
-Submit a form using organization API key. Supports both JSON and multipart formats.
-
 ### CSRF Tokens
 
 ```
-GET /s/:submitHash/csrf
+GET /s/:identifier/csrf
 ```
 
-Get a CSRF token for protected form submissions.
+Get a CSRF token for protected form submissions. Use either `submitHash` or `slug` as identifier.
 
 ### Health Check
 
@@ -161,7 +152,7 @@ apps/collector-api/
    - Check origin against whitelisted domains
 
 3. **Form Lookup**
-   - Find form by submit hash or API key
+   - Find form by submit hash (for POST) or slug (for GET CSRF)
    - Verify form is active
 
 4. **Create Submission**

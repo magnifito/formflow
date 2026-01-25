@@ -1,7 +1,6 @@
 
 import { IntegrationJobData } from '../types';
 import nodemailer from 'nodemailer';
-import { getEnv } from '@formflow/shared/env';
 import logger, { LogOperation, LogMessages } from '@formflow/shared/logger';
 import { PermanentError } from './index';
 
@@ -12,11 +11,17 @@ export async function handleEmailSmtpJob(job: IntegrationJobData): Promise<void>
         throw new PermanentError('No email recipients configured');
     }
 
+    if (!config.smtp && !config.oauth) {
+        throw new PermanentError('Email integration missing SMTP or OAuth configuration');
+    }
+
     // Create transporter
-    // Priority: Custom SMTP config > Default Gmail OAuth (from env)
     let transporter: nodemailer.Transporter;
 
     if (config.smtp) {
+        if (!config.smtp.username || !config.smtp.password || !config.smtp.host || !config.smtp.port) {
+            throw new PermanentError('SMTP configuration incomplete');
+        }
         transporter = nodemailer.createTransport({
             host: config.smtp.host,
             port: config.smtp.port,
@@ -27,15 +32,17 @@ export async function handleEmailSmtpJob(job: IntegrationJobData): Promise<void>
             },
         });
     } else {
-        // Default Gmail OAuth
+        if (!config.oauth?.clientId || !config.oauth?.clientSecret || !config.oauth?.user || !config.oauth.refreshToken || !config.oauth.accessToken) {
+            throw new PermanentError('OAuth configuration incomplete');
+        }
         transporter = nodemailer.createTransport({
             host: 'smtp.gmail.com',
             port: 465,
             secure: true,
             auth: {
                 type: 'OAuth2',
-                clientId: config.oauth?.clientId || getEnv('GMAIL_CLIENT'),
-                clientSecret: config.oauth?.clientSecret || getEnv('GMAIL_SECRET'),
+                clientId: config.oauth.clientId,
+                clientSecret: config.oauth.clientSecret,
             },
         });
     }
@@ -46,13 +53,10 @@ export async function handleEmailSmtpJob(job: IntegrationJobData): Promise<void>
         subject: config.subject || `New Form Submission: ${formName}`,
         text: formattedMessage,
         auth: !config.smtp ? {
-            // Gmail OAuth specific auth props for the MAIL message (auth in createTransport handles connection)
-            // Wait, nodemailer OAuth2: user/refreshToken/accessToken are needed.
-            // In controller: user, refreshToken, accessToken are passed in sendMail() auth options.
-            user: config.oauth?.user || getEnv('GMAIL_EMAIL'),
-            refreshToken: config.oauth?.refreshToken || getEnv('GMAIL_REFRESH'),
-            accessToken: config.oauth?.accessToken || getEnv('GMAIL_ACCESS'),
-            expires: 1484314697598, // Copied from controller, seems like a placeholder or legacy
+            user: config.oauth!.user,
+            refreshToken: config.oauth!.refreshToken,
+            accessToken: config.oauth!.accessToken,
+            expires: 1484314697598,
         } : undefined,
     };
 

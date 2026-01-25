@@ -1,17 +1,16 @@
 import { Router, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
-import { User, OrganizationIntegration } from "@formflow/shared/entities";
-import { getEnv } from "@formflow/shared/env";
+import { User, Integration, Form, IntegrationScope } from "@formflow/shared/entities";
 import { verifyToken, AuthRequest } from "../middleware/auth";
-import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
-import { getTelegramService, TelegramService } from "@formflow/shared/telegram";
+import logger, { LogOperation } from "@formflow/shared/logger";
+import { IntegrationType } from "@formflow/shared/queue";
+import { getTelegramService } from "@formflow/shared/telegram";
+import { resolveIntegrationStack, normalizeLegacyFormIntegration } from "@formflow/shared/integrations";
 import axios from "axios";
-import crypto from "crypto";
 import nodemailer from "nodemailer";
 import cors from "cors";
 
 const router = Router();
-const redirectUrl = getEnv("REDIRECT_URL") || "https://formflow.fyi";
 
 // Define strict CORS options for integration management
 const strictCorsOptions = {
@@ -21,599 +20,448 @@ const strictCorsOptions = {
     credentials: true
 };
 
-/**
- * RESTORED INTEGRATION ENDPOINTS
- * These were previously on the root of the Dashboard API.
- * Now moved to /integrations but for backward compatibility we can hook
- * them up such that the prefix is configurable or root.
- */
-
-// User management endpoints
-// User management endpoints - API Key generation removed as keys are now environment-based
-// router.post('/create-api-key/:userId', ...);
-
-// router.post('/regenerate-api-key/:userId', ...);
-
-router.post('/update-email/:userId', cors(strictCorsOptions), verifyToken, (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    AppDataSource.manager.findOne(User, { where: { id: userId } }).then(user => {
-        if (!user) {
-            logger.warn(LogMessages.userNotFound, {
-                operation: LogOperation.USER_UPDATE,
-                targetUserId: userId,
-                correlationId: req.correlationId,
-            });
-            return res.status(404).json('User not found');
-        }
-        user.email = req.body.email;
-        AppDataSource.manager.save(user).then(() => {
-            logger.info(LogMessages.userUpdated, {
-                operation: LogOperation.USER_UPDATE,
-                targetUserId: userId,
-                field: 'email',
-                correlationId: req.correlationId,
-            });
-            res.json({ message: 'Email updated successfully' });
-        });
-    }).catch((error) => {
-        logger.error('Failed to update user email', {
-            operation: LogOperation.USER_UPDATE,
-            targetUserId: userId,
-            error: error.message,
-            correlationId: req.correlationId,
-        });
-        res.status(500).json('Internal Server Error');
-    });
-});
-
-// Integration endpoints - Telegram
-router.post('/telegram/toggle/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { telegramBoolean } = req.body;
-
-    try {
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: userId },
-            relations: ['organization']
-        });
-
-        if (!user || !user.organization) {
-            return res.status(400).send('User or Organization not found');
-        }
-
-        let integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-            where: { organizationId: user.organization.id }
-        });
-
-        if (!integration) {
-            integration = AppDataSource.manager.create(OrganizationIntegration, {
-                organizationId: user.organization.id
-            });
-        }
-
-        integration.telegramEnabled = telegramBoolean;
-        await AppDataSource.manager.save(integration);
-
-        logger.info(LogMessages.integrationToggled('Telegram', telegramBoolean), {
-            operation: LogOperation.INTEGRATION_TELEGRAM_TOGGLE,
-            targetUserId: userId,
-            enabled: telegramBoolean,
-            correlationId: req.correlationId,
-        });
-        res.status(200).send('Telegram settings updated successfully');
-    } catch (error: any) {
-        logger.error('Error toggling Telegram', { error: error.message });
-        res.status(500).send('Internal Server Error');
-    }
-});
-
-router.post('/telegram/send/:userId', async (req, res) => {
-    const userId = parseInt(req.params.userId);
-
-    // This endpoint seems to be a test endpoint logic, but we need organization context
-    // Ideally this should use API Key like other send endpoints if it's external,
-    // or be an authenticated test call. The original used userId.
-    // I'll assume it's for testing the connection from the UI.
-
-    try {
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: userId },
-            relations: ['organization']
-        });
-
-        if (!user || !user.organization) {
-            return res.status(400).send('User or Organization not found');
-        }
-
-        const integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-            where: { organizationId: user.organization.id }
-        });
-
-        if (!integration || !integration.telegramChatId) {
-            return res.status(400).send('Telegram not configured');
-        }
-
-        const message = req.body.message;
-        const formattedMessage = TelegramService.formatMessage(message);
-
-        const result = await getTelegramService().sendMessage(
-            { chatId: integration.telegramChatId, message: formattedMessage },
-            { targetUserId: userId }
-        );
-
-        if (result.success) {
-            res.status(200).send('Telegram message sent');
-        } else {
-            res.status(500).send('Error sending Telegram message');
-        }
-    } catch (error: any) {
-        logger.error(LogMessages.integrationSendFailed('Telegram'), {
-            operation: LogOperation.INTEGRATION_TELEGRAM_SEND,
-            error: error.message,
-            targetUserId: userId,
-        });
-        res.status(500).send('Error sending Telegram message');
-    }
-});
-
-router.post('/telegram/unlink/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-
-    try {
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: userId },
-            relations: ['organization']
-        });
-
-        if (!user || !user.organization) {
-            return res.status(400).send('User or Organization not found');
-        }
-
-        const integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-            where: { organizationId: user.organization.id }
-        });
-
-        if (!integration) {
-            return res.status(400).send('Integration not found');
-        }
-
-        if (integration.telegramChatId) {
-            await getTelegramService().sendUnlinkNotification(integration.telegramChatId).catch(() => { });
-        }
-
-        integration.telegramChatId = null;
-        integration.telegramEnabled = false;
-        await AppDataSource.manager.save(integration);
-
-        logger.info(LogMessages.integrationUnlinked('Telegram'), {
-            operation: LogOperation.INTEGRATION_TELEGRAM_UNLINK,
-            targetUserId: userId,
-            correlationId: req.correlationId,
-        });
-        res.json({ message: 'Telegram unlinked successfully' });
-    } catch (error: any) {
-        logger.error('Error unlinking Telegram', { error: error.message });
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Discord endpoints
-router.post('/discord/toggle/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { discordBoolean } = req.body;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) {
-        logger.warn(LogMessages.userNotFound, {
-            operation: LogOperation.INTEGRATION_DISCORD_TOGGLE,
-            targetUserId: userId,
-            correlationId: req.correlationId,
-        });
-        return res.status(400).send('User not found');
-    }
-
-    if (discordBoolean == true && user.currentPlugins + 1 > (user.maxPlugins || Infinity)) {
-        logger.warn('Plugin limit reached', {
-            operation: LogOperation.INTEGRATION_DISCORD_TOGGLE,
-            targetUserId: userId,
-            correlationId: req.correlationId,
-        });
-        return res.status(400).send('You have reached your plugin limit');
-    }
-
-    user.discordBoolean = discordBoolean;
-    user.currentPlugins = Math.max(0, user.currentPlugins + (discordBoolean ? 1 : -1));
-    await AppDataSource.manager.save(user);
-
-    logger.info(LogMessages.integrationToggled('Discord', discordBoolean), {
-        operation: LogOperation.INTEGRATION_DISCORD_TOGGLE,
-        targetUserId: userId,
-        enabled: discordBoolean,
-        correlationId: req.correlationId,
-    });
-    res.status(200).send('Discord settings updated successfully');
-});
-
-router.post('/discord/webhook/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { discordWebhook } = req.body;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) {
-        logger.warn(LogMessages.userNotFound, {
-            operation: LogOperation.INTEGRATION_DISCORD_WEBHOOK,
-            targetUserId: userId,
-            correlationId: req.correlationId,
-        });
-        return res.status(400).send('User not found');
-    }
-    user.discordWebhook = discordWebhook;
-    await AppDataSource.manager.save(user);
-
-    logger.info(LogMessages.integrationWebhookUpdated('Discord'), {
-        operation: LogOperation.INTEGRATION_DISCORD_WEBHOOK,
-        targetUserId: userId,
-        correlationId: req.correlationId,
-    });
-    res.json({ message: 'Discord webhook settings updated successfully' });
-});
-
-// Make.com endpoints
-router.post('/make/:apikey', cors(strictCorsOptions), async (req, res) => {
-    const apiKey = req.params.apikey;
-    // Env-based API Key Check
-    const envKey = getEnv("API_KEY");
-    if (!envKey || apiKey !== envKey) {
-        return res.status(401).send('Invalid API Key');
-    }
-
-    // Authenticate as Super Admin
-    const user = await AppDataSource.manager.findOne(User, { where: { isSuperAdmin: true } });
-
-    if (!user) return res.status(400).send('Super Admin not found');
-    try {
-        await axios.post(user.makeWebhook!, req.body);
-        res.status(200).send('Form submitted successfully');
-    } catch (error: any) {
-        res.status(500).send('Internal Server Error');
-    }
-});
-
-router.post('/make/toggle/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { makeBoolean } = req.body;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) return res.status(400).send('User not found');
-
-    if (makeBoolean == true && user.currentPlugins + 1 > (user.maxPlugins || Infinity)) {
-        return res.status(400).send('You have reached your plugin limit');
-    }
-
-    user.makeBoolean = makeBoolean;
-    user.currentPlugins = Math.max(0, user.currentPlugins + (makeBoolean ? 1 : -1));
-    await AppDataSource.manager.save(user);
-    res.json({ message: 'Make settings updated successfully' });
-});
-
-router.post('/make/webhook/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { makeWebhook } = req.body;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) return res.status(400).send('User not found');
-    user.makeWebhook = makeWebhook;
-    await AppDataSource.manager.save(user);
-    res.json({ message: 'Make webhook settings updated successfully' });
-});
-
-// n8n endpoints
-router.post('/n8n/send/:apikey', cors(strictCorsOptions), async (req, res) => {
-    const apiKey = req.params.apikey;
-    const envKey = getEnv("API_KEY");
-    if (!envKey || apiKey !== envKey) {
-        return res.status(401).send('Invalid API Key');
-    }
-
-    const user = await AppDataSource.manager.findOne(User, { where: { isSuperAdmin: true } });
-    if (!user) return res.status(400).send('Super Admin not found');
-    try {
-        await axios.post(user.n8nWebhook!, req.body);
-        res.status(200).send('Form submitted successfully');
-    } catch (error: any) {
-        res.send('Error sending message');
-    }
-});
-
-router.post('/n8n/toggle/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { n8nBoolean } = req.body;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) return res.status(400).send('User not found');
-    if (n8nBoolean == true && user.currentPlugins + 1 > (user.maxPlugins || Infinity)) {
-        return res.status(400).send('You have reached your plugin limit');
-    }
-    user.n8nBoolean = n8nBoolean;
-    user.currentPlugins = Math.max(0, user.currentPlugins + (n8nBoolean ? 1 : -1));
-    await AppDataSource.manager.save(user);
-    res.json({ message: 'N8n settings updated successfully' });
-});
-
-router.post('/n8n/webhook/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { n8nWebhook } = req.body;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) return res.status(400).send('User not found');
-    user.n8nWebhook = n8nWebhook;
-    await AppDataSource.manager.save(user);
-    res.json({ message: 'N8n webhook settings updated successfully' });
-});
-
-// Generic Webhook endpoints
-router.post('/webhook/toggle/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { webhookBoolean } = req.body;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) return res.status(400).send('User not found');
-    if (webhookBoolean == true && user.currentPlugins + 1 > (user.maxPlugins || Infinity)) {
-        return res.status(400).send('You have reached your plugin limit');
-    }
-    user.webhookBoolean = webhookBoolean;
-    user.currentPlugins = Math.max(0, user.currentPlugins + (webhookBoolean ? 1 : -1));
-    await AppDataSource.manager.save(user);
-    res.json({ message: 'Webhook settings updated successfully' });
-});
-
-router.post('/webhook/webhook/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { webhookWebhook } = req.body;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) return res.status(400).send('User not found');
-    user.webhookWebhook = webhookWebhook;
-    await AppDataSource.manager.save(user);
-    res.json({ message: 'Webhook settings updated successfully' });
-});
-
-router.post('/webhook/send/:apikey', cors(strictCorsOptions), async (req, res) => {
-    const apiKey = req.params.apikey;
-    const envKey = getEnv("API_KEY");
-    if (!envKey || apiKey !== envKey) {
-        return res.status(401).send('Invalid API Key');
-    }
-
-    const user = await AppDataSource.manager.findOne(User, { where: { isSuperAdmin: true } });
-    if (!user) return res.status(400).send('Super Admin not found');
-    try {
-        await axios.post(user.webhookWebhook!, req.body);
-        res.status(200).send('Form submitted successfully');
-    } catch (error: any) {
-        res.send('Error sending message');
-    }
-});
-
-// User domain management
-router.post('/add-domain/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId, 10);
-    const domain = req.body.domain;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) return res.status(400).send('User not found');
-    if (user.allowedDomains.length <= 50) {
-        user.allowedDomains.push(domain);
-        await AppDataSource.manager.save(user);
-        res.json({ message: 'Domain added successfully' });
-    } else {
-        res.status(400).send('You can only add 50 domains');
-    }
-});
-
-router.post('/remove-domain/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId, 10);
-    const domain = req.body.domain;
-    const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-    if (!user) return res.status(400).send('User not found');
-    user.allowedDomains = user.allowedDomains.filter(d => d !== domain);
-    await AppDataSource.manager.save(user);
-    res.json({ message: 'Domain removed successfully' });
-});
-
-// Return email settings
-router.post('/update-return-settings/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { smtpHost, smtpPort, smtpUsername, smtpPassword, emailSubject, emailBody, returnMessage } = req.body;
-    try {
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-        if (!user) return res.status(400).send('User not found');
-        user.returnBoolean = returnMessage;
-        user.emailSubject = emailSubject;
-        user.emailBody = emailBody;
-        user.smtpHost = smtpHost || user.smtpHost;
-        user.smtpPort = smtpPort || user.smtpPort;
-        user.smtpUsername = smtpUsername || user.smtpUsername;
-        user.smtpPassword = smtpPassword || user.smtpPassword;
-        await AppDataSource.manager.save(user);
-        res.json({ message: 'Settings updated successfully' });
-    } catch (error: any) {
-        res.status(500).json({ error: 'An error occurred during the update process' });
-    }
-});
-
-// Telegram OAuth
-router.get('/oauth/telegram/:userId', cors(strictCorsOptions), async (req, res) => {
-    const userId = parseInt(req.params.userId);
-    const { id, first_name, hash } = req.query;
-    const botToken = getEnv("TELEGRAM_API_TOKEN");
-
-    try {
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: userId },
-            relations: ['organization']
-        });
-
-        if (!user || !user.organization) {
-            return res.status(400).send('User or Organization not found');
-        }
-
-        let integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-            where: { organizationId: user.organization.id }
-        });
-
-        if (!integration) {
-            integration = AppDataSource.manager.create(OrganizationIntegration, {
-                organizationId: user.organization.id
-            });
-        }
-
-        integration.telegramChatId = Number(id);
-        integration.telegramEnabled = true;
-        await AppDataSource.manager.save(integration);
-        res.redirect(redirectUrl + "/dashboard");
-    } catch (error: any) {
-        logger.error('Error handling Telegram OAuth', { error: error.message });
-        res.status(500).send('Internal Server Error');
-    }
-});
-
-// Legacy return email endpoint (called by form-api)
-router.post('/formflow/return/:apikey', async (req, res) => {
-    const { emailToSendTo } = req.body;
-    const apiKey = req.params.apikey;
-    const envKey = getEnv("API_KEY");
-    if (!envKey || apiKey !== envKey) {
-        return res.status(401).send('Invalid API Key');
-    }
-
-    const user = await AppDataSource.manager.findOne(User, { where: { isSuperAdmin: true } });
-    if (!user || !user.returnBoolean) return res.status(400).send('User not found or return email disabled');
-
-    // Minimal mock for email sending to keep it cleaner here
-    res.json({ message: 'Email logic would go here' });
-});
-
-// Slack endpoints
-router.post('/slack/settings/:userId', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
-    const userId = parseInt(req.params.userId);
-    const { slackEnabled, slackAccessToken, slackChannelId, slackChannelName } = req.body;
-
-    try {
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: userId },
-            relations: ['organization']
-        });
-
-        if (!user || !user.organization) {
-            return res.status(400).send('User or Organization not found');
-        }
-
-        let integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-            where: { organizationId: user.organization.id }
-        });
-
-        if (!integration) {
-            integration = AppDataSource.manager.create(OrganizationIntegration, {
-                organizationId: user.organization.id
-            });
-        }
-
-        // Check plugin limits if enabling
-        if (slackEnabled === true && !integration.slackEnabled) {
-            // Simplified limit check - assumes infinite for now or handled elsewhere
-            // user.currentPlugins check was removed due to entity mismatch
-        }
-
-        integration.slackEnabled = slackEnabled;
-        if (slackAccessToken) integration.slackAccessToken = slackAccessToken;
-        if (slackChannelId) integration.slackChannelId = slackChannelId;
-        if (slackChannelName) integration.slackChannelName = slackChannelName;
-
-        await AppDataSource.manager.save(integration);
-        res.json({ message: 'Slack settings updated successfully' });
-    } catch (error: any) {
-        logger.error('Error updating Slack settings', { error: error.message, userId });
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Slack OAuth Install
-router.get('/slack/install/:userId', cors(strictCorsOptions), verifyToken, (req: AuthRequest, res: Response) => {
-    const userId = req.params.userId;
-    const clientId = getEnv("SLACK_CLIENT_ID");
-    if (!clientId) return res.status(500).send("Slack Client ID not configured");
-
-    const redirectUri = `${getEnv("DASHBOARD_API_URL")}/slack/callback`;
-    const scope = "incoming-webhook,chat:write,channels:read";
-    const state = Buffer.from(JSON.stringify({ userId, nonce: crypto.randomBytes(16).toString('hex') })).toString('base64');
-
-    const url = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scope}&redirect_uri=${redirectUri}&state=${state}`;
-    res.redirect(url);
-});
-
-// Slack OAuth Callback
-router.get('/slack/callback', cors(strictCorsOptions), async (req: Request, res: Response) => {
-    const { code, state } = req.query;
-
-    if (!code || !state) {
-        return res.status(400).send("Missing code or state");
-    }
-
-    try {
-        const decodedState = JSON.parse(Buffer.from(state as string, 'base64').toString('utf8'));
-        const userId = parseInt(decodedState.userId);
-
-        const clientId = getEnv("SLACK_CLIENT_ID");
-        const clientSecret = getEnv("SLACK_CLIENT_SECRET");
-        const redirectUri = `${getEnv("DASHBOARD_API_URL")}/slack/callback`;
-
-        // Exchange code for token
-        const tokenResponse = await axios.post('https://slack.com/api/oauth.v2.access', null, {
-            params: {
-                client_id: clientId,
-                client_secret: clientSecret,
-                code,
-                redirect_uri: redirectUri
+const parseRecipients = (value: any): string[] => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
+    return String(value).split(',').map(v => v.trim()).filter(Boolean);
+};
+
+const normalizeConfigForType = (type: IntegrationType, rawConfig: any) => {
+    const config = { ...(rawConfig || {}) };
+
+    switch (type) {
+        case IntegrationType.EMAIL_SMTP: {
+            config.recipients = parseRecipients(config.recipients);
+            if (!config.recipients.length) throw new Error('Email recipients are required');
+            if (!config.smtp && !config.oauth) {
+                throw new Error('Provide SMTP credentials or OAuth tokens for email integrations');
             }
+            if (config.smtp) {
+                if (!config.smtp.host || !config.smtp.port || !config.smtp.username || !config.smtp.password) {
+                    throw new Error('SMTP host, port, username, and password are required');
+                }
+            }
+            if (config.oauth) {
+                if (!config.oauth.clientId || !config.oauth.clientSecret || !config.oauth.user || !config.oauth.refreshToken || !config.oauth.accessToken) {
+                    throw new Error('OAuth clientId, clientSecret, user, refreshToken, and accessToken are required');
+                }
+            }
+            break;
+        }
+        case IntegrationType.EMAIL_API: {
+            config.recipients = parseRecipients(config.recipients);
+            const api = config.emailApi || {};
+            if (!config.recipients.length) throw new Error('Email recipients are required');
+            if (!api.provider || !api.apiKey) throw new Error('Email API provider and apiKey are required');
+            config.emailApi = api;
+            break;
+        }
+        case IntegrationType.SLACK: {
+            if (!config.accessToken || !config.channelId) {
+                throw new Error('Slack access token and channel ID are required');
+            }
+            break;
+        }
+        case IntegrationType.DISCORD: {
+            if (!config.webhookUrl) throw new Error('Discord webhook URL is required');
+            break;
+        }
+        case IntegrationType.TELEGRAM: {
+            if (!config.chatId) throw new Error('Telegram chat ID is required');
+            break;
+        }
+        case IntegrationType.WEBHOOK: {
+            if (!config.webhook) throw new Error('Webhook URL is required');
+            break;
+        }
+        default:
+            break;
+    }
+
+    return config;
+};
+
+const getFormIfAuthorized = async (formId: number | undefined, organizationId: number) => {
+    if (!formId) return null;
+    return AppDataSource.manager.findOne(Form, {
+        where: { id: formId, organizationId },
+        relations: ['integration']
+    });
+};
+
+// GET / - List all integrations for the user's organization
+router.get('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.userId;
+        const { formId: rawFormId, scope: rawScope } = req.query;
+
+        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        if (!user || user.organizationId === null) {
+            return res.status(404).json({ error: 'Organization not found' });
+        }
+
+        const formId = rawFormId ? parseInt(String(rawFormId), 10) : undefined;
+        const scope = rawScope as IntegrationScope | undefined;
+
+        if (formId) {
+            const form = await getFormIfAuthorized(formId, user.organizationId);
+            if (!form) {
+                return res.status(404).json({ error: 'Form not found for this organization' });
+            }
+        }
+
+        const where: any = { organizationId: user.organizationId };
+        if (formId) where.formId = formId;
+        if (scope === IntegrationScope.ORGANIZATION || scope === IntegrationScope.FORM) {
+            where.scope = scope;
+        }
+
+        const integrations = await AppDataSource.manager.find(Integration, {
+            where,
+            order: { createdAt: 'DESC' }
         });
 
-        if (!tokenResponse.data.ok) {
-            logger.error('Slack OAuth error', { error: tokenResponse.data.error });
-            return res.redirect(`${redirectUrl}/dashboard?error=slack_auth_failed`);
+        res.json(integrations);
+    } catch (error: any) {
+        logger.error('Failed to list integrations', { error: error.message, userId: req.user?.userId });
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// POST / - Create a new integration
+router.post('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.userId;
+        const { type, name, config, formId: rawFormId, scope: rawScope, isActive } = req.body;
+
+        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        if (!user || user.organizationId === null) {
+            return res.status(404).json({ error: 'Organization not found' });
         }
 
-        const { access_token, incoming_webhook } = tokenResponse.data;
+        if (!type || !name) {
+            return res.status(400).json({ error: 'Type and Name are required' });
+        }
 
-        // Find user and their org
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: userId },
-            relations: ['organization']
+        // Validate type
+        if (!Object.values(IntegrationType).includes(type)) {
+            return res.status(400).json({ error: 'Invalid integration type' });
+        }
+
+        const formId = rawFormId ? parseInt(String(rawFormId), 10) : undefined;
+        const requestedScope = rawScope === IntegrationScope.FORM ? IntegrationScope.FORM : IntegrationScope.ORGANIZATION;
+        const scope: IntegrationScope = formId ? IntegrationScope.FORM : requestedScope;
+
+        if (scope === IntegrationScope.FORM && !formId) {
+            return res.status(400).json({ error: 'formId is required for form overrides' });
+        }
+
+        if (formId) {
+            const form = await getFormIfAuthorized(formId, user.organizationId);
+            if (!form) {
+                return res.status(404).json({ error: 'Form not found for this organization' });
+            }
+        }
+
+        const normalizedConfig = normalizeConfigForType(type, config);
+
+        const integration = AppDataSource.manager.create(Integration, {
+            organizationId: user.organizationId,
+            formId: formId || null,
+            scope,
+            type,
+            name,
+            config: normalizedConfig,
+            isActive: isActive !== undefined ? Boolean(isActive) : true
         });
-
-        if (!user || !user.organization) {
-            return res.redirect(`${redirectUrl}/dashboard?error=user_not_found`);
-        }
-
-        // Find or create integration
-        let integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-            where: { organizationId: user.organization.id }
-        });
-
-        if (!integration) {
-            integration = AppDataSource.manager.create(OrganizationIntegration, {
-                organizationId: user.organization.id
-            });
-        }
-
-        // Save Slack details
-        integration.slackEnabled = true;
-        integration.slackAccessToken = access_token;
-        if (incoming_webhook) {
-            integration.slackChannelId = incoming_webhook.channel_id;
-            integration.slackChannelName = incoming_webhook.channel;
-            // We could also save incoming_webhook.url if we prefer using that over the bot token
-        }
 
         await AppDataSource.manager.save(integration);
 
-        res.redirect(`${redirectUrl}/dashboard?success=slack_connected`);
+        logger.info('Integration created', {
+            operation: LogOperation.INTEGRATION_CREATE,
+            integrationId: integration.id,
+            type,
+            organizationId: user.organizationId,
+            correlationId: req.correlationId
+        });
 
+        res.status(201).json(integration);
     } catch (error: any) {
-        logger.error('Slack OAuth callback handling error', { error: error.message });
-        res.redirect(`${redirectUrl}/dashboard?error=internal_server_error`);
+        logger.error('Failed to create integration', { error: error.message });
+        res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
+});
+
+// PUT /:id - Update an integration
+router.put('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.userId;
+        const integrationId = parseInt(req.params.id);
+        const { name, config, isActive, formId: rawFormId } = req.body;
+
+        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        if (!user || user.organizationId === null) {
+            return res.status(404).json({ error: 'Organization not found' });
+        }
+
+        const integration = await AppDataSource.manager.findOne(Integration, {
+            where: { id: integrationId, organizationId: user.organizationId }
+        });
+
+        if (!integration) {
+            return res.status(404).json({ error: 'Integration not found' });
+        }
+
+        if (rawFormId) {
+            const form = await getFormIfAuthorized(parseInt(String(rawFormId), 10), user.organizationId);
+            if (!form) {
+                return res.status(404).json({ error: 'Form not found for this organization' });
+            }
+            integration.formId = form.id;
+            integration.scope = IntegrationScope.FORM;
+        }
+
+        if (name !== undefined) integration.name = name;
+        if (config !== undefined) integration.config = normalizeConfigForType(integration.type, config);
+        if (isActive !== undefined) integration.isActive = Boolean(isActive);
+
+        await AppDataSource.manager.save(integration);
+
+        logger.info('Integration updated', {
+            operation: LogOperation.INTEGRATION_UPDATE,
+            integrationId,
+            organizationId: user.organizationId,
+            correlationId: req.correlationId
+        });
+
+        res.json(integration);
+    } catch (error: any) {
+        logger.error('Failed to update integration', { error: error.message });
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// DELETE /:id - Delete an integration
+router.delete('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.userId;
+        const integrationId = parseInt(req.params.id);
+
+        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        if (!user || user.organizationId === null) {
+            return res.status(404).json({ error: 'Organization not found' });
+        }
+
+        const integration = await AppDataSource.manager.findOne(Integration, {
+            where: { id: integrationId, organizationId: user.organizationId }
+        });
+
+        if (!integration) {
+            return res.status(404).json({ error: 'Integration not found' });
+        }
+
+        await AppDataSource.manager.remove(integration);
+
+        logger.info('Integration deleted', {
+            operation: LogOperation.INTEGRATION_DELETE,
+            integrationId,
+            organizationId: user.organizationId,
+            correlationId: req.correlationId
+        });
+
+        res.json({ message: 'Integration deleted successfully' });
+    } catch (error: any) {
+        logger.error('Failed to delete integration', { error: error.message });
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// GET /hierarchy - Fetch org + form integrations and resolved stacks
+router.get('/hierarchy', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.userId;
+        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        if (!user || user.organizationId === null) {
+            return res.status(404).json({ error: 'Organization not found' });
+        }
+
+        const [forms, integrations] = await Promise.all([
+            AppDataSource.manager.find(Form, {
+                where: { organizationId: user.organizationId },
+                relations: ['integration']
+            }),
+            AppDataSource.manager.find(Integration, {
+                where: { organizationId: user.organizationId }
+            })
+        ]);
+
+        const orgIntegrations = integrations.filter(i => i.scope === IntegrationScope.ORGANIZATION || !i.formId);
+        const formScoped = integrations.filter(i => i.scope === IntegrationScope.FORM || i.formId);
+
+        const formsPayload = forms.map(form => {
+            const scoped = formScoped.filter(i => i.formId === form.id);
+            const legacy = scoped.length === 0
+                ? normalizeLegacyFormIntegration(form.integration, user.organizationId ?? undefined, form.id)
+                : [];
+
+            const effectiveIntegrations = resolveIntegrationStack({
+                orgIntegrations,
+                formIntegrations: scoped.length ? scoped : legacy,
+                useOrgIntegrations: form.useOrgIntegrations ?? true
+            });
+
+            return {
+                id: form.id,
+                name: form.name,
+                slug: form.slug,
+                useOrgIntegrations: form.useOrgIntegrations,
+                integrations: scoped,
+                legacyIntegrations: legacy,
+                effectiveIntegrations
+            };
+        });
+
+        res.json({
+            organizationIntegrations: orgIntegrations,
+            forms: formsPayload
+        });
+    } catch (error: any) {
+        logger.error('Failed to load integration hierarchy', { error: error.message });
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// POST /:id/test - Test an integration
+router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.userId;
+        const integrationId = parseInt(req.params.id);
+
+        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        if (!user || user.organizationId === null) {
+            return res.status(404).json({ error: 'Organization not found' });
+        }
+
+        const integration = await AppDataSource.manager.findOne(Integration, {
+            where: { id: integrationId, organizationId: user.organizationId }
+        });
+
+        if (!integration) {
+            return res.status(404).json({ error: 'Integration not found' });
+        }
+
+        const testMessage = `FormFlow Test: Your "${integration.name}" integration is working correctly!`;
+        const testData = {
+            test: true,
+            message: "Success",
+            timestamp: new Date().toISOString(),
+            source: "FormFlow Integration Tester"
+        };
+
+        try {
+            switch (integration.type) {
+                case IntegrationType.EMAIL_SMTP: {
+                    const recipients = parseRecipients(integration.config.recipients);
+                    if (!recipients.length) throw new Error('No recipients configured');
+                    if (!integration.config.smtp && !integration.config.oauth) {
+                        throw new Error('Email integration missing SMTP or OAuth configuration');
+                    }
+
+                    const transporter = integration.config.smtp
+                        ? nodemailer.createTransport({
+                            host: integration.config.smtp.host,
+                            port: integration.config.smtp.port,
+                            secure: integration.config.smtp.secure ?? true,
+                            auth: {
+                                user: integration.config.smtp.username,
+                                pass: integration.config.smtp.password,
+                            },
+                        })
+                        : nodemailer.createTransport({
+                            host: 'smtp.gmail.com',
+                            port: 465,
+                            secure: true,
+                            auth: {
+                                type: 'OAuth2',
+                                clientId: integration.config.oauth?.clientId,
+                                clientSecret: integration.config.oauth?.clientSecret,
+                            },
+                        });
+
+                    await transporter.sendMail({
+                        from: integration.config.fromEmail || '"FormFlow Test" <no-reply@formflow.fyi>',
+                        to: recipients,
+                        subject: `Test: ${integration.name}`,
+                        text: testMessage,
+                        auth: integration.config.smtp ? undefined : {
+                            user: integration.config.oauth?.user,
+                            refreshToken: integration.config.oauth?.refreshToken,
+                            accessToken: integration.config.oauth?.accessToken,
+                        },
+                    });
+                    break;
+                }
+                case IntegrationType.TELEGRAM: {
+                    const chatId = integration.config.chatId;
+                    if (!chatId) throw new Error('No Chat ID configured');
+                    const tgResult = await getTelegramService().sendMessage({
+                        chatId: Number(chatId),
+                        message: testMessage
+                    });
+                    if (!tgResult.success) throw new Error(tgResult.error || 'Telegram error');
+                    break;
+                }
+                case IntegrationType.DISCORD: {
+                    const webhookUrl = integration.config.webhookUrl;
+                    if (!webhookUrl) throw new Error('No Webhook URL configured');
+                    await axios.post(webhookUrl, { content: `**${testMessage}**` });
+                    break;
+                }
+                case IntegrationType.SLACK: {
+                    const { accessToken, channelId } = integration.config;
+                    if (!accessToken || !channelId) throw new Error('Slack config missing');
+                    await axios.post('https://slack.com/api/chat.postMessage', {
+                        channel: channelId,
+                        text: testMessage,
+                    }, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    break;
+                }
+                case IntegrationType.WEBHOOK: {
+                    const url = integration.config.webhook;
+                    if (!url) throw new Error('No Webhook URL configured');
+                    await axios.post(url, testData);
+                    break;
+                }
+                default:
+                    throw new Error(`Testing not supported for ${integration.type}`);
+            }
+        } catch (handlerError: any) {
+            logger.error('Integration test failed', {
+                integrationId,
+                type: integration.type,
+                error: handlerError.message
+            });
+            return res.status(400).json({
+                error: 'Test failed',
+                details: handlerError.message || 'Unknown error'
+            });
+        }
+
+        res.json({ success: true, message: 'Test successful' });
+    } catch (error: any) {
+        logger.error('Error testing integration', { error: error.message });
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// GET /types - List valid integration types
+router.get('/types', cors(strictCorsOptions), (req: Request, res: Response) => {
+    res.json(Object.values(IntegrationType));
 });
 
 export default router;

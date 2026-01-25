@@ -4,6 +4,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage';
 import { SubmissionsPage } from './features/submissions/SubmissionsPage';
 import { IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { SettingsPage } from './features/settings/SettingsPage';
+import { GalleryPage } from './features/gallery/GalleryPage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage } from './pages/SetupPage';
 import { RequireAuth } from './components/RequireAuth';
@@ -51,6 +52,10 @@ export const router = createBrowserRouter([
             {
                 path: 'settings',
                 element: <SettingsPage />,
+            },
+            {
+                path: 'gallery',
+                element: <GalleryPage />,
             },
             {
                 path: '',

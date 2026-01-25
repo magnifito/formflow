@@ -117,11 +117,33 @@ export function useQueue() {
         }
     }, []);
 
+    const fetchSubmissionJobs = useCallback(async (submissionId: number): Promise<Job[] | null> => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await fetch(`${FETCH_URL}/queue/submission/${submissionId}`, {
+                headers: getHeaders()
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch submission jobs');
+            }
+
+            return await response.json();
+        } catch (err: any) {
+            setError(err.message);
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     return {
         loading,
         error,
         fetchStats,
         fetchJobs,
-        retryJob
+        retryJob,
+        fetchSubmissionJobs
     };
 }

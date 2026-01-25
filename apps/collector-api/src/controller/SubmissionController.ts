@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
-import { Form, FormIntegration, OrganizationIntegration, WhitelistedDomain, Submission } from "@formflow/shared/entities";
+import { Form, FormIntegration, OrganizationIntegration, WhitelistedDomain, Submission, Integration, IntegrationScope } from "@formflow/shared/entities";
 import { getEnv } from "@formflow/shared/env";
 import nodemailer from "nodemailer";
 import axios from "axios";
@@ -8,6 +8,7 @@ import crypto from "crypto";
 import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
 import { getTelegramService } from "@formflow/shared/telegram";
 import { getBoss, QUEUE_NAMES, IntegrationType, IntegrationJobData, JOB_OPTIONS } from "@formflow/shared/queue";
+import { normalizeLegacyFormIntegration, resolveIntegrationStack } from "@formflow/shared/integrations";
 
 const router = Router();
 const csrfSecret = getEnv("CSRF_SECRET") || "default-dev-secret-do-not-use-in-prod";
@@ -170,20 +171,6 @@ const formatMessage = (data: Record<string, any>): string => {
     return messageList.join('\n\n');
 };
 
-// Create email transporter (Gmail OAuth2)
-const createTransporter = () => {
-    return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-            type: 'OAuth2',
-            clientId: getEnv("GMAIL_CLIENT"),
-            clientSecret: getEnv("GMAIL_SECRET"),
-        },
-    });
-};
-
 const base64UrlEncode = (input: Buffer | string): string => {
     const base = Buffer.from(input).toString("base64");
     return base.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -324,7 +311,7 @@ router.get('/:identifier/csrf', async (req: Request, res: Response) => {
     }
 });
 
-// POST /t/:identifier - Public form submission endpoint
+// POST /s/:identifier - Public form submission endpoint
 router.post('/:identifier', async (req: Request, res: Response) => {
     try {
         // Set security headers
@@ -509,19 +496,41 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         });
         await AppDataSource.manager.save(submission);
 
-        // Get integration settings (form-specific or org defaults)
-        let integration: FormIntegration | OrganizationIntegration | null;
+        // Get integrations to process (org + form stacked with form overrides)
+        const [orgIntegrations, formScopedIntegrations] = await Promise.all([
+            AppDataSource.manager.find(Integration, {
+                where: {
+                    organizationId: form.organizationId,
+                    scope: IntegrationScope.ORGANIZATION,
+                    isActive: true
+                }
+            }),
+            AppDataSource.manager.find(Integration, {
+                where: {
+                    organizationId: form.organizationId,
+                    formId: form.id,
+                    scope: IntegrationScope.FORM,
+                    isActive: true
+                }
+            })
+        ]);
 
-        if (form.useOrgIntegrations) {
-            integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-                where: { organizationId: form.organizationId }
-            });
-        } else {
-            integration = form.integration;
-        }
+        const legacyFormIntegrations = formScopedIntegrations.length === 0
+            ? normalizeLegacyFormIntegration(form.integration, form.organizationId ?? undefined, form.id)
+            : [];
 
-        if (!integration) {
-            // No integration configured, just save and return
+        const resolvedIntegrations = resolveIntegrationStack({
+            orgIntegrations,
+            formIntegrations: formScopedIntegrations.length ? formScopedIntegrations : legacyFormIntegrations,
+            useOrgIntegrations: form.useOrgIntegrations ?? true
+        });
+
+        const integrationsToProcess: Array<{ type: IntegrationType, config: any }> = resolvedIntegrations.map(i => ({
+            type: i.type,
+            config: i.config
+        }));
+
+        if (integrationsToProcess.length === 0) {
             return res.json({ message: 'Submission received' });
         }
 
@@ -539,147 +548,32 @@ router.post('/:identifier', async (req: Request, res: Response) => {
                     formData,
                     formattedMessage: niceMessage,
                     formName: form.name,
-                    config: {}
+                    config: {} // Will be populated per job
                 };
 
-                // Email integration
-                if (integration.emailEnabled && integration.emailRecipients) {
-                    const recipients = integration.emailRecipients.split(',').map(e => e.trim());
-                    jobsToQueue.push({
-                        name: QUEUE_NAMES[IntegrationType.EMAIL_SMTP],
-                        data: {
-                            ...baseJobData,
-                            integrationType: IntegrationType.EMAIL_SMTP,
-                            config: {
-                                recipients,
-                                // Pass env vars for Gmail OAuth if needed, or handler reads them?
-                                // Handler reads them if not provided. We can pass specific config if form had it.
-                                // Currently form only has recipients.
-                            }
-                        },
-                        options: {
-                            ...JOB_OPTIONS[IntegrationType.EMAIL_SMTP],
-                            singletonKey: `${submission.id}-email`,
-                        }
-                    });
-                }
+                for (const integration of integrationsToProcess) {
+                    const queueName = QUEUE_NAMES[integration.type];
+                    if (!queueName) continue;
 
-                // Telegram integration
-                if (integration.telegramEnabled && integration.telegramChatId) {
                     jobsToQueue.push({
-                        name: QUEUE_NAMES[IntegrationType.TELEGRAM],
+                        name: queueName,
                         data: {
                             ...baseJobData,
-                            integrationType: IntegrationType.TELEGRAM,
-                            config: {
-                                chatId: integration.telegramChatId
-                            }
+                            integrationType: integration.type,
+                            config: integration.config
                         },
                         options: {
-                            ...JOB_OPTIONS[IntegrationType.TELEGRAM],
-                            singletonKey: `${submission.id}-telegram`,
-                        }
-                    });
-                }
-
-                // Discord integration
-                if (integration.discordEnabled && integration.discordWebhook) {
-                    jobsToQueue.push({
-                        name: QUEUE_NAMES[IntegrationType.DISCORD],
-                        data: {
-                            ...baseJobData,
-                            integrationType: IntegrationType.DISCORD,
-                            config: {
-                                webhookUrl: integration.discordWebhook
-                            }
-                        },
-                        options: {
-                            ...JOB_OPTIONS[IntegrationType.DISCORD],
-                            singletonKey: `${submission.id}-discord`,
-                        }
-                    });
-                }
-
-                // Slack integration
-                if (integration.slackEnabled && integration.slackAccessToken && integration.slackChannelId) {
-                    jobsToQueue.push({
-                        name: QUEUE_NAMES[IntegrationType.SLACK],
-                        data: {
-                            ...baseJobData,
-                            integrationType: IntegrationType.SLACK,
-                            config: {
-                                accessToken: integration.slackAccessToken,
-                                channelId: integration.slackChannelId
-                            }
-                        },
-                        options: {
-                            ...JOB_OPTIONS[IntegrationType.SLACK],
-                            singletonKey: `${submission.id}-slack`,
-                        }
-                    });
-                }
-
-                // Webhook (Generic)
-                if (integration.webhookEnabled && integration.webhookUrl) {
-                    jobsToQueue.push({
-                        name: QUEUE_NAMES[IntegrationType.WEBHOOK],
-                        data: {
-                            ...baseJobData,
-                            integrationType: IntegrationType.WEBHOOK,
-                            config: {
-                                webhook: integration.webhookUrl,
-                                webhookSource: 'generic'
-                            }
-                        },
-                        options: {
-                            ...JOB_OPTIONS[IntegrationType.WEBHOOK],
-                            singletonKey: `${submission.id}-webhook`,
-                        }
-                    });
-                }
-
-                // Make.com
-                if (integration.makeEnabled && integration.makeWebhook) {
-                    jobsToQueue.push({
-                        name: QUEUE_NAMES[IntegrationType.WEBHOOK],
-                        data: {
-                            ...baseJobData,
-                            integrationType: IntegrationType.WEBHOOK,
-                            config: {
-                                webhook: integration.makeWebhook,
-                                webhookSource: 'make'
-                            }
-                        },
-                        options: {
-                            ...JOB_OPTIONS[IntegrationType.WEBHOOK],
-                            singletonKey: `${submission.id}-make`,
-                        }
-                    });
-                }
-
-                // n8n
-                if (integration.n8nEnabled && integration.n8nWebhook) {
-                    jobsToQueue.push({
-                        name: QUEUE_NAMES[IntegrationType.WEBHOOK],
-                        data: {
-                            ...baseJobData,
-                            integrationType: IntegrationType.WEBHOOK,
-                            config: {
-                                webhook: integration.n8nWebhook,
-                                webhookSource: 'n8n'
-                            }
-                        },
-                        options: {
-                            ...JOB_OPTIONS[IntegrationType.WEBHOOK],
-                            singletonKey: `${submission.id}-n8n`,
+                            ...JOB_OPTIONS[integration.type],
+                            // Add randomness to singleton key if multiple of same type?
+                            // Or utilize integration ID if available? 
+                            // Current integrationsToProcess doesn't strictly have ID if from legacy.
+                            // We can append hash of config or random UUID for uniqueness if we allow multiple same-type.
+                            singletonKey: `${submission.id}-${integration.type}-${crypto.randomBytes(4).toString('hex')}`,
                         }
                     });
                 }
 
                 // Enqueue all jobs
-                // pg-boss 9+ supports sending array? No, send() is for single job usually?
-                // send(name, data, options)
-                // We'll iterate.
                 for (const job of jobsToQueue) {
                     await boss.send(job.name, job.data, job.options);
                 }
@@ -692,16 +586,9 @@ router.post('/:identifier', async (req: Request, res: Response) => {
                     correlationId: req.correlationId
                 });
 
-                // Respond immediately
                 return res.json({ message: 'Submission received successfully' });
 
             } catch (error: any) {
-                // If queueing fails, fallback to synchronous? Or just error?
-                // Failure to queue is a system error (DB down?). 
-                // If DB is down, we probably failed to save submission earlier anyway.
-                // We'll log and attempt synchronous fallback as "best effort", or just return error.
-                // But wait, "failed to save submission" would throw before this.
-                // If pg-boss fails but submission saved, we might lose integrations if we don't fallback.
                 logger.error('Failed to queue jobs, falling back to synchronous execution', {
                     operation: LogOperation.FORM_SUBMIT,
                     error: error.message,
@@ -713,184 +600,120 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         }
 
         // Process integrations (Synchronous Fallback)
-        // Email integration
-        if (integration.emailEnabled && integration.emailRecipients) {
+        // We iterate through our normalized list
+        for (const integration of integrationsToProcess) {
             try {
-                const transporter = createTransporter();
-                const recipients = integration.emailRecipients.split(',').map(e => e.trim());
-                const mailMessage = {
-                    from: '"New FormFlow Submission" <new-submission@formflow.fyi>',
-                    to: recipients,
-                    subject: `New Form Submission: ${form.name}`,
-                    text: niceMessage,
-                    auth: {
-                        user: getEnv("GMAIL_EMAIL"),
-                        refreshToken: getEnv("GMAIL_REFRESH"),
-                        accessToken: getEnv("GMAIL_ACCESS"),
-                        expires: 1484314697598,
-                    },
-                };
+                if (integration.type === IntegrationType.EMAIL_SMTP) {
+                    const recipients = Array.isArray(integration.config.recipients)
+                        ? integration.config.recipients
+                        : String(integration.config.recipients || '')
+                            .split(',')
+                            .map((s: string) => s.trim())
+                            .filter(Boolean);
 
-                transporter.sendMail(mailMessage, (error) => {
-                    if (error) {
-                        logger.error(LogMessages.integrationSendFailed('Email'), {
-                            operation: LogOperation.INTEGRATION_EMAIL_SEND,
-                            error: error.message,
-                            formId: form.id,
-                            submissionId: submission.id,
-                            recipientCount: recipients.length,
-                            correlationId: req.correlationId,
-                        });
-                    } else {
+                    if (!integration.config.smtp && !integration.config.oauth) {
+                        throw new Error('Email integration missing SMTP or OAuth configuration');
+                    }
+
+                    if (recipients && recipients.length > 0) {
+                        const transporter = integration.config.smtp
+                            ? nodemailer.createTransport({
+                                host: integration.config.smtp.host,
+                                port: integration.config.smtp.port,
+                                secure: integration.config.smtp.secure ?? true,
+                                auth: {
+                                    user: integration.config.smtp.username,
+                                    pass: integration.config.smtp.password,
+                                },
+                            })
+                            : nodemailer.createTransport({
+                                host: 'smtp.gmail.com',
+                                port: 465,
+                                secure: true,
+                                auth: {
+                                    type: 'OAuth2',
+                                    clientId: integration.config.oauth?.clientId,
+                                    clientSecret: integration.config.oauth?.clientSecret,
+                                },
+                            });
+
+                        const mailMessage = {
+                            from: integration.config.fromEmail || '"New FormFlow Submission" <new-submission@formflow.fyi>',
+                            to: recipients,
+                            subject: integration.config.subject || `New Form Submission: ${form.name}`,
+                            text: niceMessage,
+                            auth: integration.config.smtp ? undefined : {
+                                user: integration.config.oauth?.user,
+                                refreshToken: integration.config.oauth?.refreshToken,
+                                accessToken: integration.config.oauth?.accessToken,
+                                expires: 1484314697598,
+                            },
+                        };
+                        await transporter.sendMail(mailMessage);
                         logger.info(LogMessages.integrationSendSuccess('Email'), {
                             operation: LogOperation.INTEGRATION_EMAIL_SEND,
                             formId: form.id,
-                            submissionId: submission.id,
-                            recipientCount: recipients.length,
-                            correlationId: req.correlationId,
+                            submissionId: submission.id
                         });
                     }
-                });
-            } catch (error: any) {
-                logger.error(LogMessages.integrationSendFailed('Email'), {
-                    operation: LogOperation.INTEGRATION_EMAIL_SEND,
-                    error: `Transporter initialization failed: ${error.message}`,
-                    formId: form.id,
-                    submissionId: submission.id,
-                    correlationId: req.correlationId,
-                });
+                } else if (integration.type === IntegrationType.TELEGRAM) {
+                    if (integration.config.chatId) {
+                        getTelegramService().sendSubmissionNotification(
+                            integration.config.chatId,
+                            niceMessage,
+                            { formId: form.id, submissionId: submission.id }
+                        );
+                    }
+                } else if (integration.type === IntegrationType.DISCORD) {
+                    if (integration.config.webhookUrl) {
+                        const discordMessage = `\`\`\`${niceMessage}\`\`\``;
+                        await axios.post(integration.config.webhookUrl, { content: discordMessage });
+                    }
+                }
+                // ... Add other fallbacks if critical, or skip (MVP fallback usually covers email mostly)
+                else if (integration.type === IntegrationType.SLACK) {
+                    if (integration.config.accessToken && integration.config.channelId) {
+                        axios.post('https://slack.com/api/chat.postMessage', {
+                            channel: integration.config.channelId,
+                            text: niceMessage,
+                        }, {
+                            headers: {
+                                'Authorization': `Bearer ${integration.config.accessToken}`,
+                                'Content-Type': 'application/json'
+                            }
+                        }).then(() => {
+                            logger.info(LogMessages.integrationSendSuccess('Slack'), {
+                                operation: LogOperation.INTEGRATION_SLACK_SEND,
+                                formId: form.id,
+                                submissionId: submission.id,
+                                correlationId: req.correlationId,
+                            });
+                        }).catch(err => {
+                            logger.error(LogMessages.integrationSendFailed('Slack'), {
+                                operation: LogOperation.INTEGRATION_SLACK_SEND,
+                                error: err.message,
+                                formId: form.id,
+                                submissionId: submission.id,
+                                correlationId: req.correlationId,
+                            });
+                        });
+                    }
+                } else if (integration.type === IntegrationType.WEBHOOK) {
+                    if (integration.config.webhook) {
+                        axios.post(integration.config.webhook, formData).catch(err => {
+                            logger.error(LogMessages.integrationSendFailed('Webhook'), {
+                                operation: LogOperation.INTEGRATION_WEBHOOK_UPDATE,
+                                error: err.message
+                            });
+                        });
+                    }
+                }
+            } catch (err: any) {
+                logger.error(`Synchronous fallback failed for ${integration.type}`, { error: err.message });
             }
         }
 
-        // Telegram integration
-        if (integration.telegramEnabled && integration.telegramChatId) {
-            getTelegramService().sendSubmissionNotification(
-                integration.telegramChatId,
-                niceMessage,
-                {
-                    formId: form.id,
-                    submissionId: submission.id,
-                    correlationId: req.correlationId,
-                }
-            );
-        }
 
-        // Discord integration
-        if (integration.discordEnabled && integration.discordWebhook) {
-            const discordMessage = `\`\`\`${niceMessage}\`\`\``;
-            axios.post(integration.discordWebhook, { content: discordMessage })
-                .then(() => {
-                    logger.info(LogMessages.integrationSendSuccess('Discord'), {
-                        operation: LogOperation.INTEGRATION_DISCORD_SEND,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        correlationId: req.correlationId,
-                    });
-                })
-                .catch(err => {
-                    logger.error(LogMessages.integrationSendFailed('Discord'), {
-                        operation: LogOperation.INTEGRATION_DISCORD_SEND,
-                        error: err.message,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        correlationId: req.correlationId,
-                    });
-                });
-        }
-
-        // Make.com integration
-        if (integration.makeEnabled && integration.makeWebhook) {
-            axios.post(integration.makeWebhook, formData)
-                .then(() => {
-                    logger.info(LogMessages.integrationSendSuccess('Make.com'), {
-                        operation: LogOperation.INTEGRATION_MAKE_SEND,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        correlationId: req.correlationId,
-                    });
-                })
-                .catch(err => {
-                    logger.error(LogMessages.integrationSendFailed('Make.com'), {
-                        operation: LogOperation.INTEGRATION_MAKE_SEND,
-                        error: err.message,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        correlationId: req.correlationId,
-                    });
-                });
-        }
-
-        // n8n integration
-        if (integration.n8nEnabled && integration.n8nWebhook) {
-            axios.post(integration.n8nWebhook, formData)
-                .then(() => {
-                    logger.info(LogMessages.integrationSendSuccess('n8n'), {
-                        operation: LogOperation.INTEGRATION_N8N_SEND,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        correlationId: req.correlationId,
-                    });
-                })
-                .catch(err => {
-                    logger.error(LogMessages.integrationSendFailed('n8n'), {
-                        operation: LogOperation.INTEGRATION_N8N_SEND,
-                        error: err.message,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        correlationId: req.correlationId,
-                    });
-                });
-        }
-
-        // Generic webhook integration
-        if (integration.webhookEnabled && integration.webhookUrl) {
-            axios.post(integration.webhookUrl, formData)
-                .then(() => {
-                    logger.info(LogMessages.integrationSendSuccess('Webhook'), {
-                        operation: LogOperation.INTEGRATION_WEBHOOK_SEND,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        correlationId: req.correlationId,
-                    });
-                })
-                .catch(err => {
-                    logger.error(LogMessages.integrationSendFailed('Webhook'), {
-                        operation: LogOperation.INTEGRATION_WEBHOOK_SEND,
-                        error: err.message,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        correlationId: req.correlationId,
-                    });
-                });
-        }
-
-        // Slack integration
-        if (integration.slackEnabled && integration.slackAccessToken && integration.slackChannelId) {
-            axios.post('https://slack.com/api/chat.postMessage', {
-                channel: integration.slackChannelId,
-                text: niceMessage,
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${integration.slackAccessToken}`,
-                    'Content-Type': 'application/json'
-                }
-            }).then(() => {
-                logger.info(LogMessages.integrationSendSuccess('Slack'), {
-                    operation: LogOperation.INTEGRATION_SLACK_SEND,
-                    formId: form.id,
-                    submissionId: submission.id,
-                    correlationId: req.correlationId,
-                });
-            }).catch(err => {
-                logger.error(LogMessages.integrationSendFailed('Slack'), {
-                    operation: LogOperation.INTEGRATION_SLACK_SEND,
-                    error: err.message,
-                    formId: form.id,
-                    submissionId: submission.id,
-                    correlationId: req.correlationId,
-                });
-            });
-        }
 
         logger.info(LogMessages.formSubmissionProcessed, {
             operation: LogOperation.FORM_SUBMIT,

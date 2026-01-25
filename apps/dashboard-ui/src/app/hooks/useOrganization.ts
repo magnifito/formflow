@@ -45,20 +45,30 @@ export interface Submission {
     form?: Form;
 }
 
-export interface OrganizationIntegration {
-    emailEnabled: boolean;
-    emailRecipients: string | null;
-    discordEnabled: boolean;
-    discordWebhook: string | null;
-    telegramEnabled: boolean;
-    slackEnabled: boolean;
-    slackChannelId: string | null;
-    makeEnabled: boolean;
-    makeWebhook: string | null;
-    n8nEnabled: boolean;
-    n8nWebhook: string | null;
-    webhookEnabled: boolean;
-    webhookUrl: string | null;
+export interface Integration {
+    id: number;
+    organizationId: number;
+    type: string;
+    name: string;
+    config: any;
+    isActive: boolean;
+    formId?: number | null;
+    scope?: 'organization' | 'form';
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface IntegrationHierarchy {
+    organizationIntegrations: Integration[];
+    forms: Array<{
+        id: number;
+        name: string;
+        slug: string;
+        useOrgIntegrations: boolean;
+        integrations: Integration[];
+        legacyIntegrations: Integration[];
+        effectiveIntegrations: Integration[];
+    }>;
 }
 
 export interface WhitelistedDomain {
@@ -103,7 +113,8 @@ export function useOrganization() {
     const [organization, setOrganization] = useState<Organization | null>(null);
     const [stats, setStats] = useState<OrgStats | null>(null);
     const [submissions, setSubmissions] = useState<Submission[]>([]);
-    const [integrations, setIntegrations] = useState<OrganizationIntegration | null>(null);
+    const [integrations, setIntegrations] = useState<Integration[]>([]);
+    const [integrationHierarchy, setIntegrationHierarchy] = useState<IntegrationHierarchy | null>(null);
     const [domains, setDomains] = useState<WhitelistedDomain[]>([]);
     const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
     const [pagination, setPagination] = useState<PaginatedResponse<any>['pagination'] | null>(null);
@@ -147,8 +158,9 @@ export function useOrganization() {
     const loadIntegrations = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await apiFetch<OrganizationIntegration>('/org/integrations');
-            setIntegrations(data);
+            const data = await apiFetch<IntegrationHierarchy>('/integrations/hierarchy');
+            setIntegrationHierarchy(data);
+            setIntegrations(data.organizationIntegrations);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -156,15 +168,52 @@ export function useOrganization() {
         }
     }, []);
 
-    const updateIntegrations = async (updates: Partial<OrganizationIntegration>) => {
+    const createIntegration = async (data: Partial<Integration>) => {
         try {
-            await apiFetch('/org/integrations', {
+            const newIntegration = await apiFetch<Integration>('/integrations', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+            await loadIntegrations();
+            return newIntegration;
+        } catch (err: any) {
+            // Rethrow to handle in UI
+            throw err;
+        }
+    };
+
+    const updateIntegration = async (id: number, updates: Partial<Integration>) => {
+        try {
+            const updated = await apiFetch<Integration>(`/integrations/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(updates)
             });
-            setIntegrations(prev => prev ? { ...prev, ...updates } : null);
+            await loadIntegrations();
+            return updated;
         } catch (err: any) {
-            console.error('Failed to update integrations:', err);
+            console.error('Failed to update integration:', err);
+            throw err;
+        }
+    };
+
+    const deleteIntegration = async (id: number) => {
+        try {
+            await apiFetch(`/integrations/${id}`, { method: 'DELETE' });
+            await loadIntegrations();
+        } catch (err: any) {
+            console.error('Failed to delete integration:', err);
+            throw err;
+        }
+    };
+
+    const testIntegration = async (id: number) => {
+        try {
+            return await apiFetch<{ success: boolean; message: string }>(`/integrations/${id}/test`, {
+                method: 'POST'
+            });
+        } catch (err: any) {
+            console.error('Failed to test integration:', err);
+            throw err;
         }
     };
 
@@ -302,6 +351,7 @@ export function useOrganization() {
         stats,
         submissions,
         integrations,
+        integrationHierarchy,
         domains,
         securitySettings,
         pagination,
@@ -310,7 +360,10 @@ export function useOrganization() {
         refresh: loadData,
         loadSubmissions,
         loadIntegrations,
-        updateIntegrations,
+        createIntegration,
+        updateIntegration,
+        deleteIntegration,
+        testIntegration,
         loadDomains,
         addDomain,
         removeDomain,

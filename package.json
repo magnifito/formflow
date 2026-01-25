@@ -137,8 +137,12 @@
   },
   "dependencies": {
     "@eslint/js": "^9.39.2",
+    "@types/nodemailer": "^7.0.5",
+    "axios": "^1.13.2",
     "globals": "^17.1.0",
+    "nodemailer": "^7.0.12",
     "pg-boss": "^12.5.4",
+    "three": "^0.170.0",
     "typescript-eslint": "^8.53.1"
   },
   "pnpm": {

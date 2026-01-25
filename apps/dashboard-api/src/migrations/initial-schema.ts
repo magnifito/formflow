@@ -181,7 +181,32 @@ export class InitialSchema1737227400000 implements MigrationInterface {
             )
         `);
 
-        // 7. Create Submission table
+        // 7. Create Integration enums and table (scoped org/form integrations)
+        await queryRunner.query(`
+            CREATE TYPE "integration_type_enum" AS ENUM ('email-smtp', 'email-api', 'telegram', 'discord', 'slack', 'webhook')
+        `);
+
+        await queryRunner.query(`
+            CREATE TYPE "integration_scope_enum" AS ENUM ('organization', 'form')
+        `);
+
+        await queryRunner.query(`
+            CREATE TABLE "integration" (
+                "id" SERIAL NOT NULL,
+                "organizationId" integer NOT NULL,
+                "formId" integer,
+                "scope" "integration_scope_enum" NOT NULL DEFAULT 'organization',
+                "type" "integration_type_enum" NOT NULL DEFAULT 'webhook',
+                "name" character varying NOT NULL,
+                "config" jsonb NOT NULL DEFAULT '{}',
+                "isActive" boolean NOT NULL DEFAULT true,
+                "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+                "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+                CONSTRAINT "PK_integration_id" PRIMARY KEY ("id")
+            )
+        `);
+
+        // 8. Create Submission table
         await queryRunner.query(`
             CREATE TABLE "submission" (
                 "id" SERIAL NOT NULL,
@@ -210,6 +235,9 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_form_organizationId" ON "form" ("organizationId")`);
         await queryRunner.query(`CREATE INDEX "IDX_submission_formId" ON "submission" ("formId")`);
         await queryRunner.query(`CREATE INDEX "IDX_submission_createdAt" ON "submission" ("createdAt")`);
+        await queryRunner.query(`CREATE INDEX "IDX_integration_org" ON "integration" ("organizationId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_integration_form" ON "integration" ("formId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_integration_type_scope" ON "integration" ("type", "scope")`);
 
         // 10. Add foreign key constraints
         await queryRunner.query(`
@@ -235,10 +263,20 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`
             ALTER TABLE "submission" ADD CONSTRAINT "FK_submission_formId" FOREIGN KEY ("formId") REFERENCES "form"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
+
+        await queryRunner.query(`
+            ALTER TABLE "integration" ADD CONSTRAINT "FK_integration_organization" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+        `);
+
+        await queryRunner.query(`
+            ALTER TABLE "integration" ADD CONSTRAINT "FK_integration_form" FOREIGN KEY ("formId") REFERENCES "form"("id") ON DELETE CASCADE ON UPDATE NO ACTION
+        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         // Drop foreign key constraints first
+        await queryRunner.query(`ALTER TABLE "integration" DROP CONSTRAINT "FK_integration_form"`);
+        await queryRunner.query(`ALTER TABLE "integration" DROP CONSTRAINT "FK_integration_organization"`);
         await queryRunner.query(`ALTER TABLE "submission" DROP CONSTRAINT "FK_submission_formId"`);
         await queryRunner.query(`ALTER TABLE "organization_integration" DROP CONSTRAINT "FK_organization_integration_organizationId"`);
         await queryRunner.query(`ALTER TABLE "form_integration" DROP CONSTRAINT "FK_form_integration_formId"`);
@@ -247,6 +285,9 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "FK_user_organizationId"`);
 
         // Drop indexes
+        await queryRunner.query(`DROP INDEX "IDX_integration_type_scope"`);
+        await queryRunner.query(`DROP INDEX "IDX_integration_form"`);
+        await queryRunner.query(`DROP INDEX "IDX_integration_org"`);
         await queryRunner.query(`DROP INDEX "IDX_submission_createdAt"`);
         await queryRunner.query(`DROP INDEX "IDX_submission_formId"`);
         await queryRunner.query(`DROP INDEX "IDX_form_organizationId"`);
@@ -264,6 +305,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "organization" DROP CONSTRAINT "UQ_organization_slug"`);
 
         // Drop tables in reverse order (respecting FK dependencies)
+        await queryRunner.query(`DROP TABLE "integration"`);
         await queryRunner.query(`DROP TABLE "submission"`);
         await queryRunner.query(`DROP TABLE "organization_integration"`);
         await queryRunner.query(`DROP TABLE "form_integration"`);
@@ -271,5 +313,9 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`DROP TABLE "whitelisted_domain"`);
         await queryRunner.query(`DROP TABLE "user"`);
         await queryRunner.query(`DROP TABLE "organization"`);
+
+        // Drop enums
+        await queryRunner.query(`DROP TYPE "integration_scope_enum"`);
+        await queryRunner.query(`DROP TYPE "integration_type_enum"`);
     }
 }

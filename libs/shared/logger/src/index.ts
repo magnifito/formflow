@@ -124,11 +124,13 @@ const consoleFormat = winston.format.combine(
       log += ` - ${(error as any).message}`;
     }
 
-    // Add any additional metadata (filtered)
+    // Add any additional metadata (filtered and cleaned for console readability)
     const excludeKeys = [
       'timestamp', 'level', 'message', 'correlationId', 'userId', 'organizationId',
       'duration', 'statusCode', 'service', 'version', 'environment', 'splat',
-      'Symbol(level)', 'Symbol(message)', 'operation', 'outcome', 'error', 'stack'
+      'Symbol(level)', 'Symbol(message)', 'operation', 'outcome', 'error', 'stack',
+      // Exclude verbose HTTP-specific fields from console output
+      'headers', 'userAgent', 'query', 'body', 'responseBody', 'ip', 'method', 'path'
     ];
     const metaKeys = Object.keys(meta).filter(key => !excludeKeys.includes(key));
 

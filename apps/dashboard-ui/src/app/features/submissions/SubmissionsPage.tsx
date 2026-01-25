@@ -3,17 +3,47 @@ import { useOrganization, Submission } from '../../hooks/useOrganization';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/Table';
 import { Button } from '../../components/ui/Button';
-import { Loader2, Eye, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Loader2, Eye, ChevronLeft, ChevronRight, Filter, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { useQueue, Job } from '../../hooks/useQueue';
 
 export function SubmissionsPage() {
     const { forms, submissions, pagination, loading, loadSubmissions } = useOrganization();
+    const { fetchSubmissionJobs, retryJob } = useQueue();
     const [selectedFormId, setSelectedFormId] = useState<number | null>(null);
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+    const [integrationJobs, setIntegrationJobs] = useState<Job[]>([]);
+    const [jobsLoading, setJobsLoading] = useState(false);
 
     useEffect(() => {
         loadSubmissions(1, selectedFormId);
     }, [loadSubmissions, selectedFormId]);
+
+    useEffect(() => {
+        if (selectedSubmission) {
+            loadIntegrationJobs(selectedSubmission.id);
+        } else {
+            setIntegrationJobs([]);
+        }
+    }, [selectedSubmission]);
+
+    const loadIntegrationJobs = async (id: number) => {
+        setJobsLoading(true);
+        const jobs = await fetchSubmissionJobs(id);
+        if (jobs) {
+            setIntegrationJobs(jobs);
+        }
+        setJobsLoading(false);
+    };
+
+    const handleRetryJob = async (jobId: string) => {
+        if (confirm('Retry this integration?')) {
+            const success = await retryJob(jobId);
+            if (success && selectedSubmission) {
+                setTimeout(() => loadIntegrationJobs(selectedSubmission.id), 1000);
+            }
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -130,8 +160,49 @@ export function SubmissionsPage() {
                             </div>
                         </div>
 
+                        <div className="space-y-4">
+                            <label className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-2">
+                                <RefreshCw className={`h-3 w-3 ${jobsLoading ? 'animate-spin' : ''}`} />
+                                Integration Status
+                            </label>
+                            <div className="space-y-2">
+                                {jobsLoading ? (
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground italic">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Fetching status...
+                                    </div>
+                                ) : integrationJobs.length > 0 ? (
+                                    integrationJobs.map(job => (
+                                        <div key={job.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border text-sm">
+                                            <div className="flex items-center gap-3">
+                                                {job.state === 'completed' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                                {job.state === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
+                                                {['active', 'retry'].includes(job.state) && <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />}
+                                                {job.state === 'created' && <Clock className="h-4 w-4 text-gray-500" />}
+                                                <span className="font-medium capitalize">{job.name.replace('integration-', '')}</span>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <Badge variant={job.state === 'completed' ? 'secondary' : job.state === 'failed' ? 'destructive' : 'default'}>
+                                                    {job.state}
+                                                </Badge>
+                                                {job.state === 'failed' && (
+                                                    <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={() => handleRetryJob(job.id)}>
+                                                        Retry
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-sm text-muted-foreground italic p-3 rounded-lg bg-muted/10 border border-dashed">
+                                        No active integrations found for this submission.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase">JSON Data</label>
+                            <label className="text-xs font-semibold text-muted-foreground uppercase text-zinc-500">JSON Data</label>
                             <div className="bg-zinc-950 text-zinc-50 p-4 rounded-lg overflow-auto max-h-[300px] font-mono text-xs">
                                 <pre>{JSON.stringify(selectedSubmission.data, null, 2)}</pre>
                             </div>

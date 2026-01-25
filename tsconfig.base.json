@@ -41,6 +41,9 @@
       ],
       "@formflow/shared/queue": [
         "libs/shared/queue/src/index.ts"
+      ],
+      "@formflow/shared/integrations": [
+        "libs/shared/integrations/src/index.ts"
       ]
     }
   },

@@ -3,6 +3,7 @@ import { User } from "./User"
 import { Form } from "./Form"
 import { WhitelistedDomain } from "./WhitelistedDomain"
 import { OrganizationIntegration } from "./OrganizationIntegration"
+import { Integration } from "./Integration"
 
 @Entity()
 export class Organization {
@@ -62,6 +63,10 @@ export class Organization {
     @OneToMany(() => WhitelistedDomain, domain => domain.organization)
     whitelistedDomains: WhitelistedDomain[]
 
+    @OneToMany(() => Integration, integration => integration.organization)
+    integrations: Integration[]
+
+    // Deprecated: use integrations
     @OneToOne(() => OrganizationIntegration, integration => integration.organization)
     integration: OrganizationIntegration
 }

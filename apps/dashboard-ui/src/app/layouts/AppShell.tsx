@@ -4,13 +4,14 @@ import { Header } from '../components/Header';
 import { useAuth } from '../hooks/useAuth';
 import { useOrganization } from '../hooks/useOrganization';
 
-import { LayoutDashboard, FileText, ClipboardList, ArrowLeftRight, Settings } from 'lucide-react';
+import { LayoutDashboard, FileText, ClipboardList, ArrowLeftRight, Settings, LayoutGrid } from 'lucide-react';
 
 const TENANT_NAV_ITEMS = [
     { label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard' },
     { label: 'Forms', icon: FileText, route: '/forms' },
     { label: 'Submissions', icon: ClipboardList, route: '/submissions' },
     { label: 'Integrations', icon: ArrowLeftRight, route: '/integrations' },
+    { label: 'Gallery', icon: LayoutGrid, route: '/gallery' },
     { label: 'Settings', icon: Settings, route: '/settings' }
 ];
 

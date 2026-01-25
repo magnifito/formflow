@@ -196,4 +196,29 @@ router.post('/jobs/:id/retry', async (req: Request, res: Response) => {
     }
 });
 
+// GET /queue/submission/:id - Get all jobs related to a specific submission
+router.get('/submission/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { AppDataSource } = await import("../data-source");
+
+        const query = `
+            SELECT id, name, state, createdon, startedon, completedon, retrycount, output
+            FROM pgboss.job
+            WHERE data->>'submissionId' = $1
+            ORDER BY createdon DESC
+        `;
+
+        const jobs = await AppDataSource.manager.query(query, [id]);
+        res.json(jobs);
+    } catch (error: any) {
+        logger.error('Failed to get jobs for submission', {
+            operation: LogOperation.DASHBOARD_QUEUE_JOBS,
+            error: error.message,
+            submissionId: req.params.id
+        });
+        res.status(500).json({ error: 'Failed to fetch jobs' });
+    }
+});
+
 export default router;

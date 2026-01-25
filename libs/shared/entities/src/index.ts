@@ -5,3 +5,4 @@ export * from './Submission';
 export * from './WhitelistedDomain';
 export * from './FormIntegration';
 export * from './OrganizationIntegration';
+export * from './Integration';
