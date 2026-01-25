@@ -1,24 +1,20 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compileOnSave": false,
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": "../../",
+    "baseUrl": "../../../",
     "paths": {
       "@formflow/shared/env": ["libs/shared/env/src/index.ts"],
-      "@formflow/shared/entities": ["libs/shared/entities/src/index.ts"],
-      "@formflow/shared/data-source": ["libs/shared/data-source/src/index.ts"],
-      "@formflow/shared/encryption": ["libs/shared/encryption/src/index.ts"],
-      "@formflow/shared/logger": ["libs/shared/logger/src/index.ts"],
-      "@formflow/shared/telegram": ["libs/shared/telegram/src/index.ts"]
+      "@formflow/shared/logger": ["libs/shared/logger/src/index.ts"]
     },
     "lib": ["ES2022"],
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node",
-    "outDir": "./build",
+    "outDir": "../../../dist/libs/shared/slack",
     "rootDir": "./src",
     "sourceMap": true,
-    "declaration": false,
+    "declaration": true,
+    "declarationMap": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "importHelpers": true,
@@ -30,5 +26,5 @@
     "isolatedModules": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "build"]
+  "exclude": ["node_modules", "dist"]
 }

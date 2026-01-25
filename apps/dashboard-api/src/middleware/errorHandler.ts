@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import logger from '@formflow/shared/logger';
+import logger, { LogMessages, LogOperation, LogOutcome, maskSensitiveData } from '@formflow/shared/logger';
 import { AuthRequest } from './auth';
 import { OrgContextRequest } from './orgContext';
 
@@ -24,9 +24,13 @@ export function errorHandler(
 
   // Determine status code
   const statusCode = error.statusCode || error.status || 500;
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isServerError = statusCode >= 500;
 
   // Log the error with full context
   const errorLog: any = {
+    operation: LogOperation.HTTP_RESPONSE,
+    outcome: LogOutcome.FAILURE,
     correlationId,
     method: req.method,
     path: req.path,
@@ -34,28 +38,27 @@ export function errorHandler(
     error: {
       name: error.name,
       message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      code: error.code,
+      stack: isDevelopment ? error.stack : undefined,
     },
     userId,
     organizationId,
   };
 
   // Include request details in development
-  if (process.env.NODE_ENV === 'development') {
-    errorLog.query = req.query;
-    errorLog.body = req.body;
+  if (isDevelopment) {
+    errorLog.query = maskSensitiveData(req.query);
+    errorLog.body = maskSensitiveData(req.body);
   }
 
   // Log at appropriate level
-  if (statusCode >= 500) {
-    logger.error('Express error handler caught error', errorLog);
+  if (isServerError) {
+    logger.error(LogMessages.httpRequestFailed(req.method, req.path, statusCode), errorLog);
   } else {
-    logger.warn('Express error handler caught client error', errorLog);
+    logger.warn(LogMessages.httpClientError(req.method, req.path, statusCode), errorLog);
   }
 
   // Don't leak error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  
   // Return error response
   res.status(statusCode).json({
     error: statusCode >= 500 && !isDevelopment

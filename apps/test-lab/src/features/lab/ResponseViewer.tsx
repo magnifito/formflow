@@ -49,7 +49,17 @@ export function ResponseViewer({ response, status, duration, error }: ResponseVi
             <CardContent className="p-0 flex-1 overflow-hidden relative">
                 <div className="absolute inset-0 overflow-auto p-4 font-mono text-sm">
                     {error ? (
-                        <div className="text-destructive whitespace-pre-wrap">{error}</div>
+                        <div className="space-y-4">
+                            <div className="text-destructive font-bold border-b pb-2 mb-2">{error}</div>
+                            {response && (
+                                <div className="space-y-2">
+                                    <div className="text-xs font-semibold text-muted-foreground">Backend Response:</div>
+                                    <pre className="text-xs text-destructive/80 bg-destructive/10 p-2 rounded overflow-auto whitespace-pre-wrap">
+                                        {typeof response === 'string' ? response : JSON.stringify(response, null, 2)}
+                                    </pre>
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         <pre className="text-primary/90">
                             {JSON.stringify(response, null, 2)}

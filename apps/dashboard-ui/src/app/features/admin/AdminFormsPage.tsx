@@ -43,6 +43,11 @@ export function AdminFormsPage() {
             return;
         }
 
+        if (!newForm.organizationId) {
+            setCreateError('Organization is required');
+            return;
+        }
+
         setCreating(true);
         setCreateError('');
         try {
@@ -80,7 +85,7 @@ export function AdminFormsPage() {
                 </div>
                 <Button onClick={() => setShowCreateModal(true)}>
                     <Plus className="mr-2 h-4 w-4" />
-                    New Global Form
+                    New Form
                 </Button>
             </div>
 
@@ -186,7 +191,7 @@ export function AdminFormsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateModal(false)}>
                     <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
                         <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
-                            <CardTitle>Create Global Form</CardTitle>
+                            <CardTitle>Create Form</CardTitle>
                             <Button variant="ghost" size="icon" onClick={() => setShowCreateModal(false)}>
                                 <X className="h-4 w-4" />
                             </Button>
@@ -211,19 +216,20 @@ export function AdminFormsPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium">Link to Organization</label>
+                                    <label className="text-sm font-medium">Link to Organization *</label>
                                     <select
                                         className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                         value={newForm.organizationId}
+                                        required
                                         onChange={(e) => setNewForm(prev => ({ ...prev, organizationId: e.target.value }))}
                                     >
-                                        <option value="">-- No Organization (System-wide) --</option>
+                                        <option value="" disabled>-- Select Organization --</option>
                                         {organizations?.data.map((org: any) => (
                                             <option key={org.id} value={org.id}>{org.name}</option>
                                         ))}
                                     </select>
                                     <p className="text-[10px] text-muted-foreground italic">
-                                        Super admins can link forms to any organization in the system.
+                                        Super admins must link forms to an organization.
                                     </p>
                                 </div>
                                 {createError && <p className="text-sm text-destructive bg-destructive/10 p-2 rounded">{createError}</p>}

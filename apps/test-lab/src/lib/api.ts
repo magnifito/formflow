@@ -71,8 +71,7 @@ export const api = {
         getCsrfToken: async (submitHash: string, origin: string) => {
             // CSRF endpoint requires Origin/Referer to match whitelist
             const { data } = await collectorApi.get<{ token: string; expiresInSeconds: number }>(
-                `/s/${submitHash}/csrf`,
-                { headers: { 'X-Forwarded-Host': origin, 'Origin': origin } } // Mocking origin for local dev if needed, though browser sets Origin
+                `/s/${submitHash}/csrf`
             );
             return data;
         },

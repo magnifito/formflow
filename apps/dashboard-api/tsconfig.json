@@ -8,7 +8,8 @@
       "@formflow/shared/entities": ["libs/shared/entities/src/index.ts"],
       "@formflow/shared/data-source": ["libs/shared/data-source/src/index.ts"],
       "@formflow/shared/encryption": ["libs/shared/encryption/src/index.ts"],
-      "@formflow/shared/logger": ["libs/shared/logger/src/index.ts"]
+      "@formflow/shared/logger": ["libs/shared/logger/src/index.ts"],
+      "@formflow/shared/telegram": ["libs/shared/telegram/src/index.ts"]
     },
     "lib": ["ES2022"],
     "target": "ES2022",

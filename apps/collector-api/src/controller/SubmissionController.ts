@@ -6,9 +6,10 @@ import nodemailer from "nodemailer";
 import axios from "axios";
 import crypto from "crypto";
 import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
+import { getTelegramService } from "@formflow/shared/telegram";
 
 const router = Router();
-const csrfSecret = getEnv("CSRF_SECRET");
+const csrfSecret = getEnv("CSRF_SECRET") || "default-dev-secret-do-not-use-in-prod";
 const csrfTtlMinutes = Number.parseInt(getEnv("CSRF_TTL_MINUTES") || "15", 10);
 const csrfTtlMs = Number.isFinite(csrfTtlMinutes) && csrfTtlMinutes > 0
     ? csrfTtlMinutes * 60 * 1000
@@ -266,6 +267,15 @@ router.get('/:identifier/csrf', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Form is not accepting submissions' });
         }
 
+        if (!form.organization) {
+            logger.error('Form has no linked organization', {
+                formId: form.id,
+                submitHash: identifier,
+                operation: LogOperation.CSRF_TOKEN_ISSUE
+            });
+            return res.status(500).json({ error: 'Form configuration error: No organization linked' });
+        }
+
         if (!form.organization.isActive) {
             return res.status(400).json({ error: 'Organization is inactive' });
         }
@@ -357,6 +367,15 @@ router.post('/:identifier', async (req: Request, res: Response) => {
 
         if (!form.isActive) {
             return res.status(400).json({ error: 'Form is not accepting submissions' });
+        }
+
+        if (!form.organization) {
+            logger.error('Form has no linked organization', {
+                formId: form.id,
+                submitHash: identifier,
+                operation: LogOperation.FORM_SUBMIT
+            });
+            return res.status(500).json({ error: 'Form configuration error: No organization linked' });
         }
 
         if (!form.organization.isActive) {
@@ -506,68 +525,66 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         }
 
         // Process integrations
-        const transporter = createTransporter();
-
         // Email integration
         if (integration.emailEnabled && integration.emailRecipients) {
-            const recipients = integration.emailRecipients.split(',').map(e => e.trim());
-            const mailMessage = {
-                from: '"New FormFlow Submission" <new-submission@formflow.fyi>',
-                to: recipients,
-                subject: `New Form Submission: ${form.name}`,
-                text: niceMessage,
-                auth: {
-                    user: getEnv("GMAIL_EMAIL"),
-                    refreshToken: getEnv("GMAIL_REFRESH"),
-                    accessToken: getEnv("GMAIL_ACCESS"),
-                    expires: 1484314697598,
-                },
-            };
+            try {
+                const transporter = createTransporter();
+                const recipients = integration.emailRecipients.split(',').map(e => e.trim());
+                const mailMessage = {
+                    from: '"New FormFlow Submission" <new-submission@formflow.fyi>',
+                    to: recipients,
+                    subject: `New Form Submission: ${form.name}`,
+                    text: niceMessage,
+                    auth: {
+                        user: getEnv("GMAIL_EMAIL"),
+                        refreshToken: getEnv("GMAIL_REFRESH"),
+                        accessToken: getEnv("GMAIL_ACCESS"),
+                        expires: 1484314697598,
+                    },
+                };
 
-            transporter.sendMail(mailMessage, (error) => {
-                if (error) {
-                    logger.error(LogMessages.integrationSendFailed('Email'), {
-                        operation: LogOperation.INTEGRATION_EMAIL_SEND,
-                        error: error.message,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        recipientCount: recipients.length,
-                        correlationId: req.correlationId,
-                    });
-                } else {
-                    logger.info(LogMessages.integrationSendSuccess('Email'), {
-                        operation: LogOperation.INTEGRATION_EMAIL_SEND,
-                        formId: form.id,
-                        submissionId: submission.id,
-                        recipientCount: recipients.length,
-                        correlationId: req.correlationId,
-                    });
-                }
-            });
+                transporter.sendMail(mailMessage, (error) => {
+                    if (error) {
+                        logger.error(LogMessages.integrationSendFailed('Email'), {
+                            operation: LogOperation.INTEGRATION_EMAIL_SEND,
+                            error: error.message,
+                            formId: form.id,
+                            submissionId: submission.id,
+                            recipientCount: recipients.length,
+                            correlationId: req.correlationId,
+                        });
+                    } else {
+                        logger.info(LogMessages.integrationSendSuccess('Email'), {
+                            operation: LogOperation.INTEGRATION_EMAIL_SEND,
+                            formId: form.id,
+                            submissionId: submission.id,
+                            recipientCount: recipients.length,
+                            correlationId: req.correlationId,
+                        });
+                    }
+                });
+            } catch (error: any) {
+                logger.error(LogMessages.integrationSendFailed('Email'), {
+                    operation: LogOperation.INTEGRATION_EMAIL_SEND,
+                    error: `Transporter initialization failed: ${error.message}`,
+                    formId: form.id,
+                    submissionId: submission.id,
+                    correlationId: req.correlationId,
+                });
+            }
         }
 
         // Telegram integration
         if (integration.telegramEnabled && integration.telegramChatId) {
-            const url = `https://api.telegram.org/bot${getEnv("TELEGRAM_API_TOKEN")}/sendMessage`;
-            axios.post(url, {
-                chat_id: integration.telegramChatId,
-                text: niceMessage,
-            }).then(() => {
-                logger.info(LogMessages.integrationSendSuccess('Telegram'), {
-                    operation: LogOperation.INTEGRATION_TELEGRAM_SEND,
+            getTelegramService().sendSubmissionNotification(
+                integration.telegramChatId,
+                niceMessage,
+                {
                     formId: form.id,
                     submissionId: submission.id,
                     correlationId: req.correlationId,
-                });
-            }).catch(err => {
-                logger.error(LogMessages.integrationSendFailed('Telegram'), {
-                    operation: LogOperation.INTEGRATION_TELEGRAM_SEND,
-                    error: err.message,
-                    formId: form.id,
-                    submissionId: submission.id,
-                    correlationId: req.correlationId,
-                });
-            });
+                }
+            );
         }
 
         // Discord integration
@@ -706,7 +723,11 @@ router.post('/:identifier', async (req: Request, res: Response) => {
             identifier: req.params.identifier,
             correlationId: req.correlationId,
         });
-        res.status(500).json({ error: 'Failed to process submission' });
+        res.status(500).json({
+            error: 'Failed to process submission',
+            details: error.message,
+            stack: error.stack
+        });
     }
 });
 

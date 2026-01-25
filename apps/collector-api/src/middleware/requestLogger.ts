@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import logger, { maskHeaders, maskSensitiveData } from '@formflow/shared/logger';
+import logger, { LogMessages, LogOperation, LogOutcome, maskHeaders, maskSensitiveData } from '@formflow/shared/logger';
 
 // Extend Request type to include correlation ID
 declare global {
@@ -25,6 +25,23 @@ function getClientIp(req: Request): string {
 }
 
 /**
+ * Resolve or generate correlation ID for the request
+ */
+function getCorrelationId(req: Request): string {
+  const headerKeys = ['x-correlation-id', 'x-request-id'];
+  for (const headerKey of headerKeys) {
+    const headerValue = req.headers[headerKey];
+    if (typeof headerValue === 'string' && headerValue.trim().length > 0) {
+      return headerValue;
+    }
+    if (Array.isArray(headerValue) && headerValue.length > 0 && headerValue[0]) {
+      return headerValue[0];
+    }
+  }
+  return uuidv4();
+}
+
+/**
  * Request logging middleware
  * Generates correlation ID and logs incoming requests
  */
@@ -33,6 +50,12 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   if (req.path === '/health' || req.path === '/health/ready') {
     return next();
   }
+
+  // Generate or reuse correlation ID
+  const correlationId = getCorrelationId(req);
+  req.correlationId = correlationId;
+  req.startTime = Date.now();
+  res.setHeader('x-correlation-id', correlationId);
 
   // Log sampling configuration
   const logSampleRate = parseFloat(process.env.LOG_SAMPLE_RATE || '1.0');
@@ -43,11 +66,6 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     return next();
   }
 
-  // Generate correlation ID
-  const correlationId = uuidv4();
-  req.correlationId = correlationId;
-  req.startTime = Date.now();
-
   // Request body logging configuration
   const shouldLogBody = process.env.LOG_REQUEST_BODY === 'true' || 
                         (process.env.NODE_ENV === 'development' && process.env.LOG_REQUEST_BODY !== 'false');
@@ -56,10 +74,11 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   const contentType = req.headers['content-type'] || '';
 
   const requestLog: any = {
+    operation: LogOperation.HTTP_REQUEST,
     correlationId,
     method: req.method,
     path: req.path,
-    query: req.query,
+    query: maskSensitiveData(req.query),
     ip: getClientIp(req),
     userAgent: req.headers['user-agent'],
     headers: maskHeaders(req.headers),
@@ -85,7 +104,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   }
 
   // Log incoming request
-  logger.info('Incoming request', requestLog);
+  logger.info(LogMessages.httpRequestReceived(req.method, req.path), requestLog);
 
   // Response body logging (only in development or when explicitly enabled)
   const shouldLogResponseBody = process.env.LOG_RESPONSE_BODY === 'true' || 
@@ -127,6 +146,8 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     }
 
     const logData: any = {
+      operation: LogOperation.HTTP_RESPONSE,
+      outcome: statusCode >= 400 ? LogOutcome.FAILURE : LogOutcome.SUCCESS,
       correlationId,
       method: req.method,
       path: req.path,
@@ -154,7 +175,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       }
     }
 
-    logger[logLevel]('Outgoing response', logData);
+    logger[logLevel](LogMessages.httpResponseSent(req.method, req.path, statusCode), logData);
   });
 
   next();

@@ -114,15 +114,17 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
         }
 
         // Determine organization context
-        let organizationId: number | null;
+        let organizationId: number;
         if (user.isSuperAdmin) {
-            // Super admin can explicitly specify an organization
-            if (req.body.organizationId !== undefined) {
-                organizationId = req.body.organizationId === 'null' || req.body.organizationId === null
-                    ? null
-                    : parseInt(req.body.organizationId as string);
+            // Super admin MUST explicitly specify an organization
+            if (req.body.organizationId && req.body.organizationId !== 'null') {
+                organizationId = parseInt(req.body.organizationId as string);
             } else {
-                organizationId = req.organization ? req.organization.id : null;
+                // If not specified, default to their own org if exists, otherwise error
+                if (!req.organization) {
+                    return res.status(400).json({ error: 'Organization is required for form creation' });
+                }
+                organizationId = req.organization!.id;
             }
         } else {
             // Regular user always tied to their organization

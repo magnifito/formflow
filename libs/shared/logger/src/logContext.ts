@@ -52,6 +52,9 @@ export enum LogOperation {
   INTEGRATION_WEBHOOK_TOGGLE = 'integration.webhook.toggle',
   INTEGRATION_WEBHOOK_UPDATE = 'integration.webhook.update',
   INTEGRATION_SLACK_SEND = 'integration.slack.send',
+  INTEGRATION_SLACK_TOGGLE = 'integration.slack.toggle',
+  INTEGRATION_SLACK_LINK = 'integration.slack.link',
+  INTEGRATION_SLACK_UNLINK = 'integration.slack.unlink',
   INTEGRATION_EMAIL_SEND = 'integration.email.send',
 
   // Domain Operations
@@ -154,6 +157,15 @@ export function extractRequestContext(req: {
  * Standard log message templates for consistency
  */
 export const LogMessages = {
+  // HTTP messages
+  httpRequestReceived: (method: string, path: string) => `HTTP request received: ${method} ${path}`,
+  httpResponseSent: (method: string, path: string, statusCode: number) =>
+    `HTTP response sent: ${method} ${path} ${statusCode}`,
+  httpRequestFailed: (method: string, path: string, statusCode: number) =>
+    `HTTP request failed: ${method} ${path} ${statusCode}`,
+  httpClientError: (method: string, path: string, statusCode: number) =>
+    `HTTP client error: ${method} ${path} ${statusCode}`,
+
   // Integration messages
   integrationSendSuccess: (type: string) => `${type} message sent successfully`,
   integrationSendFailed: (type: string) => `Failed to send ${type} message`,
@@ -183,6 +195,11 @@ export const LogMessages = {
   csrfTokenIssued: 'CSRF token issued',
   csrfTokenInvalid: 'Invalid CSRF token',
   rateLimitExceeded: 'Rate limit exceeded',
+
+  // System messages
+  systemUncaughtException: 'Uncaught exception',
+  systemUnhandledRejection: 'Unhandled promise rejection',
+  systemShutdownSignal: (signal: string) => `Shutdown signal received: ${signal}`,
 
   // User messages
   userNotFound: 'User not found',

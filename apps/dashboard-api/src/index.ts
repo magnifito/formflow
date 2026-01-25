@@ -47,7 +47,8 @@ async function createApp() {
             }
         },
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'x-altcha-spam-filter', 'x-api-key', 'Authorization', 'X-Organization-Context', 'X-CSRF-Token'],
+        allowedHeaders: ['Content-Type', 'x-altcha-spam-filter', 'x-api-key', 'Authorization', 'X-Organization-Context', 'X-CSRF-Token', 'X-Correlation-Id', 'X-Request-Id'],
+        exposedHeaders: ['x-correlation-id'],
         credentials: true
     };
     app.use(cors(strictCorsOptions));

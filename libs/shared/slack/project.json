@@ -1,0 +1,23 @@
+{
+  "name": "shared-slack",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/slack/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:shared"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/shared/slack",
+        "main": "libs/shared/slack/src/index.ts",
+        "tsConfig": "libs/shared/slack/tsconfig.json",
+        "assets": ["libs/shared/slack/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    }
+  }
+}

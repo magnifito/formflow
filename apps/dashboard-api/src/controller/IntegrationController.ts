@@ -4,6 +4,7 @@ import { User, OrganizationIntegration } from "@formflow/shared/entities";
 import { getEnv } from "@formflow/shared/env";
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
+import { getTelegramService, TelegramService } from "@formflow/shared/telegram";
 import axios from "axios";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
@@ -110,7 +111,7 @@ router.post('/telegram/send/:userId', async (req, res) => {
     const userId = parseInt(req.params.userId);
 
     // This endpoint seems to be a test endpoint logic, but we need organization context
-    // Ideally this should use API Key like other send endpoints if it's external, 
+    // Ideally this should use API Key like other send endpoints if it's external,
     // or be an authenticated test call. The original used userId.
     // I'll assume it's for testing the connection from the UI.
 
@@ -133,12 +134,18 @@ router.post('/telegram/send/:userId', async (req, res) => {
         }
 
         const message = req.body.message;
-        const formattedMessage = Object.entries(message).map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`).join('\n\n');
+        const formattedMessage = TelegramService.formatMessage(message);
 
-        const url = `https://api.telegram.org/bot${getEnv("TELEGRAM_API_TOKEN")}/sendMessage`;
-        await axios.post(url, { chat_id: integration.telegramChatId, text: formattedMessage });
+        const result = await getTelegramService().sendMessage(
+            { chatId: integration.telegramChatId, message: formattedMessage },
+            { targetUserId: userId }
+        );
 
-        res.status(200).send('Telegram message sent');
+        if (result.success) {
+            res.status(200).send('Telegram message sent');
+        } else {
+            res.status(500).send('Error sending Telegram message');
+        }
     } catch (error: any) {
         logger.error(LogMessages.integrationSendFailed('Telegram'), {
             operation: LogOperation.INTEGRATION_TELEGRAM_SEND,
@@ -170,9 +177,8 @@ router.post('/telegram/unlink/:userId', cors(strictCorsOptions), verifyToken, as
             return res.status(400).send('Integration not found');
         }
 
-        const url = `https://api.telegram.org/bot${getEnv("TELEGRAM_API_TOKEN")}/sendMessage`;
         if (integration.telegramChatId) {
-            await axios.post(url, { chat_id: integration.telegramChatId, text: "FormFlow will no longer be sending your form submission data to this chat!" }).catch(() => { });
+            await getTelegramService().sendUnlinkNotification(integration.telegramChatId).catch(() => { });
         }
 
         integration.telegramChatId = null;

@@ -1,4 +1,4 @@
-import logger from '@formflow/shared/logger';
+import logger, { LogMessages, LogOperation, LogOutcome } from '@formflow/shared/logger';
 
 /**
  * Setup global error handlers for uncaught exceptions and unhandled rejections
@@ -7,11 +7,13 @@ import logger from '@formflow/shared/logger';
 export function setupGlobalErrorHandlers() {
   // Handle uncaught exceptions
   process.on('uncaughtException', (error: Error) => {
-    logger.error('Uncaught Exception', {
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
+    logger.error(LogMessages.systemUncaughtException, {
+      operation: LogOperation.SYSTEM_ERROR,
+      outcome: LogOutcome.FAILURE,
+      error,
+      process: {
+        pid: process.pid,
+        uptimeMs: Math.round(process.uptime() * 1000),
       },
     });
     
@@ -23,17 +25,15 @@ export function setupGlobalErrorHandlers() {
 
   // Handle unhandled promise rejections
   process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-    const errorDetails: any = {
-      reason: typeof reason === 'object' && reason !== null
-        ? {
-            name: reason.name,
-            message: reason.message,
-            stack: reason.stack,
-          }
-        : reason,
-    };
-
-    logger.error('Unhandled Promise Rejection', errorDetails);
+    logger.error(LogMessages.systemUnhandledRejection, {
+      operation: LogOperation.SYSTEM_ERROR,
+      outcome: LogOutcome.FAILURE,
+      error: reason,
+      process: {
+        pid: process.pid,
+        uptimeMs: Math.round(process.uptime() * 1000),
+      },
+    });
     
     // Don't exit for unhandled rejections in production to allow graceful handling
     // but log them for debugging
@@ -41,12 +41,20 @@ export function setupGlobalErrorHandlers() {
 
   // Handle termination signals
   process.on('SIGTERM', () => {
-    logger.info('SIGTERM signal received, shutting down gracefully');
+    logger.info(LogMessages.systemShutdownSignal('SIGTERM'), {
+      operation: LogOperation.SYSTEM_SHUTDOWN,
+      outcome: LogOutcome.SUCCESS,
+      signal: 'SIGTERM',
+    });
     process.exit(0);
   });
 
   process.on('SIGINT', () => {
-    logger.info('SIGINT signal received, shutting down gracefully');
+    logger.info(LogMessages.systemShutdownSignal('SIGINT'), {
+      operation: LogOperation.SYSTEM_SHUTDOWN,
+      outcome: LogOutcome.SUCCESS,
+      signal: 'SIGINT',
+    });
     process.exit(0);
   });
 }
