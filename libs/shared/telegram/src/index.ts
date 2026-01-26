@@ -34,7 +34,7 @@ export class TelegramService {
     private readonly baseUrl: string;
 
     constructor(botToken?: string) {
-        this.botToken = botToken || getEnv('TELEGRAM_API_TOKEN');
+        this.botToken = botToken || getEnv('TELEGRAM_BOT_TOKEN');
         this.baseUrl = `https://api.telegram.org/bot${this.botToken}`;
     }
 

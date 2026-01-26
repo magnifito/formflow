@@ -6,7 +6,6 @@ export interface User {
     isActive: boolean;
     organizationId: number | null;
     role: string | null;
-    apiKey?: string;
     organization: Organization | null;
 }
 

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../data-source';
 import router from './SubmissionController';
-import { Form, WhitelistedDomain, Submission, OrganizationIntegration, FormIntegration } from '@formflow/shared/entities';
+import { Form, WhitelistedDomain, Submission } from '@formflow/shared/entities';
 import { createMockRequest, createMockResponse } from '../../test/mocks/express.mock';
 import { createMockManager } from '../../test/mocks/data-source.mock';
 import nodemailer from 'nodemailer';

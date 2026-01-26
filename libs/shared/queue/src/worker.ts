@@ -1,5 +1,5 @@
-
-import { JOB_OPTIONS, QUEUE_NAMES, IntegrationType, IntegrationJobData } from './types';
+import type { Job } from 'pg-boss';
+import { QUEUE_NAMES, IntegrationType, IntegrationJobData } from './types';
 import { getBoss } from './boss';
 import {
     handleEmailSmtpJob,
@@ -17,69 +17,32 @@ export async function startWorker(): Promise<void> {
 
     logger.info('Starting queue worker...');
 
-    // Helper to wrap handlers with error logging
-    const wrapHandler = (handler: (job: IntegrationJobData) => Promise<void>) => {
-        return async (jobs: any[]) => { // pg-boss passes array of jobs if batching, or single job?
-            // boss.work handler signature depends on config. Default is single job object with .data
-            // But we will use the standard handler signature: async (job) => ...
-            // Wait, pg-boss work() callback receives the job object.
-            // We need to handle potential batching if we enabled it, but we didn't explicitly enable batching in work().
-            // However, let's strictly type it.
-
-            for (const job of jobs) {
-                try {
-                    await handler(job.data as IntegrationJobData);
-                    await job.done();
-                } catch (error: any) {
-                    if (error instanceof PermanentError) {
-                        logger.error(`Permanent failure in job ${job.id}`, { error: error.message });
-                        // pg-boss 9.0+ often requires manual completion/failure if not strictly throwing.
-                        // If we throw, it retries. If we want to NOT retry, we should mark as complete-failed?
-                        // Actually pg-boss retries on throw. TO fail permanently, we might need to look at docs.
-                        // Usually throwing a specific error type that boss recognizes? 
-                        // Or explicitly calling job.done(error) where error is not retryable?
-                        // But job.done() usually means success.
-
-                        // In pg-boss, if you throw, it fails the job and schedules retry.
-                        // If we want to skip retries, we can capture the error and mark as failed but "complete" in terms of queue processing?
-                        // Or better, let it fail but set retry limit to 0 dynamically?
-
-                        // Simplest: Log it as permanent error and mark as done (failed), so it doesn't retry.
-                        // If we mark job.done(error), it might count as failure and retry.
-                        // If we mark job.done(), it counts as success.
-                        // If we want to archive it as failed, we probably HAVE to let it fail/retry until limit.
-                        // BUT we want to fail IMMEDIATELY for PermanentError.
-
-                        // Let's verify pg-boss behavior.
-                        // For now, logging and re-throwing is standard.
-                        throw error;
-                    } else {
-                        throw error;
-                    }
-                }
-            }
-        };
-    };
-
-    // We will use standard job fetching (one by one for simplicity unless high volume needed).
-    // pg-boss work() takes (queue, options, handler)
+    const toJobArray = (jobs: Job<IntegrationJobData>[] | Job<IntegrationJobData>): Job<IntegrationJobData>[] =>
+        Array.isArray(jobs) ? jobs : [jobs];
 
     const registerWithLog = async (queue: string, handler: (job: IntegrationJobData) => Promise<void>) => {
-        await boss.work(queue, async (job: any) => {
-            // Single job mode (default)
-            try {
-                await handler(job.data);
-                // job.done() is auto-called if promise resolves in some versions, or we call it.
-                // In pg-boss 9+, the handler is an async function that returns a promise.
-            } catch (err: any) {
-                if (err instanceof PermanentError) {
-                    // We want to stop retries.
-                    // job.done(err) might still retry if policy says so.
-                    // There isn't a clean "fail without retry" unless we set retry limit to current attempt.
-                    // We'll throw and let it retry for now, or maybe handle it specifically later.
+        await boss.work<IntegrationJobData>(queue, async (jobs) => {
+            for (const job of toJobArray(jobs)) {
+                try {
+                    await handler(job.data);
+                } catch (err: any) {
+                    // Log enough context to debug retries
+                    logger.error('Integration job failed', {
+                        queue,
+                        jobId: job.id,
+                        integrationType: job.data?.integrationType,
+                        submissionId: job.data?.submissionId,
+                        formId: job.data?.formId,
+                        error: err.message,
+                    });
+
+                    // PermanentError indicates we should exhaust retries immediately
+                    if (err instanceof PermanentError) {
+                        throw err;
+                    }
+
                     throw err;
                 }
-                throw err;
             }
         });
     };

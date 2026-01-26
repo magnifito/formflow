@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { AppDataSource } from "../data-source";
-import { Organization, User, Form, Submission, OrganizationIntegration } from "@formflow/shared/entities";
+import { Organization, User, Form, Submission } from "@formflow/shared/entities";
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import { verifySuperAdmin } from "../middleware/superAdmin";
 import bcrypt from "bcrypt";
@@ -120,13 +120,6 @@ router.post('/organizations', async (req: AuthRequest, res: Response) => {
 
         await AppDataSource.manager.save(organization);
 
-        // Create default organization integration
-        const orgIntegration = AppDataSource.manager.create(OrganizationIntegration, {
-            organizationId: organization.id,
-            emailEnabled: true
-        });
-        await AppDataSource.manager.save(orgIntegration);
-
         res.status(201).json(organization);
     } catch (error: any) {
         logger.error('Error creating organization', { error: error.message, stack: error.stack, correlationId: req.correlationId, name, slug });
@@ -141,7 +134,7 @@ router.get('/organizations/:id', async (req: AuthRequest, res: Response) => {
 
         const organization = await AppDataSource.manager.findOne(Organization, {
             where: { id: orgId },
-            relations: ['users', 'forms', 'whitelistedDomains', 'integration']
+            relations: ['users', 'forms', 'whitelistedDomains']
         });
 
         if (!organization) {

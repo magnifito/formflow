@@ -66,7 +66,6 @@ export interface IntegrationHierarchy {
         slug: string;
         useOrgIntegrations: boolean;
         integrations: Integration[];
-        legacyIntegrations: Integration[];
         effectiveIntegrations: Integration[];
     }>;
 }

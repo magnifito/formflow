@@ -8,7 +8,7 @@ const SENSITIVE_FIELDS = [
   'token',
   'accessToken',
   'refreshToken',
-  'apiKey',
+  'apiToken',
   'csrfToken',
   '_csrf',
   'authorization',
@@ -93,7 +93,7 @@ export function maskUrl(url: string): string {
 
   try {
     const urlObj = new URL(url);
-    const sensitiveParams = ['apiKey', 'token', 'key', 'secret'];
+    const sensitiveParams = ['apiToken', 'token', 'key', 'secret'];
 
     for (const param of sensitiveParams) {
       if (urlObj.searchParams.has(param)) {

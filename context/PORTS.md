@@ -76,8 +76,6 @@ npm run collector-api
 
 **Endpoints:**
 - `/submit/:formId` - New submission endpoint (v2)
-- `/formflow/:apikey` - Legacy submission endpoint
-- `/challenge/:apikey` - Proof of Work CAPTCHA challenge
 - `/health` - Health check
 
 **Configuration:**

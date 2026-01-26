@@ -60,7 +60,7 @@ export interface IntegrationJobData {
         // Email API (Mailgun, SendGrid, Postmark, etc.)
         emailApi?: {
             provider: 'mailgun' | 'sendgrid' | 'postmark' | 'ses';
-            apiKey: string;
+            apiToken: string;
             domain?: string;      // Mailgun domain
             region?: string;      // Mailgun region (US/EU), SES region
         };

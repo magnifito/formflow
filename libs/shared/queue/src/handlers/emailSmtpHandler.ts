@@ -1,6 +1,6 @@
 
 import { IntegrationJobData } from '../types';
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 import logger, { LogOperation, LogMessages } from '@formflow/shared/logger';
 import { PermanentError } from './index';
 
@@ -25,11 +25,21 @@ export async function handleEmailSmtpJob(job: IntegrationJobData): Promise<void>
         transporter = nodemailer.createTransport({
             host: config.smtp.host,
             port: config.smtp.port,
-            secure: config.smtp.secure ?? true,
+            secure: config.smtp.secure ?? (config.smtp.port === 465),
             auth: {
                 user: config.smtp.username,
                 pass: config.smtp.password,
             },
+            tls: {
+                rejectUnauthorized: false
+            },
+            debug: true,
+            logger: true,
+            connectionTimeout: 10000, // 10s
+            greetingTimeout: 10000,   // 10s
+            socketTimeout: 10000,     // 10s
+            // Disable STARTTLS for local Mailpit to avoid handshake issues on port 1025
+            ignoreTLS: config.smtp.host === '127.0.0.1' || config.smtp.host === 'localhost' || config.smtp.port === 1025,
         });
     } else {
         if (!config.oauth?.clientId || !config.oauth?.clientSecret || !config.oauth?.user || !config.oauth.refreshToken || !config.oauth.accessToken) {

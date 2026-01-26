@@ -28,7 +28,6 @@ export class TestDatabase {
     const org = orgRepo.create({
       name: data.name || 'Test Organization',
       slug: data.slug || 'test-org',
-      apiKey: data.apiKey || 'test-api-key-123',
       maxForms: data.maxForms,
       maxSubmissionsPerMonth: data.maxSubmissionsPerMonth,
       ...data,
@@ -52,7 +51,6 @@ export class TestDatabase {
     const userData = {
       email: cleanData.email || 'test@formflow.fyi',
       name: cleanData.name || 'Test User',
-      apiKey: cleanData.apiKey || 'test-user-api-key',
       isSuperAdmin: cleanData.isSuperAdmin || false,
       role: cleanData.role || 'member',
       organizationId: null, // Default to null

@@ -1,8 +1,9 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env ts-node-esm
 
 /**
  * Environment Configuration Test Script
- * Tests that environment variables are loaded correctly for dev and production
+ * Verifies that required env vars are present in real env files (with fallbacks to examples),
+ * and surfaces missing or mismatched values with clear output.
  */
 
 import * as dotenv from 'dotenv';
@@ -22,125 +23,114 @@ const colors = {
   bright: '\x1b[1m',
 };
 
+const requiredVars = [
+  'NODE_ENV',
+  'DASHBOARD_API_PORT',
+  'DASHBOARD_API_URL',
+  'REDIRECT_URL',
+  'DB_HOST',
+  'DB_PORT',
+  'DB_NAME',
+  'DB_USER',
+  'DB_PASSWORD',
+  'JWT_SECRET',
+  'ENCRYPTION_KEY',
+  'HMAC',
+  'EMAIL_USER',
+];
+
+const optionalVars = [
+  'CSRF_SECRET',
+  'CSRF_TTL_MINUTES',
+  'QUEUE_ENABLED',
+  'SUPER_ADMIN_EMAIL',
+  'SUPER_ADMIN_PASSWORD',
+  'SUPER_ADMIN_NAME',
+  'LOG_LEVEL',
+  'GITHUB_CLIENT_ID',
+  'GITHUB_CLIENT_SECRET',
+  'TELEGRAM_BOT_TOKEN',
+  'SLACK_BOT_TOKEN',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'EMAIL_PROVIDER',
+];
+
+type EnvTarget = {
+  label: string;
+  file: string;
+  fallback?: string;
+  expectedEnv: 'development' | 'production';
+};
+
 function log(message: string, color = colors.reset) {
   console.log(`${color}${message}${colors.reset}`);
 }
 
-function testEnvFile(envFile: string, expectedEnv: string) {
-  log(`\n${'='.repeat(60)}`, colors.cyan);
-  log(`Testing: ${envFile}`, colors.bright);
-  log('='.repeat(60), colors.cyan);
+function loadEnvFile(target: EnvTarget): { env: Record<string, string>; usedFile: string | null } {
+  const primaryPath = path.join(__dirname, '..', target.file);
+  const fallbackPath = target.fallback ? path.join(__dirname, '..', target.fallback) : null;
 
-  // Clear all env vars except NODE_ENV
-  const originalEnv = { ...process.env };
-  for (const key in process.env) {
-    if (key !== 'PATH' && key !== 'HOME' && key !== 'USER') {
-      delete process.env[key];
-    }
+  const usePath = fs.existsSync(primaryPath)
+    ? primaryPath
+    : fallbackPath && fs.existsSync(fallbackPath)
+      ? fallbackPath
+      : null;
+
+  if (!usePath) {
+    log(`✗ Missing env file: ${target.file}${target.fallback ? ` (and fallback ${target.fallback})` : ''}`, colors.red);
+    return { env: {}, usedFile: null };
   }
 
-  // Set NODE_ENV
-  process.env.NODE_ENV = expectedEnv;
+  const parsed = dotenv.parse(fs.readFileSync(usePath));
+  parsed.NODE_ENV = parsed.NODE_ENV || target.expectedEnv;
 
-  // Load the specific env file
-  const envPath = path.join(__dirname, '..', envFile);
-  try {
-    dotenv.config({ path: envPath });
-    log(`✓ Loaded ${envFile}`, colors.green);
-  } catch (error) {
-    log(`✗ Failed to load ${envFile}: ${error}`, colors.red);
-    return false;
-  }
-
-  // Test critical variables
-  const requiredVars = [
-    'NODE_ENV',
-    'PORT',
-    'DB_HOST',
-    'DB_PORT',
-    'DB_NAME',
-    'DB_USER',
-    'DB_PASSWORD',
-    'JWT_SECRET',
-    'ENCRYPTION_KEY',
-  ];
-
-  log('\nCritical Variables:', colors.yellow);
-  let allPresent = true;
-
-  for (const varName of requiredVars) {
-    const value = process.env[varName];
-    if (value) {
-      // Mask sensitive values
-      const displayValue = ['PASSWORD', 'SECRET', 'KEY'].some((s) => varName.includes(s))
-        ? '***' + value.slice(-4)
-        : value;
-      log(`  ✓ ${varName.padEnd(20)} = ${displayValue}`, colors.green);
-    } else {
-      log(`  ✗ ${varName.padEnd(20)} = MISSING`, colors.red);
-      allPresent = false;
-    }
-  }
-
-  // Test optional variables
-  log('\nOptional Variables:', colors.yellow);
-  const optionalVars = [
-    'REDIRECT_URL',
-    'DASHBOARD_API_URL',
-    'CSRF_SECRET',
-    'HMAC',
-    'GMAIL_CLIENT',
-    'TELEGRAM_API_TOKEN',
-  ];
-
-  for (const varName of optionalVars) {
-    const value = process.env[varName];
-    if (value) {
-      const displayValue = ['SECRET', 'KEY', 'TOKEN', 'CLIENT'].some((s) => varName.includes(s))
-        ? '***' + value.slice(-4)
-        : value;
-      log(`  ✓ ${varName.padEnd(25)} = ${displayValue}`, colors.green);
-    } else {
-      log(`  - ${varName.padEnd(25)} = not set`, colors.yellow);
-    }
-  }
-
-  // Validate NODE_ENV matches
-  if (process.env.NODE_ENV !== expectedEnv) {
-    log(`\n✗ NODE_ENV mismatch: expected "${expectedEnv}", got "${process.env.NODE_ENV}"`, colors.red);
-    allPresent = false;
-  } else {
-    log(`\n✓ NODE_ENV correctly set to "${expectedEnv}"`, colors.green);
-  }
-
-  // Restore original env
-  process.env = originalEnv;
-
-  return allPresent;
+  log(`✓ Loaded ${path.basename(usePath)} for ${target.label}`, colors.green);
+  return { env: parsed, usedFile: usePath };
 }
 
-function testDockerEnvSubstitution() {
+function checkVars(env: Record<string, string>, target: EnvTarget) {
   log(`\n${'='.repeat(60)}`, colors.cyan);
-  log('Testing Docker Environment Variable Substitution', colors.bright);
+  log(`Checking ${target.label}`, colors.bright);
   log('='.repeat(60), colors.cyan);
 
-  const dockerComposeTests = [
-    { var: 'DB_USER:-formflow', expected: 'formflow', description: 'Default DB user' },
-    { var: 'DB_NAME:-formflow', expected: 'formflow', description: 'Default DB name' },
-    { var: 'DB_PASSWORD:?', expected: 'required', description: 'Required DB password' },
-    { var: 'JWT_SECRET:?', expected: 'required', description: 'Required JWT secret' },
-    { var: 'ENCRYPTION_KEY:?', expected: 'required', description: 'Required encryption key' },
-    { var: 'REDIRECT_URL:-https://formflow.fyi', expected: 'https://formflow.fyi', description: 'Default redirect URL' },
-  ];
+  let allPassed = true;
 
-  log('\nDocker Compose Variable Handling:', colors.yellow);
-  for (const test of dockerComposeTests) {
-    const syntax = test.var.includes('?') ? 'required (must be set)' : `default: ${test.expected}`;
-    log(`  ✓ \${${test.var.padEnd(30)}} - ${syntax}`, colors.green);
+  log('\nRequired variables:', colors.yellow);
+  for (const key of requiredVars) {
+    const value = env[key];
+    if (value) {
+      const masked = ['PASSWORD', 'SECRET', 'KEY', 'TOKEN'].some((s) => key.includes(s))
+        ? '***' + value.slice(-4)
+        : value;
+      log(`  ✓ ${key.padEnd(24)} = ${masked}`, colors.green);
+    } else {
+      log(`  ✗ ${key.padEnd(24)} = MISSING`, colors.red);
+      allPassed = false;
+    }
   }
 
-  log('\n✓ All Docker Compose variable substitutions are properly configured', colors.green);
-  return true;
+  log('\nOptional variables:', colors.yellow);
+  for (const key of optionalVars) {
+    const value = env[key];
+    if (value) {
+      const masked = ['PASSWORD', 'SECRET', 'KEY', 'TOKEN', 'CLIENT'].some((s) => key.includes(s))
+        ? '***' + value.slice(-4)
+        : value;
+      log(`  • ${key.padEnd(24)} = ${masked}`, colors.green);
+    } else {
+      log(`  • ${key.padEnd(24)} = not set`, colors.yellow);
+    }
+  }
+
+  if (env.NODE_ENV !== target.expectedEnv) {
+    log(`\n✗ NODE_ENV mismatch: expected "${target.expectedEnv}", got "${env.NODE_ENV || 'unset'}"`, colors.red);
+    allPassed = false;
+  } else {
+    log(`\n✓ NODE_ENV matches (${env.NODE_ENV})`, colors.green);
+  }
+
+  return allPassed;
 }
 
 function main() {
@@ -148,42 +138,39 @@ function main() {
   log('FormFlow Environment Configuration Test', colors.bright + colors.cyan);
   log('='.repeat(60) + '\n', colors.cyan);
 
-  const results: { [key: string]: boolean } = {};
+  const targets: EnvTarget[] = [
+    { label: 'Development (.env.development)', file: '.env.development', fallback: '.env.development.example', expectedEnv: 'development' },
+    { label: 'Production Example (.env.production.example)', file: '.env.production', fallback: '.env.production.example', expectedEnv: 'production' },
+  ];
 
-  // Test development environment
-  results['dev'] = testEnvFile('.env.development.example', 'development');
+  const results: Record<string, boolean> = {};
 
-  // Test production environment
-  results['prod'] = testEnvFile('.env.production.example', 'production');
+  for (const target of targets) {
+    const { env, usedFile } = loadEnvFile(target);
+    if (!usedFile) {
+      results[target.label] = false;
+      continue;
+    }
+    results[target.label] = checkVars(env, target);
+  }
 
-  // Test Docker substitution
-  results['docker'] = testDockerEnvSubstitution();
-
-  // Summary
   log(`\n${'='.repeat(60)}`, colors.cyan);
   log('Test Summary', colors.bright);
   log('='.repeat(60), colors.cyan);
 
-  const allPassed = Object.values(results).every((r) => r);
-
-  for (const [env, passed] of Object.entries(results)) {
-    const status = passed ? '✓ PASS' : '✗ FAIL';
-    const color = passed ? colors.green : colors.red;
-    log(`  ${status.padEnd(10)} - ${env} environment`, color);
+  const allPassed = Object.values(results).every(Boolean);
+  for (const [label, passed] of Object.entries(results)) {
+    log(`  ${passed ? '✓ PASS' : '✗ FAIL'} - ${label}`, passed ? colors.green : colors.red);
   }
 
   log('='.repeat(60) + '\n', colors.cyan);
 
   if (allPassed) {
     log('✅ All environment configuration tests passed!', colors.green + colors.bright);
-    log('\nEnvironment files are properly configured for:', colors.green);
-    log('  • Development (.env.development)', colors.green);
-    log('  • Production (.env.production)', colors.green);
-    log('  • Docker Compose (both dev and prod)', colors.green);
     process.exit(0);
   } else {
     log('❌ Some environment configuration tests failed', colors.red + colors.bright);
-    log('\nPlease check the error messages above and fix the issues.', colors.red);
+    log('\nFix the missing variables above and re-run `pnpm test:env`.', colors.red);
     process.exit(1);
   }
 }

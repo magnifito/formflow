@@ -1,6 +1,6 @@
 import "reflect-metadata"
 import { DataSource } from "typeorm"
-import { User, Organization, Form, WhitelistedDomain, FormIntegration, OrganizationIntegration, Submission, Integration } from "@formflow/shared/entities"
+import { User, Organization, Form, WhitelistedDomain, Submission, Integration } from "@formflow/shared/entities"
 import { loadEnv } from "@formflow/shared/env";
 import { WinstonTypeORMLogger } from "@formflow/shared/logger";
 
@@ -48,7 +48,7 @@ export const AppDataSource = new DataSource({
     synchronize: false,
     logging: !isProduction, // Enable logging in development
     logger: isProduction ? undefined : new WinstonTypeORMLogger(),
-    entities: [User, Organization, Form, WhitelistedDomain, FormIntegration, OrganizationIntegration, Submission, Integration],
+    entities: [User, Organization, Form, WhitelistedDomain, Submission, Integration],
     // Migrations are available in apps/dashboard-api/src/migrations/
     // To run migrations manually: npm run db:migrate
     migrations: [],

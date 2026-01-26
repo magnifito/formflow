@@ -52,18 +52,14 @@ export const api = {
             const { data } = await dashboardApi.get<User>('/auth/me');
             return data;
         },
-        createApiKey: async (userId: number) => {
-            const { data } = await dashboardApi.post<{ apiKey: string }>(`/create-api-key/${userId}`);
-            return data;
-        },
         setup: async (payload: any) => {
             const { data } = await dashboardApi.post<LoginResponse>('/setup', payload);
             return data;
         }
     },
     org: {
-        getForms: async () => {
-            const { data } = await dashboardApi.get<Form[]>('/org/forms');
+        getFormsWithOrgs: async () => {
+            const { data } = await dashboardApi.get<{ organization: any; forms: Form[] }[]>('/org/forms/all');
             return data;
         }
     },

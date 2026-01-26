@@ -25,7 +25,6 @@ export class TestDatabase {
     const org = orgRepo.create({
       name: data.name || 'Test Organization',
       slug: data.slug || 'test-org',
-      apiKey: data.apiKey || 'test-api-key-123',
       ...data,
     });
     return await orgRepo.save(org);
@@ -35,8 +34,6 @@ export class TestDatabase {
     const userRepo = this.dataSource.getRepository(User);
     const user = userRepo.create({
       email: data.email || 'test@formflow.fyi',
-      apiKey: data.apiKey || 'test-user-api-key',
-      allowedDomains: data.allowedDomains || [],
       ...data,
     });
     return await userRepo.save(user);

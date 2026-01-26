@@ -59,7 +59,12 @@ export const injectOrgContext = async (req: OrgContextRequest, res: Response, ne
             if (user.organization && user.organization.isActive) {
                 req.organization = user.organization;
             } else {
-                req.organization = undefined;
+                // For super admins without an assigned org, default to the first active org to enable UI flows (e.g., Lab)
+                const firstOrg = await AppDataSource.manager.findOne(Organization, {
+                    where: { isActive: true },
+                    order: { id: 'ASC' }
+                });
+                req.organization = firstOrg ?? undefined;
             }
             return next();
         }

@@ -1,6 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, OneToOne, JoinColumn } from "typeorm"
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from "typeorm"
 import { Organization } from "./Organization"
-import { FormIntegration } from "./FormIntegration"
 import { Submission } from "./Submission"
 import { Integration } from "./Integration"
 
@@ -79,9 +78,6 @@ export class Form {
     @ManyToOne(() => Organization, organization => organization.forms)
     @JoinColumn({ name: 'organizationId' })
     organization: Organization
-
-    @OneToOne(() => FormIntegration, integration => integration.form, { cascade: true })
-    integration: FormIntegration
 
     @OneToMany(() => Submission, submission => submission.form)
     submissions: Submission[]

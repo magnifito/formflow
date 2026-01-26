@@ -3,11 +3,21 @@ import { useEffect, useState } from 'react';
 import { useQueue, Job } from '../../hooks/useQueue';
 import { AlertCircle, CheckCircle, Clock, RefreshCw, XCircle, Database } from 'lucide-react';
 
+const stateFilters = [
+    { value: '', label: 'All', color: 'bg-secondary text-secondary-foreground' },
+    { value: 'active', label: 'Active', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    { value: 'created', label: 'Pending', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' },
+    { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+    { value: 'failed', label: 'Failed', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+    { value: 'retry', label: 'Retrying', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+];
+
 export function QueuePage() {
     const { fetchStats, fetchJobs, retryJob, loading, error } = useQueue();
     const [stats, setStats] = useState<Record<string, any> | null>(null);
     const [jobs, setJobs] = useState<Job[]>([]);
     const [selectedQueue, setSelectedQueue] = useState<string>('');
+    const [selectedState, setSelectedState] = useState<string>('');
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
     // Initial load
@@ -17,10 +27,10 @@ export function QueuePage() {
         return () => clearInterval(interval);
     }, []);
 
-    // Fetch jobs when queue filter changes
+    // Fetch jobs when queue or state filter changes
     useEffect(() => {
         loadJobs();
-    }, [selectedQueue]);
+    }, [selectedQueue, selectedState]);
 
     const loadData = async () => {
         const statsData = await fetchStats();
@@ -30,7 +40,7 @@ export function QueuePage() {
     };
 
     const loadJobs = async () => {
-        const jobsData = await fetchJobs(selectedQueue || undefined, undefined, 1, 50);
+        const jobsData = await fetchJobs(selectedQueue || undefined, selectedState || undefined, 1, 50);
         if (jobsData) {
             setJobs(jobsData.jobs);
         }
@@ -121,16 +131,44 @@ export function QueuePage() {
 
             {/* Jobs List */}
             <div className="bg-card rounded-lg border">
-                <div className="p-4 border-b flex justify-between items-center bg-muted/30">
-                    <h2 className="font-semibold text-sm">
-                        {selectedQueue ? `Jobs in ${selectedQueue}` : 'All Jobs'}
-                    </h2>
-                    <span className="text-xs text-muted-foreground">Showing recent 50 jobs</span>
+                <div className="p-4 border-b flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-muted/30">
+                    <div className="flex items-center gap-3">
+                        <h2 className="font-semibold text-sm">
+                            {selectedQueue ? `Jobs in ${selectedQueue}` : 'All Jobs'}
+                        </h2>
+                        {selectedQueue && (
+                            <button
+                                onClick={() => setSelectedQueue('')}
+                                className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                                Clear filter
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {stateFilters.map(filter => (
+                            <button
+                                key={filter.value}
+                                onClick={() => setSelectedState(filter.value)}
+                                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                                    selectedState === filter.value
+                                        ? `${filter.color} ring-2 ring-offset-1 ring-primary/50`
+                                        : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                                }`}
+                            >
+                                {filter.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="px-4 py-2 border-b bg-muted/10 text-xs text-muted-foreground flex justify-between">
+                    <span>{jobs.length} job{jobs.length !== 1 ? 's' : ''} found</span>
+                    <span>Showing up to 50 recent jobs</span>
                 </div>
                 <div className="divide-y relative min-h-[200px]">
                     {jobs.length === 0 ? (
                         <div className="text-center p-8 text-muted-foreground">
-                            No jobs found
+                            No jobs found {selectedState && `with state "${selectedState}"`}
                         </div>
                     ) : (
                         jobs.map(job => (

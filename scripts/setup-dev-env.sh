@@ -100,7 +100,7 @@ ENCRYPTION_KEY=${ENCRYPTION_KEY}
 # -----------------------------------------------------------------------------
 # Telegram (optional)
 # -----------------------------------------------------------------------------
-# TELEGRAM_API_TOKEN=
+# TELEGRAM_BOT_TOKEN=
 
 # -----------------------------------------------------------------------------
 # Google OAuth (optional - for custom return emails)
@@ -118,13 +118,14 @@ ORIGIN=*
 # CAPTCHA (auto-generated)
 HMAC=${HMAC_SECRET}
 
-# Email (disabled by default in dev - use Mailpit at localhost:8025)
-# EMAIL_PROVIDER=localhost
-# SMTP_PORT=1025
-# EMAIL_USER=test@localhost
-# EMAIL_PASSWORD=
-# EMAIL_TO=test@localhost
-# GMAIL_TRUE=False
+# Email (enabled by default in dev - use Mailpit at localhost:8025)
+EMAIL_PROVIDER=localhost
+MAILPIT_HOST=127.0.0.1
+SMTP_PORT=1026
+EMAIL_USER=test@localhost
+EMAIL_PASSWORD=
+EMAIL_TO=test@localhost
+GMAIL_TRUE=False
 
 # Webhook (optional)
 # WEBHOOK_URL=

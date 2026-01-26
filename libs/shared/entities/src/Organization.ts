@@ -1,8 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, OneToOne } from "typeorm"
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from "typeorm"
 import { User } from "./User"
 import { Form } from "./Form"
 import { WhitelistedDomain } from "./WhitelistedDomain"
-import { OrganizationIntegration } from "./OrganizationIntegration"
 import { Integration } from "./Integration"
 
 @Entity()
@@ -67,6 +66,4 @@ export class Organization {
     integrations: Integration[]
 
     // Deprecated: use integrations
-    @OneToOne(() => OrganizationIntegration, integration => integration.organization)
-    integration: OrganizationIntegration
 }

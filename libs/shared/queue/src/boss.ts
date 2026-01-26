@@ -18,20 +18,38 @@ export async function getBoss(): Promise<PgBoss> {
 
     bossInstance = new PgBoss({
         connectionString,
-        // Database schema
         schema: 'pgboss',
+        // Increased timeouts for development stability
+        max: 10,
+        connectionTimeoutMillis: 30000,
+        // Cast to any for pg-pool options not explicitly in pg-boss types but supported by the driver
+        idleTimeoutMillis: 30000,
+    } as any);
+
+    // Register internal error listener to prevent unhandled rejections from background maintenance
+    (bossInstance as any).on('error', (error: any) => {
+        logger.error('pg-boss background error', {
+            message: error.message,
+            stack: error.stack
+        });
     });
 
-    await bossInstance.start();
-    logger.info('pg-boss started successfully');
+    try {
+        await bossInstance.start();
+        logger.info('pg-boss started successfully');
 
-    // Create all queues (required in pg-boss v9+)
-    const queueNames = Object.values(QUEUE_NAMES);
-    for (const queueName of queueNames) {
-        await bossInstance.createQueue(queueName);
-        logger.debug(`Queue created: ${queueName}`);
+        // Create all queues (required in pg-boss v9+)
+        const queueNames = Object.values(QUEUE_NAMES);
+        for (const queueName of queueNames) {
+            await bossInstance.createQueue(queueName);
+            logger.debug(`Queue create-check: ${queueName}`);
+        }
+        logger.info(`Verified ${queueNames.length} integration queues`);
+    } catch (error: any) {
+        logger.error('Failed to start pg-boss', { error: error.message });
+        bossInstance = null; // Reset so it can be retried on next call
+        throw error;
     }
-    logger.info(`Created ${queueNames.length} integration queues`);
 
     return bossInstance;
 }

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../data-source';
 import router from './AdminController';
-import { Organization, User, Submission, OrganizationIntegration } from '@formflow/shared/entities';
+import { Organization, User, Submission } from '@formflow/shared/entities';
 import { AuthRequest } from '../middleware/auth';
 import { createMockAuthRequest, createMockResponse } from '../../test/mocks/express.mock';
 import { createMockManager, createMockQueryBuilder } from '../../test/mocks/data-source.mock';

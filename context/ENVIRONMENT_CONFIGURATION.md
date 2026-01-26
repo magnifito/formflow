@@ -10,7 +10,6 @@ FormFlow uses environment-specific configuration files to manage different deplo
 
 ```
 formflow/
-├── .env.example                  # Basic template (legacy)
 ├── .env.development.example      # Development template
 ├── .env.production.example       # Production template
 ├── .env.development              # Your dev config (git-ignored)
@@ -132,7 +131,7 @@ This allows you to have environment-specific overrides while keeping common vari
 | `GMAIL_ACCESS` | Gmail OAuth2 access token |
 | `STRIPE_TEST_KEY` | Stripe API test key |
 | `STRIPE_WHSEC` | Stripe webhook secret |
-| `TELEGRAM_API_TOKEN` | Telegram bot API token |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot API token |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 

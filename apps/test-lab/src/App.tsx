@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api, setAuthToken } from './lib/api';
-import type { User, Form, SubmissionResponse } from './lib/types';
+import type { Form, SubmissionResponse } from './lib/types';
 import { FormSelector } from './features/lab/FormSelector';
 import { TestPayloadForm } from './features/lab/TestPayloadForm';
 import { ResponseViewer } from './features/lab/ResponseViewer';
 import { Button } from './components/ui/button';
-import { LogOut, LayoutList, Beaker } from 'lucide-react';
+import { LogOut, LayoutList, Beaker, MessageSquare, Terminal } from 'lucide-react';
+import { WebhookTester } from './features/lab/WebhookTester';
 
 interface ResponseState {
   data: SubmissionResponse | null;
@@ -15,11 +16,12 @@ interface ResponseState {
 }
 
 function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [lastResponse, setLastResponse] = useState<ResponseState | null>(null);
+  const [activeTab, setActiveTab] = useState<'tester' | 'webhooks'>('tester');
 
   useEffect(() => {
     // Check for existing session
@@ -77,7 +79,7 @@ function App() {
 
       setLastResponse({
         data: response,
-        status: 200, // Axios throws on non-2xx usually, or we can inspect response object if we changed api.ts to return full response
+        status: 200,
         duration: Date.now() - startTime,
         error: null
       });
@@ -140,15 +142,34 @@ function App() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <header className="border-b bg-muted/20 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-xl">
-            <Beaker className="w-6 h-6 text-primary" />
-            FormFlow Lab
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 font-bold text-xl">
+              <Beaker className="w-6 h-6 text-primary" />
+              FormFlow Lab
+            </div>
+
+            <nav className="hidden md:flex items-center bg-muted/50 rounded-lg p-1 border">
+              <button
+                onClick={() => setActiveTab('tester')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'tester' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                Form Tester
+              </button>
+              <button
+                onClick={() => setActiveTab('webhooks')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'webhooks' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <Terminal className="w-4 h-4" />
+                Webhook Tester
+              </button>
+            </nav>
           </div>
 
           <div className="flex items-center gap-4 text-sm">
             <div className="flex flex-col items-end">
-              <span className="font-medium">{user.name || user.email}</span>
-              <span className="text-xs text-muted-foreground">{user.organization?.name || 'Personal'}</span>
+              <span className="font-medium">{user?.name || user?.email}</span>
+              <span className="text-xs text-muted-foreground">{user?.organization?.name || 'Personal'}</span>
             </div>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
@@ -158,39 +179,47 @@ function App() {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-6 h-[calc(100vh-8rem)]">
-          <FormSelector onFormSelect={setSelectedForm} selectedFormId={selectedForm?.id || null} />
-        </div>
+      <main className="flex-1 container mx-auto px-4 py-8 flex flex-col min-h-0 overflow-hidden">
+        {activeTab === 'tester' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full min-h-0">
+            <div className="lg:col-span-1 space-y-6 h-full overflow-hidden flex flex-col">
+              <FormSelector onFormSelect={setSelectedForm} selectedFormId={selectedForm?.id || null} />
+            </div>
 
-        <div className="lg:col-span-2 space-y-6 h-[calc(100vh-8rem)] flex flex-col">
-          {!selectedForm ? (
-            <div className="h-full border rounded-lg bg-card border-dashed flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <LayoutList className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                <p>Select a form from the sidebar to start testing.</p>
-              </div>
+            <div className="lg:col-span-2 space-y-6 h-full flex flex-col overflow-hidden">
+              {!selectedForm ? (
+                <div className="h-full border rounded-lg bg-card border-dashed flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <LayoutList className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                    <p>Select a form from the sidebar to start testing.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full p-1 overflow-hidden">
+                  <div className="h-full overflow-hidden flex flex-col">
+                    <TestPayloadForm
+                      form={selectedForm}
+                      onSubmit={handleSubmission}
+                      loading={submitting}
+                    />
+                  </div>
+                  <div className="h-full overflow-hidden flex flex-col">
+                    <ResponseViewer
+                      response={lastResponse?.data || null}
+                      status={lastResponse?.status || null}
+                      duration={lastResponse?.duration || null}
+                      error={lastResponse?.error || null}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full p-1">
-              <div className="h-full overflow-hidden">
-                <TestPayloadForm
-                  form={selectedForm}
-                  onSubmit={handleSubmission}
-                  loading={submitting}
-                />
-              </div>
-              <div className="h-full overflow-hidden">
-                <ResponseViewer
-                  response={lastResponse?.data || null}
-                  status={lastResponse?.status || null}
-                  duration={lastResponse?.duration || null}
-                  error={lastResponse?.error || null}
-                />
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="h-full min-h-0">
+            <WebhookTester />
+          </div>
+        )}
       </main>
     </div>
   );

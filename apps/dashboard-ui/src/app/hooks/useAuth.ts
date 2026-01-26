@@ -9,14 +9,6 @@ interface User {
     id: number;
     email: string;
     name?: string;
-    apiKey?: string;
-    returnBoolean?: boolean;
-    smtpHost?: string;
-    smtpPort?: number;
-    smtpUsername?: string;
-    smtpPassword?: string;
-    emailSubject?: string;
-    emailBody?: string;
     role?: 'member' | 'org_admin';
     isSuperAdmin?: boolean;
     organization?: {
@@ -35,25 +27,6 @@ export function useAuth() {
         localStorage.removeItem(USER_ID_KEY);
         setUser(null);
         navigate('/login');
-    };
-
-    const regenerateApiKey = async () => {
-        const token = localStorage.getItem(TOKEN_KEY);
-        const userId = localStorage.getItem(USER_ID_KEY);
-        if (!token || !userId) return;
-
-        try {
-            const response = await fetch(`${FETCH_URL}/regenerate-api-key/${userId}`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await response.json();
-            if (data.apiKey) {
-                setUser(prev => prev ? { ...prev, apiKey: data.apiKey } : null);
-            }
-        } catch (error) {
-            console.error('Failed to regenerate API key:', error);
-        }
     };
 
     useEffect(() => {
@@ -89,5 +62,5 @@ export function useAuth() {
         loadUserData();
     }, []);
 
-    return { user, loading, logout, regenerateApiKey };
+    return { user, loading, logout };
 }

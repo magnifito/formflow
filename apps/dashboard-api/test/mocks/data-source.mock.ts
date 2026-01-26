@@ -1,5 +1,5 @@
 import { DataSource, EntityManager } from 'typeorm';
-import { User, Organization, Form, Submission, OrganizationIntegration } from '@formflow/shared/entities';
+import { User, Organization, Form, Submission } from '@formflow/shared/entities';
 
 /**
  * Creates a mock DataSource with all necessary manager methods

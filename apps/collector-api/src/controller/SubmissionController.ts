@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
-import { Form, FormIntegration, OrganizationIntegration, WhitelistedDomain, Submission, Integration, IntegrationScope } from "@formflow/shared/entities";
+import { Form, WhitelistedDomain, Submission, Integration, IntegrationScope } from "@formflow/shared/entities";
 import { getEnv } from "@formflow/shared/env";
 import nodemailer from "nodemailer";
 import axios from "axios";
@@ -8,7 +8,7 @@ import crypto from "crypto";
 import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
 import { getTelegramService } from "@formflow/shared/telegram";
 import { getBoss, QUEUE_NAMES, IntegrationType, IntegrationJobData, JOB_OPTIONS } from "@formflow/shared/queue";
-import { normalizeLegacyFormIntegration, resolveIntegrationStack } from "@formflow/shared/integrations";
+import { resolveIntegrationStack } from "@formflow/shared/integrations";
 
 const router = Router();
 const csrfSecret = getEnv("CSRF_SECRET") || "default-dev-secret-do-not-use-in-prod";
@@ -346,7 +346,7 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         // Find form by submitHash only
         const form = await AppDataSource.manager.findOne(Form, {
             where: { submitHash: identifier },
-            relations: ['organization', 'integration']
+            relations: ['organization']
         });
 
         if (!form) {
@@ -515,13 +515,9 @@ router.post('/:identifier', async (req: Request, res: Response) => {
             })
         ]);
 
-        const legacyFormIntegrations = formScopedIntegrations.length === 0
-            ? normalizeLegacyFormIntegration(form.integration, form.organizationId ?? undefined, form.id)
-            : [];
-
         const resolvedIntegrations = resolveIntegrationStack({
             orgIntegrations,
-            formIntegrations: formScopedIntegrations.length ? formScopedIntegrations : legacyFormIntegrations,
+            formIntegrations: formScopedIntegrations,
             useOrgIntegrations: form.useOrgIntegrations ?? true
         });
 
@@ -534,197 +530,62 @@ router.post('/:identifier', async (req: Request, res: Response) => {
             return res.json({ message: 'Submission received' });
         }
 
-        // Process integrations
-        // Check if queue processing is enabled
-        if (getEnv('QUEUE_ENABLED') === 'true') {
-            try {
-                const boss = await getBoss();
-                const jobsToQueue: Array<{ name: string, data: IntegrationJobData, options: any }> = [];
+        // Process integrations via queue (always enabled)
+        try {
+            const boss = await getBoss();
+            const jobsToQueue: Array<{ name: string, data: IntegrationJobData, options: any }> = [];
 
-                const baseJobData = {
-                    submissionId: submission.id,
-                    formId: form.id,
-                    organizationId: form.organizationId,
-                    formData,
-                    formattedMessage: niceMessage,
-                    formName: form.name,
-                    config: {} // Will be populated per job
-                };
+            const baseJobData = {
+                submissionId: submission.id,
+                formId: form.id,
+                organizationId: form.organizationId,
+                formData,
+                formattedMessage: niceMessage,
+                formName: form.name,
+                config: {} // Will be populated per job
+            };
 
-                for (const integration of integrationsToProcess) {
-                    const queueName = QUEUE_NAMES[integration.type];
-                    if (!queueName) continue;
+            for (const integration of integrationsToProcess) {
+                const queueName = QUEUE_NAMES[integration.type];
+                if (!queueName) continue;
 
-                    jobsToQueue.push({
-                        name: queueName,
-                        data: {
-                            ...baseJobData,
-                            integrationType: integration.type,
-                            config: integration.config
-                        },
-                        options: {
-                            ...JOB_OPTIONS[integration.type],
-                            // Add randomness to singleton key if multiple of same type?
-                            // Or utilize integration ID if available? 
-                            // Current integrationsToProcess doesn't strictly have ID if from legacy.
-                            // We can append hash of config or random UUID for uniqueness if we allow multiple same-type.
-                            singletonKey: `${submission.id}-${integration.type}-${crypto.randomBytes(4).toString('hex')}`,
-                        }
-                    });
-                }
-
-                // Enqueue all jobs
-                for (const job of jobsToQueue) {
-                    await boss.send(job.name, job.data, job.options);
-                }
-
-                logger.info('Submitted integration jobs to queue', {
-                    operation: LogOperation.FORM_SUBMIT,
-                    formId: form.id,
-                    submissionId: submission.id,
-                    jobCount: jobsToQueue.length,
-                    correlationId: req.correlationId
+                jobsToQueue.push({
+                    name: queueName,
+                    data: {
+                        ...baseJobData,
+                        integrationType: integration.type,
+                        config: integration.config
+                    },
+                    options: {
+                        ...JOB_OPTIONS[integration.type],
+                        singletonKey: `${submission.id}-${integration.type}-${crypto.randomBytes(4).toString('hex')}`,
+                    }
                 });
-
-                return res.json({ message: 'Submission received successfully' });
-
-            } catch (error: any) {
-                logger.error('Failed to queue jobs, falling back to synchronous execution', {
-                    operation: LogOperation.FORM_SUBMIT,
-                    error: error.message,
-                    formId: form.id,
-                    submissionId: submission.id
-                });
-                // Fall through to synchronous code
             }
-        }
 
-        // Process integrations (Synchronous Fallback)
-        // We iterate through our normalized list
-        for (const integration of integrationsToProcess) {
-            try {
-                if (integration.type === IntegrationType.EMAIL_SMTP) {
-                    const recipients = Array.isArray(integration.config.recipients)
-                        ? integration.config.recipients
-                        : String(integration.config.recipients || '')
-                            .split(',')
-                            .map((s: string) => s.trim())
-                            .filter(Boolean);
-
-                    if (!integration.config.smtp && !integration.config.oauth) {
-                        throw new Error('Email integration missing SMTP or OAuth configuration');
-                    }
-
-                    if (recipients && recipients.length > 0) {
-                        const transporter = integration.config.smtp
-                            ? nodemailer.createTransport({
-                                host: integration.config.smtp.host,
-                                port: integration.config.smtp.port,
-                                secure: integration.config.smtp.secure ?? true,
-                                auth: {
-                                    user: integration.config.smtp.username,
-                                    pass: integration.config.smtp.password,
-                                },
-                            })
-                            : nodemailer.createTransport({
-                                host: 'smtp.gmail.com',
-                                port: 465,
-                                secure: true,
-                                auth: {
-                                    type: 'OAuth2',
-                                    clientId: integration.config.oauth?.clientId,
-                                    clientSecret: integration.config.oauth?.clientSecret,
-                                },
-                            });
-
-                        const mailMessage = {
-                            from: integration.config.fromEmail || '"New FormFlow Submission" <new-submission@formflow.fyi>',
-                            to: recipients,
-                            subject: integration.config.subject || `New Form Submission: ${form.name}`,
-                            text: niceMessage,
-                            auth: integration.config.smtp ? undefined : {
-                                user: integration.config.oauth?.user,
-                                refreshToken: integration.config.oauth?.refreshToken,
-                                accessToken: integration.config.oauth?.accessToken,
-                                expires: 1484314697598,
-                            },
-                        };
-                        await transporter.sendMail(mailMessage);
-                        logger.info(LogMessages.integrationSendSuccess('Email'), {
-                            operation: LogOperation.INTEGRATION_EMAIL_SEND,
-                            formId: form.id,
-                            submissionId: submission.id
-                        });
-                    }
-                } else if (integration.type === IntegrationType.TELEGRAM) {
-                    if (integration.config.chatId) {
-                        getTelegramService().sendSubmissionNotification(
-                            integration.config.chatId,
-                            niceMessage,
-                            { formId: form.id, submissionId: submission.id }
-                        );
-                    }
-                } else if (integration.type === IntegrationType.DISCORD) {
-                    if (integration.config.webhookUrl) {
-                        const discordMessage = `\`\`\`${niceMessage}\`\`\``;
-                        await axios.post(integration.config.webhookUrl, { content: discordMessage });
-                    }
-                }
-                // ... Add other fallbacks if critical, or skip (MVP fallback usually covers email mostly)
-                else if (integration.type === IntegrationType.SLACK) {
-                    if (integration.config.accessToken && integration.config.channelId) {
-                        axios.post('https://slack.com/api/chat.postMessage', {
-                            channel: integration.config.channelId,
-                            text: niceMessage,
-                        }, {
-                            headers: {
-                                'Authorization': `Bearer ${integration.config.accessToken}`,
-                                'Content-Type': 'application/json'
-                            }
-                        }).then(() => {
-                            logger.info(LogMessages.integrationSendSuccess('Slack'), {
-                                operation: LogOperation.INTEGRATION_SLACK_SEND,
-                                formId: form.id,
-                                submissionId: submission.id,
-                                correlationId: req.correlationId,
-                            });
-                        }).catch(err => {
-                            logger.error(LogMessages.integrationSendFailed('Slack'), {
-                                operation: LogOperation.INTEGRATION_SLACK_SEND,
-                                error: err.message,
-                                formId: form.id,
-                                submissionId: submission.id,
-                                correlationId: req.correlationId,
-                            });
-                        });
-                    }
-                } else if (integration.type === IntegrationType.WEBHOOK) {
-                    if (integration.config.webhook) {
-                        axios.post(integration.config.webhook, formData).catch(err => {
-                            logger.error(LogMessages.integrationSendFailed('Webhook'), {
-                                operation: LogOperation.INTEGRATION_WEBHOOK_UPDATE,
-                                error: err.message
-                            });
-                        });
-                    }
-                }
-            } catch (err: any) {
-                logger.error(`Synchronous fallback failed for ${integration.type}`, { error: err.message });
+            for (const job of jobsToQueue) {
+                await boss.send(job.name, job.data, job.options);
             }
+
+            logger.info('Submitted integration jobs to queue', {
+                operation: LogOperation.FORM_SUBMIT,
+                formId: form.id,
+                submissionId: submission.id,
+                jobCount: jobsToQueue.length,
+                correlationId: req.correlationId
+            });
+
+            return res.json({ message: 'Submission received successfully' });
+
+        } catch (error: any) {
+            logger.error('Failed to queue jobs; rejecting submission for integrations', {
+                operation: LogOperation.FORM_SUBMIT,
+                error: error.message,
+                formId: form.id,
+                submissionId: submission.id
+            });
+            return res.status(503).json({ error: 'Integration queue unavailable. Please retry.' });
         }
-
-
-
-        logger.info(LogMessages.formSubmissionProcessed, {
-            operation: LogOperation.FORM_SUBMIT,
-            formId: form.id,
-            submissionId: submission.id,
-            formName: form.name,
-            origin,
-            correlationId: req.correlationId,
-        });
-
-        res.json({ message: 'Submission received successfully' });
 
     } catch (error: any) {
         logger.error(LogMessages.formSubmissionFailed, {

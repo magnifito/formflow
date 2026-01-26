@@ -11,18 +11,10 @@ const queues = Object.values(QUEUE_NAMES);
 // GET /queue/stats - Get stats for all queues
 router.get('/stats', async (req: Request, res: Response) => {
     try {
-        const boss = await getBoss();
         const stats: Record<string, any> = {};
-
-        // pg-boss doesn't have a single "get all stats" method that aggregates nicely by queue
-        // We can query the database directly or use boss methods.
-        // Direct DB query is most efficient ensuring we use the 'pgboss' schema.
-        // However, we should try to use the public API if possible.
-        // boss.getQueueSize(queue) returns count of created/active/retry
-
-        // Direct DB query for efficient stats
         const { AppDataSource } = await import("../data-source");
 
+        // Query job table for stats
         const statsQuery = `
             SELECT name, state, COUNT(*) as count
             FROM pgboss.job
@@ -38,7 +30,6 @@ router.get('/stats', async (req: Request, res: Response) => {
                 stats[name] = { active: 0, completed: 0, failed: 0, retry: 0, created: 0 };
             }
 
-            // Map states to simple counters
             const numCount = parseInt(count);
             if (state === 'active') stats[name].active += numCount;
             else if (state === 'completed') stats[name].completed += numCount;
@@ -46,15 +37,6 @@ router.get('/stats', async (req: Request, res: Response) => {
             else if (state === 'retry') stats[name].retry += numCount;
             else if (state === 'created') stats[name].created += numCount;
         }
-
-        // For a proper dashboard, we likely want access to the job table counts by state
-        // Since we are inside the backend utilizing the same DB, we can use a raw query via TypeORM/Boss.
-        // But for now, let's Stick to what pg-boss exposes or if needed custom query.
-
-        // bossInstance exposes the DB adapter? 
-        // Actually, let's use a simpler approach: return what we can easily get.
-        // If we want detailed stats, we might need to add a method to shared-queue/boss.ts 
-        // to run a raw query on pgboss.job/archive tables.
 
         res.json(stats);
     } catch (error: any) {
@@ -69,32 +51,17 @@ router.get('/stats', async (req: Request, res: Response) => {
 // GET /queue/jobs - Get jobs (with optional filtering)
 router.get('/jobs', async (req: Request, res: Response) => {
     try {
-        const boss = await getBoss();
         const { queue, state, limit = '20', offset = '0' } = req.query;
+        const { AppDataSource } = await import("../data-source");
 
-        // boss.getJobs(queue, options) is not quite right, it fetches for processing.
-        // boss.fetch() is for processing.
-        // We want to READ jobs.
-        // pg-boss has `getJob(id)` but not `getJobs`.
-        // We really need direct DB access for a dashboard list.
-
-        // Since we are in the same mono-repo/DB context, we can run a SQL query.
-        // We can access the DB pool from boss, or use AppDataSource if we map the entity?
-        // We haven't mapped PgBoss entities in TypeORM.
-
-        // Let's simplify: 
-        // We will assume for today we just want to see stats. 
-        // BUT the user asked for "Dashboard UI... new stuff added".
-        // A list of jobs is standard.
-
-        // I will implement a raw query using AppDataSource since it connects to the same DB.
-        // Note: Schema is 'pgboss'.
-
-        const { AppDataSource } = await import("../data-source"); // Dynamic import to avoid cycles/init issues logic?
-        // Actually top level import is fine.
-
+        // pg-boss v9+ uses snake_case column names
         let query = `
-            SELECT id, name, data, state, createdon, startedon, completedon, retrycount, output
+            SELECT
+                id, name, data, state, output,
+                created_on as createdon,
+                started_on as startedon,
+                completed_on as completedon,
+                retry_count as retrycount
             FROM pgboss.job
             WHERE 1=1
         `;
@@ -111,12 +78,12 @@ router.get('/jobs', async (req: Request, res: Response) => {
             params.push(state);
         }
 
-        query += ` ORDER BY createdon DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
+        query += ` ORDER BY created_on DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
         params.push(parseInt(limit as string), parseInt(offset as string));
 
         const jobs = await AppDataSource.manager.query(query, params);
 
-        // Also get total count for pagination
+        // Get total count for pagination
         let countQuery = `SELECT COUNT(*) as total FROM pgboss.job WHERE 1=1`;
         const countParams: any[] = [];
         let countParamIdx = 1;
@@ -146,9 +113,10 @@ router.get('/jobs', async (req: Request, res: Response) => {
     } catch (error: any) {
         logger.error('Failed to get queue jobs', {
             operation: LogOperation.DASHBOARD_QUEUE_JOBS,
-            error: error.message
+            error: error.message,
+            stack: error.stack
         });
-        res.status(500).json({ error: 'Failed to fetch jobs' });
+        res.status(500).json({ error: 'Failed to fetch jobs', details: error.message });
     }
 });
 
@@ -156,13 +124,8 @@ router.get('/jobs', async (req: Request, res: Response) => {
 router.post('/jobs/:id/retry', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        // Logic to retry:
-        // In pg-boss, we can't easily "retry" a failed job in the 'job' table if it's already failed state?
-        // Or if it's in archive?
-        // Usually we re-submit the job.
-
-        // 1. Get job details
         const { AppDataSource } = await import("../data-source");
+
         const jobResult = await AppDataSource.manager.query(
             `SELECT * FROM pgboss.job WHERE id = $1`,
             [id]
@@ -174,15 +137,9 @@ router.post('/jobs/:id/retry', async (req: Request, res: Response) => {
 
         const job = jobResult[0];
 
-        // 2. Submit new job with same data
+        // Submit new job with same data
         const boss = await getBoss();
-
-        // We need to parse options if we want to preserve them, but data is most important.
-        const jobId = await boss.send(job.name, job.data, {
-            // Default options or try to infer?
-            // Let's use defaults for the integration type + maybe custom opts
-            // Simple re-queue
-        });
+        const jobId = await boss.send(job.name, job.data, {});
 
         res.json({ message: 'Job rescheduled', newJobId: jobId });
 
@@ -202,11 +159,17 @@ router.get('/submission/:id', async (req: Request, res: Response) => {
         const { id } = req.params;
         const { AppDataSource } = await import("../data-source");
 
+        // pg-boss v9+ uses snake_case column names
         const query = `
-            SELECT id, name, state, createdon, startedon, completedon, retrycount, output
+            SELECT
+                id, name, data, state, output,
+                created_on as createdon,
+                started_on as startedon,
+                completed_on as completedon,
+                retry_count as retrycount
             FROM pgboss.job
             WHERE data->>'submissionId' = $1
-            ORDER BY createdon DESC
+            ORDER BY created_on DESC
         `;
 
         const jobs = await AppDataSource.manager.query(query, [id]);

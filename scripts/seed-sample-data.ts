@@ -3,9 +3,11 @@
 import "reflect-metadata";
 import { DataSource } from 'typeorm';
 import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-import { User, Organization, Form, OrganizationIntegration, FormIntegration, Submission, WhitelistedDomain, UserRole } from '@formflow/shared/entities';
+import { User, Organization, Form, Submission, UserRole, Integration } from '@formflow/shared/entities';
 import { loadEnv } from '@formflow/shared/env';
+import { generateSubmitHash } from '@formflow/shared/entities';
+import { IntegrationType } from '@formflow/shared/queue';
+import { IntegrationScope } from '@formflow/shared/entities/src/Integration';
 
 // Load environment variables
 loadEnv();
@@ -33,10 +35,8 @@ const AppDataSource = new DataSource({
     User,
     Organization,
     Form,
-    OrganizationIntegration,
-    FormIntegration,
     Submission,
-    WhitelistedDomain,
+    Integration,
   ],
   synchronize: true, // Create/update schema automatically
   logging: NODE_ENV === 'development', // Enable logging in development
@@ -202,30 +202,109 @@ async function createUsers(organizations: Organization[]): Promise<User[]> {
 }
 
 async function setupIntegrations(organizations: Organization[]): Promise<void> {
-  const integrationRepo = AppDataSource.getRepository(OrganizationIntegration);
+  const unifiedRepo = AppDataSource.getRepository(Integration);
 
   for (const org of organizations) {
-    // Check if integration already exists
-    let integration = await integrationRepo.findOne({ where: { organizationId: org.id } });
+    const integrationConfig = getIntegrationConfig(org.slug);
 
-    if (!integration) {
-      // Each organization gets different integration configurations
-      const integrationConfig = getIntegrationConfig(org.slug);
+    // Skip if integrations already exist
+    const existingCount = await unifiedRepo.count({ where: { organizationId: org.id } });
+    if (existingCount > 0) {
+      console.log(`  - ${org.name}: Integrations already exist, skipping`);
+      continue;
+    }
 
-      integration = integrationRepo.create({
+    // Seed unified Integration records (org-scoped, one row per enabled config)
+    const unifiedRecords: Partial<Integration>[] = [];
+    if (integrationConfig.webhookEnabled && integrationConfig.webhookUrl) {
+      unifiedRecords.push({
         organizationId: org.id,
-        ...integrationConfig,
+        scope: IntegrationScope.ORGANIZATION,
+        type: IntegrationType.WEBHOOK,
+        name: 'Webhook',
+        config: { webhook: integrationConfig.webhookUrl, webhookSource: 'generic' },
+        isActive: true,
       });
+    }
+    if (integrationConfig.n8nEnabled && integrationConfig.n8nWebhook) {
+      unifiedRecords.push({
+        organizationId: org.id,
+        scope: IntegrationScope.ORGANIZATION,
+        type: IntegrationType.WEBHOOK,
+        name: 'n8n',
+        config: { webhook: integrationConfig.n8nWebhook, webhookSource: 'n8n' },
+        isActive: true,
+      });
+    }
+    if (integrationConfig.makeEnabled && integrationConfig.makeWebhook) {
+      unifiedRecords.push({
+        organizationId: org.id,
+        scope: IntegrationScope.ORGANIZATION,
+        type: IntegrationType.WEBHOOK,
+        name: 'Make.com',
+        config: { webhook: integrationConfig.makeWebhook, webhookSource: 'make' },
+        isActive: true,
+      });
+    }
+    if (integrationConfig.discordEnabled && integrationConfig.discordWebhook) {
+      unifiedRecords.push({
+        organizationId: org.id,
+        scope: IntegrationScope.ORGANIZATION,
+        type: IntegrationType.DISCORD,
+        name: 'Discord',
+        config: { webhookUrl: integrationConfig.discordWebhook },
+        isActive: true,
+      });
+    }
+    if (integrationConfig.telegramEnabled && integrationConfig.telegramChatId) {
+      unifiedRecords.push({
+        organizationId: org.id,
+        scope: IntegrationScope.ORGANIZATION,
+        type: IntegrationType.TELEGRAM,
+        name: 'Telegram',
+        config: { chatId: integrationConfig.telegramChatId },
+        isActive: true,
+      });
+    }
+    if (integrationConfig.slackEnabled && (integrationConfig.slackChannelId || integrationConfig.slackAccessToken)) {
+      unifiedRecords.push({
+        organizationId: org.id,
+        scope: IntegrationScope.ORGANIZATION,
+        type: IntegrationType.SLACK,
+        name: 'Slack',
+        config: {
+          channelId: integrationConfig.slackChannelId,
+          channelName: integrationConfig.slackChannelName,
+          accessToken: integrationConfig.slackAccessToken || 'xapp-placeholder',
+        },
+        isActive: true,
+      });
+    }
 
-      integration = await integrationRepo.save(integration);
-      console.log(`  - ${org.name}: ${getEnabledIntegrations(integrationConfig).join(', ')}`);
-    } else {
-      console.log(`  - ${org.name}: Integration already exists, skipping`);
+    if (unifiedRecords.length) {
+      await unifiedRepo.save(unifiedRecords);
     }
   }
 }
 
-function getIntegrationConfig(slug: string): Partial<OrganizationIntegration> {
+function getIntegrationConfig(slug: string): {
+  emailEnabled?: boolean;
+  emailRecipients?: string | null;
+  webhookEnabled?: boolean;
+  webhookUrl?: string | null;
+  n8nEnabled?: boolean;
+  n8nWebhook?: string | null;
+  makeEnabled?: boolean;
+  makeWebhook?: string | null;
+  discordEnabled?: boolean;
+  discordWebhook?: string | null;
+  telegramEnabled?: boolean;
+  telegramChatId?: number | null;
+  slackEnabled?: boolean;
+  slackChannelId?: string | null;
+  slackChannelName?: string | null;
+  slackAccessToken?: string | null;
+} {
   const baseConfig = {
     emailEnabled: false,
     emailRecipients: null,
@@ -280,17 +359,6 @@ function getIntegrationConfig(slug: string): Partial<OrganizationIntegration> {
   }
 }
 
-function getEnabledIntegrations(config: Partial<OrganizationIntegration>): string[] {
-  const enabled: string[] = [];
-  if (config.webhookEnabled) enabled.push('Webhook');
-  if (config.n8nEnabled) enabled.push('n8n');
-  if (config.makeEnabled) enabled.push('Make.com');
-  if (config.discordEnabled) enabled.push('Discord');
-  if (config.telegramEnabled) enabled.push('Telegram');
-  if (config.slackEnabled) enabled.push('Slack');
-  return enabled;
-}
-
 async function createForms(organizations: Organization[]): Promise<Form[]> {
   const formRepo = AppDataSource.getRepository(Form);
   const forms: Form[] = [];
@@ -338,7 +406,7 @@ async function createForms(organizations: Organization[]): Promise<Form[]> {
         organizationId: org.id,
         name: template.name,
         description: template.description,
-        submitHash: uuidv4(),
+        submitHash: generateSubmitHash(),
         isActive: true,
         useOrgIntegrations: template.useOrgIntegrations,
         useOrgSecuritySettings: true,

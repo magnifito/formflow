@@ -6,13 +6,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/Table';
 import { Switch } from '../../components/ui/Switch';
 import { Copy, Plus, Loader2, FileText, Settings2 } from 'lucide-react';
-import { ApiKeyWidget } from '../../components/ApiKeyWidget';
 import { useAuth } from '../../hooks/useAuth';
 import { FormModal } from '../../components/FormModal';
 
 export function DashboardPage() {
     const { forms, stats, loading, toggleFormStatus, deleteForm, createForm, updateForm, getForm } = useOrganization();
-    const { user, regenerateApiKey } = useAuth();
+    const { user } = useAuth();
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingForm, setEditingForm] = useState<Form | null>(null);
 
@@ -59,7 +58,6 @@ export function DashboardPage() {
                     showProgress={!!stats?.submissionLimit}
                     progressPercent={stats?.submissionLimit ? (stats.submissionsThisMonth / stats.submissionLimit * 100) : 0}
                 />
-                <ApiKeyWidget apiKey={user?.apiKey} onRegenerate={regenerateApiKey} />
             </div>
 
             <Card>

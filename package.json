@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "FormFlow monorepo - form data handling made easy",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.28.1",
   "scripts": {
     "nx": "nx",
     "// --- Setup ---": "",
@@ -21,8 +21,9 @@
     "test-lab:webhooks": "node apps/test-lab/server-webhooks.js",
     "// --- Database Seeding ---": "",
     "seed": "pnpm exec ts-node --project scripts/tsconfig.json -r tsconfig-paths/register scripts/seed-sample-data.ts",
+    "seed:mailpit": "pnpm exec ts-node --project scripts/tsconfig.json -r tsconfig-paths/register scripts/seed-mailpit-acme.ts",
     "// --- Environment ---": "",
-    "test:env": "pnpm exec ts-node --esm scripts/test-env-config.ts",
+    "test:env": "pnpm exec ts-node-esm scripts/test-env-config.ts",
     "// --- Build ---": "",
     "build": "nx run-many --target=build --all",
     "build:dashboard-ui": "nx build dashboard-ui",
@@ -106,6 +107,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/dom": "10.4.1",
     "@testing-library/react": "16.3.2",
+    "@types/bs58": "^5.0.0",
     "@types/node": "25.0.10",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
@@ -139,11 +141,13 @@
     "@eslint/js": "^9.39.2",
     "@types/nodemailer": "^7.0.5",
     "axios": "^1.13.2",
+    "bs58": "^6.0.0",
     "globals": "^17.1.0",
     "nodemailer": "^7.0.12",
     "pg-boss": "^12.5.4",
     "three": "^0.170.0",
-    "typescript-eslint": "^8.53.1"
+    "typescript-eslint": "^8.53.1",
+    "uuid": "^13.0.0"
   },
   "pnpm": {
     "overrides": {

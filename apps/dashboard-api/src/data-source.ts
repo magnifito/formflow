@@ -3,9 +3,7 @@ import path from "path";
 import { DataSource } from "typeorm";
 import {
   Form,
-  FormIntegration,
   Organization,
-  OrganizationIntegration,
   Submission,
   User,
   WhitelistedDomain,
@@ -43,8 +41,6 @@ export const AppDataSource = new DataSource({
     Organization,
     Form,
     WhitelistedDomain,
-    FormIntegration,
-    OrganizationIntegration,
     Submission,
     Integration,
   ],

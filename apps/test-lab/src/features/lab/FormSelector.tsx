@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
-import type { Form } from '../../lib/types';
+import type { Form, Organization } from '../../lib/types';
 import { Button } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
-import { FileText, RefreshCw, Hash } from 'lucide-react';
+import { FileText, RefreshCw, Hash, Link2 } from 'lucide-react';
 
 interface FormSelectorProps {
     onFormSelect: (form: Form) => void;
@@ -11,14 +11,15 @@ interface FormSelectorProps {
 }
 
 export function FormSelector({ onFormSelect, selectedFormId }: FormSelectorProps) {
-    const [forms, setForms] = useState<Form[]>([]);
+    const [groups, setGroups] = useState<Array<{ organization: Organization; forms: Form[] }>>([]);
     const [loading, setLoading] = useState(true);
+    const collectorUrl = import.meta.env.VITE_COLLECTOR_URL || 'http://localhost:3000';
 
     const loadForms = async () => {
         setLoading(true);
         try {
-            const data = await api.org.getForms();
-            setForms(data);
+            const data = await api.org.getFormsWithOrgs();
+            setGroups(data);
         } catch (error) {
             console.error('Failed to load forms', error);
         } finally {
@@ -42,26 +43,40 @@ export function FormSelector({ onFormSelect, selectedFormId }: FormSelectorProps
                 </Button>
             </div>
 
-            <div className="space-y-2 overflow-y-auto flex-1 pr-1">
-                {forms.map(form => (
-                    <button
-                        key={form.id}
-                        onClick={() => onFormSelect(form)}
-                        className={`w-full text-left p-3 rounded-md border transition-all hover:bg-accent group
-                        ${selectedFormId === form.id ? 'bg-accent border-primary ring-1 ring-primary' : 'bg-card border-border'}
-                    `}
-                    >
-                        <div className="font-medium truncate">{form.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1 font-mono group-hover:text-foreground/80">
-                            <Hash className="w-3 h-3" />
-                            {form.submitHash.slice(0, 8)}...
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+                {groups.map(group => (
+                    <div key={group.organization.id} className="space-y-2">
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                            {group.organization.name}
                         </div>
-                    </button>
+                        {group.forms.map(form => (
+                            <button
+                                key={form.id}
+                                onClick={() => onFormSelect(form)}
+                                className={`w-full text-left p-3 rounded-md border transition-all hover:bg-accent group
+                                ${selectedFormId === form.id ? 'bg-accent border-primary ring-1 ring-primary' : 'bg-card border-border'}
+                            `}
+                                >
+                                    <div className="font-medium truncate">{form.name}</div>
+                                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1 font-mono group-hover:text-foreground/80">
+                                        <Hash className="w-3 h-3" />
+                                        {form.submitHash}
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 group-hover:text-foreground/80 break-all">
+                                        <Link2 className="w-3 h-3" />
+                                        {`${collectorUrl}/s/${form.submitHash}`}
+                                    </div>
+                                </button>
+                        ))}
+                        {group.forms.length === 0 && (
+                            <div className="text-xs text-muted-foreground italic">No forms.</div>
+                        )}
+                    </div>
                 ))}
 
-                {!loading && forms.length === 0 && (
+                {!loading && groups.length === 0 && (
                     <div className="text-sm text-muted-foreground text-center py-8 border rounded-md border-dashed">
-                        No forms found for this organization.
+                        No forms found.
                     </div>
                 )}
             </div>

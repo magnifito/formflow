@@ -11,8 +11,8 @@ export async function handleEmailApiJob(job: IntegrationJobData): Promise<void> 
         throw new PermanentError('No recipients configured for email API integration');
     }
 
-    if (!apiConfig || !apiConfig.provider || !apiConfig.apiKey) {
-        throw new PermanentError('Email API configuration missing provider or apiKey');
+    if (!apiConfig || !apiConfig.provider || !apiConfig.apiToken) {
+        throw new PermanentError('Email API configuration missing provider or apiToken');
     }
 
     logger.warn('Email API handler not implemented; skipping send', {

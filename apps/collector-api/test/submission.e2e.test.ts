@@ -26,7 +26,6 @@ describe('Submission API E2E Tests', () => {
     testOrg = await testDb.createTestOrganization({
       name: 'Test Org',
       slug: 'test-org',
-      apiKey: 'test-org-key-123',
     });
 
     testForm = await testDb.createTestForm(testOrg.id, {

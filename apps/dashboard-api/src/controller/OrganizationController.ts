@@ -1,20 +1,11 @@
 import { Router, Response } from "express";
 import { AppDataSource } from "../data-source";
 import logger from "@formflow/shared/logger";
-import { Form, Organization, WhitelistedDomain, OrganizationIntegration, Submission } from "@formflow/shared/entities";
+import { Form, Organization, WhitelistedDomain, Submission, generateSubmitHash } from "@formflow/shared/entities";
 import { verifyToken } from "../middleware/auth";
 import { injectOrgContext, verifyOrgAdmin, OrgContextRequest } from "../middleware/orgContext";
-import crypto from "crypto";
 
 const router = Router();
-
-// Helper to generate a short, URL-friendly submit hash (12 characters)
-const generateSubmitHash = (): string => {
-    return crypto.randomBytes(9).toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-};
 
 // Helper function to determine the effective organization ID for the current request
 const getEffectiveOrgId = (req: OrgContextRequest): number | null => {
@@ -97,6 +88,28 @@ router.get('/forms', async (req: OrgContextRequest, res: Response) => {
         res.json(forms);
     } catch (error: any) {
         logger.error('Error fetching forms', { error: error.message, stack: error.stack, correlationId: req.correlationId });
+        res.status(500).json({ error: 'Failed to fetch forms' });
+    }
+});
+
+// GET /org/forms/all - List all organizations with their forms (super admin only)
+router.get('/forms/all', async (req: OrgContextRequest, res: Response) => {
+    try {
+        if (!req.orgUser?.isSuperAdmin) {
+            return res.status(403).json({ error: 'Super admin access required' });
+        }
+
+        const orgs = await AppDataSource.manager.find(Organization, { where: {}, order: { id: 'ASC' } });
+        const forms = await AppDataSource.manager.find(Form, { order: { organizationId: 'ASC', name: 'ASC' } });
+
+        const grouped = orgs.map(org => ({
+            organization: org,
+            forms: forms.filter(f => f.organizationId === org.id)
+        }));
+
+        res.json(grouped);
+    } catch (error: any) {
+        logger.error('Error fetching all org forms', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch forms' });
     }
 });
@@ -191,8 +204,7 @@ router.get('/forms/:id', async (req: OrgContextRequest, res: Response) => {
         const organizationId = getEffectiveOrgId(req);
 
         const form = await AppDataSource.manager.findOne(Form, {
-            where: { id: formId, organizationId },
-            relations: ['integration']
+            where: { id: formId, organizationId }
         });
 
         if (!form) {
@@ -409,72 +421,6 @@ router.delete('/domains/:id', verifyOrgAdmin, async (req: OrgContextRequest, res
     } catch (error: any) {
         logger.error('Error removing domain', { error: error.message, stack: error.stack, domainId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to remove domain' });
-    }
-});
-
-// ============ INTEGRATIONS ============
-
-// GET /org/integrations - Get organization integration defaults
-router.get('/integrations', async (req: OrgContextRequest, res: Response) => {
-    try {
-        let integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-            where: { organizationId: req.organization!.id }
-        });
-
-        // Create default if doesn't exist
-        if (!integration) {
-            integration = AppDataSource.manager.create(OrganizationIntegration, {
-                organizationId: req.organization!.id,
-                emailEnabled: true
-            });
-            await AppDataSource.manager.save(integration);
-        }
-
-        res.json(integration);
-    } catch (error: any) {
-        logger.error('Error fetching integrations', { error: error.message, stack: error.stack, correlationId: req.correlationId });
-        res.status(500).json({ error: 'Failed to fetch integrations' });
-    }
-});
-
-// PUT /org/integrations - Update organization integrations (org admin only)
-router.put('/integrations', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
-    try {
-        let integration = await AppDataSource.manager.findOne(OrganizationIntegration, {
-            where: { organizationId: req.organization!.id }
-        });
-
-        if (!integration) {
-            integration = AppDataSource.manager.create(OrganizationIntegration, {
-                organizationId: req.organization!.id
-            });
-        }
-
-        // Update all provided fields
-        const allowedFields = [
-            'emailEnabled', 'emailRecipients', 'returnEmailEnabled', 'emailSubject', 'emailBody',
-            'smtpHost', 'smtpPort', 'smtpUsername', 'smtpPassword', 'fromEmail',
-            'fromEmailAccessToken', 'fromEmailRefreshToken',
-            'telegramEnabled', 'telegramChatId',
-            'discordEnabled', 'discordWebhook',
-            'makeEnabled', 'makeWebhook',
-            'n8nEnabled', 'n8nWebhook',
-            'webhookEnabled', 'webhookUrl',
-            'slackEnabled', 'slackChannelId', 'slackAccessToken', 'slackChannelName'
-        ];
-
-        for (const field of allowedFields) {
-            if (req.body[field] !== undefined) {
-                (integration as any)[field] = req.body[field];
-            }
-        }
-
-        await AppDataSource.manager.save(integration);
-
-        res.json(integration);
-    } catch (error: any) {
-        logger.error('Error updating integrations', { error: error.message, stack: error.stack, correlationId: req.correlationId });
-        res.status(500).json({ error: 'Failed to update integrations' });
     }
 });
 

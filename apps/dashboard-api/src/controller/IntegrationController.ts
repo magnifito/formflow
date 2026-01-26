@@ -1,14 +1,15 @@
 import { Router, Request, Response } from "express";
 import { AppDataSource } from "../data-source";
-import { User, Integration, Form, IntegrationScope } from "@formflow/shared/entities";
+import { User, Integration, Form, IntegrationScope, Organization } from "@formflow/shared/entities";
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import logger, { LogOperation } from "@formflow/shared/logger";
 import { IntegrationType } from "@formflow/shared/queue";
 import { getTelegramService } from "@formflow/shared/telegram";
-import { resolveIntegrationStack, normalizeLegacyFormIntegration } from "@formflow/shared/integrations";
+import { resolveIntegrationStack } from "@formflow/shared/integrations";
 import axios from "axios";
 import nodemailer from "nodemailer";
 import cors from "cors";
+import { EntityMetadataNotFoundError } from "typeorm";
 
 const router = Router();
 
@@ -52,7 +53,7 @@ const normalizeConfigForType = (type: IntegrationType, rawConfig: any) => {
             config.recipients = parseRecipients(config.recipients);
             const api = config.emailApi || {};
             if (!config.recipients.length) throw new Error('Email recipients are required');
-            if (!api.provider || !api.apiKey) throw new Error('Email API provider and apiKey are required');
+            if (!api.provider || !api.apiToken) throw new Error('Email API provider and apiToken are required');
             config.emailApi = api;
             break;
         }
@@ -84,33 +85,64 @@ const normalizeConfigForType = (type: IntegrationType, rawConfig: any) => {
 const getFormIfAuthorized = async (formId: number | undefined, organizationId: number) => {
     if (!formId) return null;
     return AppDataSource.manager.findOne(Form, {
-        where: { id: formId, organizationId },
-        relations: ['integration']
+        where: { id: formId, organizationId }
     });
+};
+
+const resolveOrganizationContext = async (req: AuthRequest) => {
+    const user = await AppDataSource.manager.findOne(User, { where: { id: req.user!.userId }, relations: ['organization'] });
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    if (user.isSuperAdmin) {
+        const headerOrg = req.headers['x-organization-context'];
+        if (headerOrg) {
+            const orgId = parseInt(String(headerOrg), 10);
+            if (!isNaN(orgId)) {
+                const org = await AppDataSource.manager.findOne(Organization, {
+                    where: { id: orgId, isActive: true }
+                });
+                if (org) {
+                    return { user, organizationId: org.id };
+                }
+            }
+        }
+        // fallback to first active org if none specified and user has none
+        if (user.organizationId) {
+            return { user, organizationId: user.organizationId };
+        }
+        const firstOrg = await AppDataSource.manager.findOne(Organization, {
+            where: { isActive: true },
+            order: { id: 'ASC' }
+        });
+        if (!firstOrg) throw new Error('No active organization available for context');
+        return { user, organizationId: firstOrg.id };
+    }
+
+    if (!user.organizationId) {
+        throw new Error('Organization not found');
+    }
+    return { user, organizationId: user.organizationId };
 };
 
 // GET / - List all integrations for the user's organization
 router.get('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user!.userId;
         const { formId: rawFormId, scope: rawScope } = req.query;
-
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-        if (!user || user.organizationId === null) {
-            return res.status(404).json({ error: 'Organization not found' });
-        }
+        const { user, organizationId } = await resolveOrganizationContext(req);
 
         const formId = rawFormId ? parseInt(String(rawFormId), 10) : undefined;
         const scope = rawScope as IntegrationScope | undefined;
 
         if (formId) {
-            const form = await getFormIfAuthorized(formId, user.organizationId);
+            const form = await getFormIfAuthorized(formId, organizationId);
             if (!form) {
                 return res.status(404).json({ error: 'Form not found for this organization' });
             }
         }
 
-        const where: any = { organizationId: user.organizationId };
+        const where: any = { organizationId };
         if (formId) where.formId = formId;
         if (scope === IntegrationScope.ORGANIZATION || scope === IntegrationScope.FORM) {
             where.scope = scope;
@@ -131,13 +163,9 @@ router.get('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, r
 // POST / - Create a new integration
 router.post('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user!.userId;
         const { type, name, config, formId: rawFormId, scope: rawScope, isActive } = req.body;
 
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-        if (!user || user.organizationId === null) {
-            return res.status(404).json({ error: 'Organization not found' });
-        }
+        const { user, organizationId } = await resolveOrganizationContext(req);
 
         if (!type || !name) {
             return res.status(400).json({ error: 'Type and Name are required' });
@@ -157,7 +185,7 @@ router.post('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, 
         }
 
         if (formId) {
-            const form = await getFormIfAuthorized(formId, user.organizationId);
+            const form = await getFormIfAuthorized(formId, organizationId);
             if (!form) {
                 return res.status(404).json({ error: 'Form not found for this organization' });
             }
@@ -166,7 +194,7 @@ router.post('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, 
         const normalizedConfig = normalizeConfigForType(type, config);
 
         const integration = AppDataSource.manager.create(Integration, {
-            organizationId: user.organizationId,
+            organizationId,
             formId: formId || null,
             scope,
             type,
@@ -195,17 +223,13 @@ router.post('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, 
 // PUT /:id - Update an integration
 router.put('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user!.userId;
         const integrationId = parseInt(req.params.id);
         const { name, config, isActive, formId: rawFormId } = req.body;
 
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-        if (!user || user.organizationId === null) {
-            return res.status(404).json({ error: 'Organization not found' });
-        }
+        const { organizationId } = await resolveOrganizationContext(req);
 
         const integration = await AppDataSource.manager.findOne(Integration, {
-            where: { id: integrationId, organizationId: user.organizationId }
+            where: { id: integrationId, organizationId }
         });
 
         if (!integration) {
@@ -213,7 +237,7 @@ router.put('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequest
         }
 
         if (rawFormId) {
-            const form = await getFormIfAuthorized(parseInt(String(rawFormId), 10), user.organizationId);
+            const form = await getFormIfAuthorized(parseInt(String(rawFormId), 10), organizationId);
             if (!form) {
                 return res.status(404).json({ error: 'Form not found for this organization' });
             }
@@ -230,7 +254,7 @@ router.put('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequest
         logger.info('Integration updated', {
             operation: LogOperation.INTEGRATION_UPDATE,
             integrationId,
-            organizationId: user.organizationId,
+            organizationId,
             correlationId: req.correlationId
         });
 
@@ -244,16 +268,12 @@ router.put('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequest
 // DELETE /:id - Delete an integration
 router.delete('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user!.userId;
         const integrationId = parseInt(req.params.id);
 
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-        if (!user || user.organizationId === null) {
-            return res.status(404).json({ error: 'Organization not found' });
-        }
+        const { organizationId, user } = await resolveOrganizationContext(req);
 
         const integration = await AppDataSource.manager.findOne(Integration, {
-            where: { id: integrationId, organizationId: user.organizationId }
+            where: { id: integrationId, organizationId }
         });
 
         if (!integration) {
@@ -265,7 +285,7 @@ router.delete('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequ
         logger.info('Integration deleted', {
             operation: LogOperation.INTEGRATION_DELETE,
             integrationId,
-            organizationId: user.organizationId,
+            organizationId,
             correlationId: req.correlationId
         });
 
@@ -279,34 +299,48 @@ router.delete('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequ
 // GET /hierarchy - Fetch org + form integrations and resolved stacks
 router.get('/hierarchy', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user!.userId;
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
-        if (!user || user.organizationId === null) {
-            return res.status(404).json({ error: 'Organization not found' });
-        }
+        const { organizationId } = await resolveOrganizationContext(req);
 
-        const [forms, integrations] = await Promise.all([
-            AppDataSource.manager.find(Form, {
-                where: { organizationId: user.organizationId },
-                relations: ['integration']
-            }),
-            AppDataSource.manager.find(Integration, {
-                where: { organizationId: user.organizationId }
-            })
-        ]);
+        let forms: any[] = [];
+        let integrations: any[] = [];
+
+        try {
+            [forms, integrations] = await Promise.all([
+                AppDataSource.manager.find(Form, {
+                    where: { organizationId }
+                }),
+                AppDataSource.manager.find(Integration, {
+                    where: { organizationId }
+                })
+            ]);
+        } catch (metaError) {
+            if (metaError instanceof EntityMetadataNotFoundError) {
+                logger.warn('Integration hierarchy metadata missing - using raw query fallback', {
+                    organizationId,
+                    error: metaError.message,
+                    correlationId: req.correlationId
+                });
+                forms = await AppDataSource.query(
+                    `SELECT * FROM "form" WHERE "organizationId" = $1 ORDER BY "createdAt" DESC`,
+                    [organizationId]
+                );
+                integrations = await AppDataSource.query(
+                    `SELECT * FROM "integration" WHERE "organizationId" = $1`,
+                    [organizationId]
+                );
+            } else {
+                throw metaError;
+            }
+        }
 
         const orgIntegrations = integrations.filter(i => i.scope === IntegrationScope.ORGANIZATION || !i.formId);
         const formScoped = integrations.filter(i => i.scope === IntegrationScope.FORM || i.formId);
 
         const formsPayload = forms.map(form => {
             const scoped = formScoped.filter(i => i.formId === form.id);
-            const legacy = scoped.length === 0
-                ? normalizeLegacyFormIntegration(form.integration, user.organizationId ?? undefined, form.id)
-                : [];
-
             const effectiveIntegrations = resolveIntegrationStack({
                 orgIntegrations,
-                formIntegrations: scoped.length ? scoped : legacy,
+                formIntegrations: scoped,
                 useOrgIntegrations: form.useOrgIntegrations ?? true
             });
 
@@ -316,7 +350,6 @@ router.get('/hierarchy', cors(strictCorsOptions), verifyToken, async (req: AuthR
                 slug: form.slug,
                 useOrgIntegrations: form.useOrgIntegrations,
                 integrations: scoped,
-                legacyIntegrations: legacy,
                 effectiveIntegrations
             };
         });
@@ -324,6 +357,13 @@ router.get('/hierarchy', cors(strictCorsOptions), verifyToken, async (req: AuthR
         res.json({
             organizationIntegrations: orgIntegrations,
             forms: formsPayload
+        });
+
+        logger.info('Integrations hierarchy fetched', {
+            organizationId,
+            orgIntegrationCount: orgIntegrations.length,
+            formCount: forms.length,
+            correlationId: req.correlationId
         });
     } catch (error: any) {
         logger.error('Failed to load integration hierarchy', { error: error.message });
@@ -371,11 +411,20 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
                         ? nodemailer.createTransport({
                             host: integration.config.smtp.host,
                             port: integration.config.smtp.port,
-                            secure: integration.config.smtp.secure ?? true,
+                            secure: integration.config.smtp.secure ?? (integration.config.smtp.port === 465),
                             auth: {
                                 user: integration.config.smtp.username,
                                 pass: integration.config.smtp.password,
                             },
+                            tls: {
+                                rejectUnauthorized: false
+                            },
+                            debug: true,
+                            logger: true,
+                            connectionTimeout: 10000,
+                            greetingTimeout: 10000,
+                            socketTimeout: 10000,
+                            ignoreTLS: integration.config.smtp.host === '127.0.0.1' || integration.config.smtp.host === 'localhost' || integration.config.smtp.port === 1025,
                         })
                         : nodemailer.createTransport({
                             host: 'smtp.gmail.com',

@@ -41,10 +41,9 @@ Per-IP and per-form rate limiting prevents spam attacks:
 Client-side proof-of-work challenge system:
 
 **How it Works:**
-1. Client requests challenge from `/challenge/:apikey` endpoint
-2. Server generates cryptographic challenge
-3. Client must solve computation before submission
-4. Server validates solution on submission
+1. Server generates cryptographic challenge
+2. Client must solve computation before submission
+3. Server validates solution on submission
 
 **Benefits:**
 - No user interaction required (invisible CAPTCHA)

@@ -1,6 +1,6 @@
 import { AppDataSource } from '../data-source';
 import router from './OrganizationController';
-import { Form, Organization, WhitelistedDomain, OrganizationIntegration, Submission } from '@formflow/shared/entities';
+import { Form, Organization, WhitelistedDomain, Submission } from '@formflow/shared/entities';
 import { OrgContextRequest } from '../middleware/orgContext';
 import { createMockOrgContextRequest, createMockResponse, createMockNext } from '../../test/mocks/express.mock';
 import { createMockManager, createMockQueryBuilder } from '../../test/mocks/data-source.mock';
@@ -440,90 +440,6 @@ describe('OrganizationController', () => {
       await request(app)
         .delete('/org/domains/1')
         .set('Authorization', `Bearer ${mockToken}`)
-        .expect(500);
-    });
-  });
-
-  describe('GET /org/integrations', () => {
-    it('should return existing integration successfully', async () => {
-      const integration = { id: 1, organizationId: 1, emailEnabled: true };
-      mockManager.findOne = jest.fn().mockResolvedValue(integration);
-
-      const response = await request(app)
-        .get('/org/integrations')
-        .set('Authorization', `Bearer ${mockToken}`)
-        .expect(200);
-
-      expect(response.body).toEqual(integration);
-    });
-
-    it('should create default integration when none exists', async () => {
-      const newIntegration = { id: 1, organizationId: 1, emailEnabled: true };
-
-      mockManager.findOne = jest.fn().mockResolvedValue(null);
-      mockManager.create = jest.fn().mockReturnValue(newIntegration);
-      mockManager.save = jest.fn().mockResolvedValue(newIntegration);
-
-      const response = await request(app)
-        .get('/org/integrations')
-        .set('Authorization', `Bearer ${mockToken}`)
-        .expect(200);
-
-      expect(response.body.emailEnabled).toBe(true);
-    });
-
-    it('should return 500 when database query fails', async () => {
-      mockManager.findOne = jest.fn().mockRejectedValue(new Error('Database error'));
-
-      await request(app)
-        .get('/org/integrations')
-        .set('Authorization', `Bearer ${mockToken}`)
-        .expect(500);
-    });
-  });
-
-  describe('PUT /org/integrations', () => {
-    it('should update integration successfully', async () => {
-      const integration = { id: 1, organizationId: 1, emailEnabled: false };
-      const updatedIntegration = { ...integration, emailEnabled: true };
-
-      mockManager.findOne = jest.fn().mockResolvedValue(integration);
-      mockManager.save = jest.fn().mockResolvedValue(updatedIntegration);
-
-      const response = await request(app)
-        .put('/org/integrations')
-        .set('Authorization', `Bearer ${mockToken}`)
-        .send({ emailEnabled: true })
-        .expect(200);
-
-      expect(response.body.emailEnabled).toBe(true);
-    });
-
-    it('should create integration if it does not exist', async () => {
-      const newIntegration = { id: 1, organizationId: 1, emailEnabled: true };
-
-      mockManager.findOne = jest.fn().mockResolvedValue(null);
-      mockManager.create = jest.fn().mockReturnValue(newIntegration);
-      mockManager.save = jest.fn().mockResolvedValue(newIntegration);
-
-      const response = await request(app)
-        .put('/org/integrations')
-        .set('Authorization', `Bearer ${mockToken}`)
-        .send({ emailEnabled: true })
-        .expect(200);
-
-      expect(response.body.emailEnabled).toBe(true);
-    });
-
-    it('should return 500 when database save fails', async () => {
-      const integration = { id: 1, organizationId: 1 };
-      mockManager.findOne = jest.fn().mockResolvedValue(integration);
-      mockManager.save = jest.fn().mockRejectedValue(new Error('Database error'));
-
-      await request(app)
-        .put('/org/integrations')
-        .set('Authorization', `Bearer ${mockToken}`)
-        .send({ emailEnabled: true })
         .expect(500);
     });
   });

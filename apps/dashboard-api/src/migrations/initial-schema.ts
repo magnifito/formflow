@@ -33,40 +33,12 @@ export class InitialSchema1737227400000 implements MigrationInterface {
                 "email" character varying NOT NULL,
                 "passwordHash" character varying NOT NULL,
                 "name" character varying DEFAULT NULL,
-                "apiKey" character varying DEFAULT NULL,
                 "organizationId" integer DEFAULT NULL,
                 "role" character varying NOT NULL DEFAULT 'member',
                 "isSuperAdmin" boolean NOT NULL DEFAULT false,
                 "isActive" boolean NOT NULL DEFAULT true,
                 "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
                 "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-                "returnBoolean" boolean DEFAULT false,
-                "fromEmailAccessToken" character varying DEFAULT NULL,
-                "fromEmail" character varying DEFAULT NULL,
-                "fromEmailRefreshToken" character varying DEFAULT NULL,
-                "smtpHost" character varying DEFAULT NULL,
-                "smtpPort" integer DEFAULT NULL,
-                "smtpUsername" character varying DEFAULT NULL,
-                "smtpPassword" character varying DEFAULT NULL,
-                "emailSubject" character varying DEFAULT NULL,
-                "emailBody" character varying DEFAULT NULL,
-                "telegramBoolean" boolean NOT NULL DEFAULT false,
-                "telegramChatId" integer DEFAULT NULL,
-                "discordBoolean" boolean NOT NULL DEFAULT false,
-                "discordWebhook" character varying DEFAULT NULL,
-                "slackBoolean" boolean NOT NULL DEFAULT false,
-                "slackChannelId" character varying DEFAULT NULL,
-                "slackAccessToken" character varying DEFAULT NULL,
-                "slackChannelName" character varying DEFAULT NULL,
-                "makeWebhook" character varying DEFAULT NULL,
-                "makeBoolean" boolean NOT NULL DEFAULT false,
-                "n8nWebhook" character varying DEFAULT NULL,
-                "n8nBoolean" boolean NOT NULL DEFAULT false,
-                "webhookWebhook" character varying DEFAULT NULL,
-                "webhookBoolean" boolean NOT NULL DEFAULT false,
-                "allowedDomains" text DEFAULT '',
-                "maxPlugins" integer DEFAULT NULL,
-                "currentPlugins" integer DEFAULT 0,
                 CONSTRAINT "PK_user_id" PRIMARY KEY ("id")
             )
         `);
@@ -110,78 +82,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
             )
         `);
 
-        // 5. Create FormIntegration table
-        await queryRunner.query(`
-            CREATE TABLE "form_integration" (
-                "id" SERIAL NOT NULL,
-                "formId" integer NOT NULL,
-                "emailEnabled" boolean NOT NULL DEFAULT true,
-                "emailRecipients" character varying DEFAULT NULL,
-                "returnEmailEnabled" boolean NOT NULL DEFAULT false,
-                "emailSubject" character varying DEFAULT NULL,
-                "emailBody" character varying DEFAULT NULL,
-                "smtpHost" character varying DEFAULT NULL,
-                "smtpPort" integer DEFAULT NULL,
-                "smtpUsername" character varying DEFAULT NULL,
-                "smtpPassword" character varying DEFAULT NULL,
-                "fromEmail" character varying DEFAULT NULL,
-                "fromEmailAccessToken" character varying DEFAULT NULL,
-                "fromEmailRefreshToken" character varying DEFAULT NULL,
-                "telegramEnabled" boolean NOT NULL DEFAULT false,
-                "telegramChatId" integer DEFAULT NULL,
-                "discordEnabled" boolean NOT NULL DEFAULT false,
-                "discordWebhook" character varying DEFAULT NULL,
-                "makeEnabled" boolean NOT NULL DEFAULT false,
-                "makeWebhook" character varying DEFAULT NULL,
-                "n8nEnabled" boolean NOT NULL DEFAULT false,
-                "n8nWebhook" character varying DEFAULT NULL,
-                "webhookEnabled" boolean NOT NULL DEFAULT false,
-                "webhookUrl" character varying DEFAULT NULL,
-                "slackEnabled" boolean NOT NULL DEFAULT false,
-                "slackChannelId" character varying DEFAULT NULL,
-                "slackAccessToken" character varying DEFAULT NULL,
-                "slackChannelName" character varying DEFAULT NULL,
-                CONSTRAINT "PK_form_integration_id" PRIMARY KEY ("id"),
-                CONSTRAINT "UQ_form_integration_formId" UNIQUE ("formId")
-            )
-        `);
-
-        // 6. Create OrganizationIntegration table
-        await queryRunner.query(`
-            CREATE TABLE "organization_integration" (
-                "id" SERIAL NOT NULL,
-                "organizationId" integer NOT NULL,
-                "emailEnabled" boolean NOT NULL DEFAULT true,
-                "emailRecipients" character varying DEFAULT NULL,
-                "returnEmailEnabled" boolean NOT NULL DEFAULT false,
-                "emailSubject" character varying DEFAULT NULL,
-                "emailBody" character varying DEFAULT NULL,
-                "smtpHost" character varying DEFAULT NULL,
-                "smtpPort" integer DEFAULT NULL,
-                "smtpUsername" character varying DEFAULT NULL,
-                "smtpPassword" character varying DEFAULT NULL,
-                "fromEmail" character varying DEFAULT NULL,
-                "fromEmailAccessToken" character varying DEFAULT NULL,
-                "fromEmailRefreshToken" character varying DEFAULT NULL,
-                "telegramEnabled" boolean NOT NULL DEFAULT false,
-                "telegramChatId" integer DEFAULT NULL,
-                "discordEnabled" boolean NOT NULL DEFAULT false,
-                "discordWebhook" character varying DEFAULT NULL,
-                "makeEnabled" boolean NOT NULL DEFAULT false,
-                "makeWebhook" character varying DEFAULT NULL,
-                "n8nEnabled" boolean NOT NULL DEFAULT false,
-                "n8nWebhook" character varying DEFAULT NULL,
-                "webhookEnabled" boolean NOT NULL DEFAULT false,
-                "webhookUrl" character varying DEFAULT NULL,
-                "slackEnabled" boolean NOT NULL DEFAULT false,
-                "slackChannelId" character varying DEFAULT NULL,
-                "slackAccessToken" character varying DEFAULT NULL,
-                "slackChannelName" character varying DEFAULT NULL,
-                CONSTRAINT "PK_organization_integration_id" PRIMARY KEY ("id")
-            )
-        `);
-
-        // 7. Create Integration enums and table (scoped org/form integrations)
+        // 5. Create Integration enums and table (scoped org/form integrations)
         await queryRunner.query(`
             CREATE TYPE "integration_type_enum" AS ENUM ('email-smtp', 'email-api', 'telegram', 'discord', 'slack', 'webhook')
         `);
@@ -206,7 +107,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
             )
         `);
 
-        // 8. Create Submission table
+        // 6. Create Submission table
         await queryRunner.query(`
             CREATE TABLE "submission" (
                 "id" SERIAL NOT NULL,
@@ -226,7 +127,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "form" ADD CONSTRAINT "UQ_form_slug" UNIQUE ("slug")`);
         // Note: form_integration.formId unique constraint is already created in table definition above
 
-        // 9. Create indexes for performance
+        // 7. Create indexes for performance
         await queryRunner.query(`CREATE INDEX "IDX_organization_slug" ON "organization" ("slug")`);
         await queryRunner.query(`CREATE INDEX "IDX_user_email" ON "user" ("email")`);
         await queryRunner.query(`CREATE INDEX "IDX_user_organizationId" ON "user" ("organizationId")`);
@@ -239,7 +140,7 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_integration_form" ON "integration" ("formId")`);
         await queryRunner.query(`CREATE INDEX "IDX_integration_type_scope" ON "integration" ("type", "scope")`);
 
-        // 10. Add foreign key constraints
+        // 8. Add foreign key constraints
         await queryRunner.query(`
             ALTER TABLE "user" ADD CONSTRAINT "FK_user_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE NO ACTION
         `);
@@ -250,14 +151,6 @@ export class InitialSchema1737227400000 implements MigrationInterface {
 
         await queryRunner.query(`
             ALTER TABLE "form" ADD CONSTRAINT "FK_form_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE NO ACTION
-        `);
-
-        await queryRunner.query(`
-            ALTER TABLE "form_integration" ADD CONSTRAINT "FK_form_integration_formId" FOREIGN KEY ("formId") REFERENCES "form"("id") ON DELETE CASCADE ON UPDATE NO ACTION
-        `);
-
-        await queryRunner.query(`
-            ALTER TABLE "organization_integration" ADD CONSTRAINT "FK_organization_integration_organizationId" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE NO ACTION
         `);
 
         await queryRunner.query(`
@@ -278,8 +171,6 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "integration" DROP CONSTRAINT "FK_integration_form"`);
         await queryRunner.query(`ALTER TABLE "integration" DROP CONSTRAINT "FK_integration_organization"`);
         await queryRunner.query(`ALTER TABLE "submission" DROP CONSTRAINT "FK_submission_formId"`);
-        await queryRunner.query(`ALTER TABLE "organization_integration" DROP CONSTRAINT "FK_organization_integration_organizationId"`);
-        await queryRunner.query(`ALTER TABLE "form_integration" DROP CONSTRAINT "FK_form_integration_formId"`);
         await queryRunner.query(`ALTER TABLE "form" DROP CONSTRAINT "FK_form_organizationId"`);
         await queryRunner.query(`ALTER TABLE "whitelisted_domain" DROP CONSTRAINT "FK_whitelisted_domain_organizationId"`);
         await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "FK_user_organizationId"`);
@@ -298,7 +189,6 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "IDX_organization_slug"`);
 
         // Drop unique constraints
-        await queryRunner.query(`ALTER TABLE "form_integration" DROP CONSTRAINT "UQ_form_integration_formId"`);
         await queryRunner.query(`ALTER TABLE "form" DROP CONSTRAINT "UQ_form_submitHash"`);
         await queryRunner.query(`ALTER TABLE "form" DROP CONSTRAINT "UQ_form_slug"`);
         await queryRunner.query(`ALTER TABLE "user" DROP CONSTRAINT "UQ_user_email"`);
@@ -307,8 +197,6 @@ export class InitialSchema1737227400000 implements MigrationInterface {
         // Drop tables in reverse order (respecting FK dependencies)
         await queryRunner.query(`DROP TABLE "integration"`);
         await queryRunner.query(`DROP TABLE "submission"`);
-        await queryRunner.query(`DROP TABLE "organization_integration"`);
-        await queryRunner.query(`DROP TABLE "form_integration"`);
         await queryRunner.query(`DROP TABLE "form"`);
         await queryRunner.query(`DROP TABLE "whitelisted_domain"`);
         await queryRunner.query(`DROP TABLE "user"`);
