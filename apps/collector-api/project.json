@@ -65,7 +65,7 @@
         "{workspaceRoot}/coverage/{projectRoot}"
       ],
       "options": {
-        "jestConfig": "apps/collector-api/jest.config.ts",
+        "jestConfig": "apps/collector-api/jest.config.js",
         "passWithNoTests": true
       },
       "configurations": {

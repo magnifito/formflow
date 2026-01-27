@@ -27,9 +27,6 @@
       "@formflow/shared/data-source": [
         "libs/shared/data-source/src/index.ts"
       ],
-      "@formflow/shared/encryption": [
-        "libs/shared/encryption/src/index.ts"
-      ],
       "@formflow/shared/logger": [
         "libs/shared/logger/src/index.ts"
       ],

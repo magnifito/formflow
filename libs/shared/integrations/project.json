@@ -1,0 +1,26 @@
+{
+    "name": "shared-integrations",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/shared/integrations/src",
+    "projectType": "library",
+    "tags": [
+        "scope:shared",
+        "type:lib"
+    ],
+    "targets": {
+        "build": {
+            "executor": "@nx/js:tsc",
+            "outputs": [
+                "{options.outputPath}"
+            ],
+            "options": {
+                "outputPath": "dist/libs/shared/integrations",
+                "main": "libs/shared/integrations/src/index.ts",
+                "tsConfig": "libs/shared/integrations/tsconfig.json",
+                "assets": [
+                    "libs/shared/integrations/*.md"
+                ]
+            }
+        }
+    }
+}

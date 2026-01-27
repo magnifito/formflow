@@ -1,4 +1,4 @@
-const FETCH_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const FETCH_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const TOKEN_KEY = 'ff_jwt_token';
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {

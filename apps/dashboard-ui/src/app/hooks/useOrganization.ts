@@ -38,7 +38,7 @@ export interface OrgStats {
 export interface Submission {
     id: number;
     formId: number;
-    data: Record<string, any>;
+    data: Record<string, unknown>;
     originDomain: string | null;
     ipAddress: string | null;
     createdAt: string;
@@ -50,7 +50,7 @@ export interface Integration {
     organizationId: number;
     type: string;
     name: string;
-    config: any;
+    config: Record<string, unknown>;
     isActive: boolean;
     formId?: number | null;
     scope?: 'organization' | 'form';
@@ -116,7 +116,7 @@ export function useOrganization() {
     const [integrationHierarchy, setIntegrationHierarchy] = useState<IntegrationHierarchy | null>(null);
     const [domains, setDomains] = useState<WhitelistedDomain[]>([]);
     const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
-    const [pagination, setPagination] = useState<PaginatedResponse<any>['pagination'] | null>(null);
+    const [pagination, setPagination] = useState<PaginatedResponse<unknown>['pagination'] | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -132,8 +132,8 @@ export function useOrganization() {
             setForms(formsData);
             setStats(statsData);
             setOrganization(orgData);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError((err as Error).message);
         } finally {
             setLoading(false);
         }
@@ -147,8 +147,8 @@ export function useOrganization() {
             const response = await apiFetch<PaginatedResponse<Submission>>(url);
             setSubmissions(response.data);
             setPagination(response.pagination);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError((err as Error).message);
         } finally {
             setLoading(false);
         }
@@ -160,25 +160,20 @@ export function useOrganization() {
             const data = await apiFetch<IntegrationHierarchy>('/integrations/hierarchy');
             setIntegrationHierarchy(data);
             setIntegrations(data.organizationIntegrations);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError((err as Error).message);
         } finally {
             setLoading(false);
         }
     }, []);
 
     const createIntegration = async (data: Partial<Integration>) => {
-        try {
-            const newIntegration = await apiFetch<Integration>('/integrations', {
-                method: 'POST',
-                body: JSON.stringify(data)
-            });
-            await loadIntegrations();
-            return newIntegration;
-        } catch (err: any) {
-            // Rethrow to handle in UI
-            throw err;
-        }
+        const newIntegration = await apiFetch<Integration>('/integrations', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        await loadIntegrations();
+        return newIntegration;
     };
 
     const updateIntegration = async (id: number, updates: Partial<Integration>) => {
@@ -189,7 +184,7 @@ export function useOrganization() {
             });
             await loadIntegrations();
             return updated;
-        } catch (err: any) {
+        } catch (err) {
             console.error('Failed to update integration:', err);
             throw err;
         }
@@ -199,7 +194,7 @@ export function useOrganization() {
         try {
             await apiFetch(`/integrations/${id}`, { method: 'DELETE' });
             await loadIntegrations();
-        } catch (err: any) {
+        } catch (err) {
             console.error('Failed to delete integration:', err);
             throw err;
         }
@@ -210,7 +205,7 @@ export function useOrganization() {
             return await apiFetch<{ success: boolean; message: string }>(`/integrations/${id}/test`, {
                 method: 'POST'
             });
-        } catch (err: any) {
+        } catch (err) {
             console.error('Failed to test integration:', err);
             throw err;
         }
@@ -221,8 +216,8 @@ export function useOrganization() {
         try {
             const data = await apiFetch<WhitelistedDomain[]>('/org/domains');
             setDomains(data);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError((err as Error).message);
         } finally {
             setLoading(false);
         }
@@ -235,8 +230,8 @@ export function useOrganization() {
                 body: JSON.stringify({ domain })
             });
             await loadDomains();
-        } catch (err: any) {
-            throw new Error(err.message);
+        } catch (err) {
+            throw new Error((err as Error).message);
         }
     };
 
@@ -244,8 +239,8 @@ export function useOrganization() {
         try {
             await apiFetch(`/org/domains/${id}`, { method: 'DELETE' });
             setDomains(prev => prev.filter(d => d.id !== id));
-        } catch (err: any) {
-            throw new Error(err.message);
+        } catch (err) {
+            throw new Error((err as Error).message);
         }
     };
 
@@ -254,8 +249,8 @@ export function useOrganization() {
         try {
             const data = await apiFetch<SecuritySettings>('/org/security-settings');
             setSecuritySettings(data);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError((err as Error).message);
         } finally {
             setLoading(false);
         }
@@ -268,8 +263,8 @@ export function useOrganization() {
                 body: JSON.stringify(settings)
             });
             setSecuritySettings(data);
-        } catch (err: any) {
-            throw new Error(err.message);
+        } catch (err) {
+            throw new Error((err as Error).message);
         }
     };
 
@@ -281,8 +276,8 @@ export function useOrganization() {
                 method: 'POST',
                 body: JSON.stringify(settings)
             });
-        } catch (err: any) {
-            throw new Error(err.message);
+        } catch (err) {
+            throw new Error((err as Error).message);
         }
     };
 
@@ -293,7 +288,7 @@ export function useOrganization() {
                 body: JSON.stringify({ isActive })
             });
             setForms(prev => prev.map(f => f.id === formId ? { ...f, isActive } : f));
-        } catch (err: any) {
+        } catch (err) {
             console.error('Failed to toggle form status:', err);
         }
     };
@@ -305,16 +300,16 @@ export function useOrganization() {
                 body: JSON.stringify(data)
             });
             await loadData();
-        } catch (err: any) {
-            throw new Error(err.message);
+        } catch (err) {
+            throw new Error((err as Error).message);
         }
     };
 
     const getForm = async (id: number) => {
         try {
             return await apiFetch<Form>(`/org/forms/${id}`);
-        } catch (err: any) {
-            throw new Error(err.message);
+        } catch (err) {
+            throw new Error((err as Error).message);
         }
     };
 
@@ -326,8 +321,8 @@ export function useOrganization() {
             });
             setForms(prev => prev.map(f => f.id === id ? data : f));
             return data;
-        } catch (err: any) {
-            throw new Error(err.message);
+        } catch (err) {
+            throw new Error((err as Error).message);
         }
     };
 
@@ -335,7 +330,7 @@ export function useOrganization() {
         try {
             await apiFetch(`/org/forms/${formId}`, { method: 'DELETE' });
             setForms(prev => prev.filter(f => f.id !== formId));
-        } catch (err: any) {
+        } catch (err) {
             console.error('Failed to delete form:', err);
         }
     };

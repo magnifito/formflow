@@ -10,15 +10,18 @@ import type { Form } from '../../lib/types';
 // For now, I'll stick to basic implementation or ask to install them.
 // I'll assume standard Shadcn Tabs/Switch are desired, so I'll create placeholder or install dependencies.
 
+interface SubmitOptions {
+    csrfToken?: string | 'auto';
+}
+
 interface TestPayloadFormProps {
     form: Form;
-    onSubmit: (payload: any, options: any) => Promise<void>;
+    onSubmit: (payload: Record<string, string>, options: SubmitOptions) => Promise<void>;
     loading: boolean;
 }
 
 export function TestPayloadForm({ form, onSubmit, loading }: TestPayloadFormProps) {
-    const [activeTab, setActiveTab] = useState('fields');
-    const [formData, setFormData] = useState<Record<string, any>>({
+    const [formData, setFormData] = useState<Record<string, string>>({
         name: 'John Doe',
         email: 'john@formflow.fyi',
         message: 'Hello world from Test Lab!'

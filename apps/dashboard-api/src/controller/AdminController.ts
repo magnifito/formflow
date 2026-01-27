@@ -129,8 +129,9 @@ router.post('/organizations', async (req: AuthRequest, res: Response) => {
 
 // GET /admin/organizations/:id - Get organization details
 router.get('/organizations/:id', async (req: AuthRequest, res: Response) => {
+    let orgId;
     try {
-        const orgId = parseInt(req.params.id);
+        orgId = parseInt(req.params.id);
 
         const organization = await AppDataSource.manager.findOne(Organization, {
             where: { id: orgId },
@@ -206,8 +207,9 @@ router.put('/organizations/:id', async (req: AuthRequest, res: Response) => {
 
 // DELETE /admin/organizations/:id - Deactivate organization (soft delete)
 router.delete('/organizations/:id', async (req: AuthRequest, res: Response) => {
+    let orgId;
     try {
-        const orgId = parseInt(req.params.id);
+        orgId = parseInt(req.params.id);
 
         const organization = await AppDataSource.manager.findOne(Organization, {
             where: { id: orgId }
@@ -229,8 +231,9 @@ router.delete('/organizations/:id', async (req: AuthRequest, res: Response) => {
 
 // GET /admin/organizations/:id/users - List users in organization
 router.get('/organizations/:id/users', async (req: AuthRequest, res: Response) => {
+    let orgId;
     try {
-        const orgId = parseInt(req.params.id);
+        orgId = parseInt(req.params.id);
 
         const users = await AppDataSource.manager.find(User, {
             where: { organizationId: orgId },
@@ -408,8 +411,9 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
 
 // PUT /admin/users/:id/suspend - Suspend or activate a user
 router.put('/users/:id/suspend', async (req: AuthRequest, res: Response) => {
+    let userId;
     try {
-        const userId = parseInt(req.params.id, 10);
+        userId = parseInt(req.params.id, 10);
         const { isActive } = req.body;
 
         if (typeof isActive !== 'boolean') {
@@ -438,8 +442,9 @@ router.put('/users/:id/suspend', async (req: AuthRequest, res: Response) => {
 
 // DELETE /admin/users/:id - Delete a user
 router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
+    let userId;
     try {
-        const userId = parseInt(req.params.id, 10);
+        userId = parseInt(req.params.id, 10);
 
         // Prevent super admin from deleting themselves
         if (userId === req.user!.userId) {

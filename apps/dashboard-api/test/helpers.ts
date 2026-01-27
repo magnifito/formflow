@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { User, Form, Organization } from '@formflow/shared/entities';
+import { User, Form, Organization, generateSubmitHash } from '@formflow/shared/entities';
 
 /**
  * Test database helper
@@ -27,7 +27,7 @@ export class TestDatabase {
     const orgRepo = this.dataSource.getRepository(Organization);
     const org = orgRepo.create({
       name: data.name || 'Test Organization',
-      slug: data.slug || 'test-org',
+      slug: data.slug || `test-org-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       maxForms: data.maxForms,
       maxSubmissionsPerMonth: data.maxSubmissionsPerMonth,
       ...data,
@@ -75,8 +75,9 @@ export class TestDatabase {
     const formRepo = this.dataSource.getRepository(Form);
     const form = formRepo.create({
       name: data.name || 'Test Form',
+      slug: data.slug || `test-form-${uuidv4()}`,
       organizationId,
-      submitHash: data.submitHash || uuidv4(),
+      submitHash: data.submitHash || generateSubmitHash(),
       captchaEnabled: data.captchaEnabled ?? true,
       csrfEnabled: data.csrfEnabled ?? false,
       ...data,

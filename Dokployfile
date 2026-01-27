@@ -1,0 +1,20 @@
+version: 1
+meta:
+  slug: formflow
+  name: FormFlow
+  version: 1.0.1
+  description: "FormFlow - Open source form backend and dashboard"
+  logo: https://raw.githubusercontent.com/magnifito/formflow/main/docs/logo.png
+  tags:
+    - fullstack
+    - forms
+    - dashboard
+  links:
+    - label: Website
+      url: https://formflow.fyi
+    - label: Documentation
+      url: https://docs.formflow.fyi
+    - label: GitHub
+      url: https://github.com/magnifito/formflow
+template:
+  compose: docker-compose.dokploy.yml

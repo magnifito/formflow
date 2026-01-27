@@ -3,7 +3,7 @@ import { IntegrationType } from "@formflow/shared/queue";
 
 export type IntegrationLike = Pick<Integration, 'id' | 'organizationId' | 'formId' | 'scope' | 'type' | 'name' | 'config' | 'isActive'>;
 
-const toRecipientsArray = (value: any): string[] => {
+const toRecipientsArray = (value: unknown): string[] => {
     if (!value) return [];
     if (Array.isArray(value)) {
         return value.map(v => String(v).trim()).filter(Boolean);

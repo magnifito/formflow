@@ -15,8 +15,14 @@ interface ResponseState {
   error: string | null;
 }
 
+interface AppUser {
+  name?: string;
+  email?: string;
+  organization?: { name: string };
+}
+
 function App() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -38,7 +44,7 @@ function App() {
             const loginData = await api.auth.labLogin();
             setAuthToken(loginData.token);
             setUser(loginData.user);
-          } catch (e) {
+          } catch {
             setAuthToken(null);
           }
         }
@@ -62,7 +68,7 @@ function App() {
     setUser(null);
   };
 
-  const handleSubmission = async (payload: any, options: { csrfToken?: string | 'auto' }) => {
+  const handleSubmission = async (payload: Record<string, unknown>, options: { csrfToken?: string | 'auto' }) => {
     if (!selectedForm) return;
     setSubmitting(true);
     setLastResponse(null);
@@ -71,7 +77,7 @@ function App() {
     try {
       let csrfToken = undefined;
       if (options.csrfToken === 'auto') {
-        const tokenData = await api.collector.getCsrfToken(selectedForm.submitHash, window.location.origin);
+        const tokenData = await api.collector.getCsrfToken(selectedForm.submitHash);
         csrfToken = tokenData.token;
       }
 
@@ -83,12 +89,13 @@ function App() {
         duration: Date.now() - startTime,
         error: null
       });
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as { response?: { data?: SubmissionResponse; status?: number }; message?: string };
       setLastResponse({
-        data: error.response?.data || null,
-        status: error.response?.status || 500,
+        data: err.response?.data || null,
+        status: err.response?.status || 500,
         duration: Date.now() - startTime,
-        error: error.message || 'Submission failed'
+        error: err.message || 'Submission failed'
       });
     } finally {
       setSubmitting(false);
@@ -124,8 +131,9 @@ function App() {
                     });
                     setAuthToken(data.token);
                     setUser(data.user);
-                  } catch (e: any) {
-                    alert('Failed to initialize admin: ' + (e.response?.data?.error || e.message));
+                  } catch (e) {
+                    const err = e as { response?: { data?: { error?: string } }; message?: string };
+                    alert('Failed to initialize admin: ' + (err.response?.data?.error || err.message));
                   }
                 }
               }}

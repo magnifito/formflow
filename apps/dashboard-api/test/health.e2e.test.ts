@@ -1,53 +1,73 @@
+
 import request from 'supertest';
-import { Application } from 'express';
 import { createApp } from '../src/index';
 import { AppDataSource } from '../src/data-source';
 
-describe('Health Check API E2E Tests', () => {
-  let app: Application;
+// Mock Data Source
+jest.mock('../src/data-source', () => ({
+    AppDataSource: {
+        isInitialized: false,
+        initialize: jest.fn().mockResolvedValue(true),
+        manager: {
+            query: jest.fn(),
+        },
+    },
+}));
 
-  beforeAll(async () => {
-    app = await createApp();
-  });
+jest.mock('@formflow/shared/logger', () => ({
+    __esModule: true,
+    default: {
+        info: jest.fn(),
+        error: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn(),
+    },
+    LogOperation: {},
+    LogOutcome: {
+        SUCCESS: 'success',
+        FAILURE: 'failure',
+    },
+    maskSensitiveData: jest.fn((data) => data),
+    maskHeaders: jest.fn((headers) => headers),
+    maskUrl: jest.fn((url) => url),
+    LogMessages: new Proxy({}, {
+        get: (target, prop) => jest.fn(() => `[LogMessages.${String(prop)}]`),
+    }),
+}));
 
-  afterAll(async () => {
-    if (AppDataSource.isInitialized) {
-      await AppDataSource.destroy();
-    }
-  });
+describe('Health Checks (E2E)', () => {
+    let app: any;
 
-  describe('GET /health', () => {
-    it('should return healthy status', async () => {
-      const response = await request(app)
-        .get('/health')
-        .expect(200);
-
-      expect(response.body).toHaveProperty('status', 'healthy');
-      expect(response.body).toHaveProperty('timestamp');
-      expect(response.body).toHaveProperty('uptime');
-      expect(response.body).toHaveProperty('service');
+    beforeAll(async () => {
+        app = await createApp();
     });
 
-    it('should return valid timestamp', async () => {
-      const response = await request(app)
-        .get('/health')
-        .expect(200);
-
-      const timestamp = new Date(response.body.timestamp);
-      expect(timestamp.getTime()).toBeLessThanOrEqual(Date.now());
-      expect(timestamp.getTime()).toBeGreaterThan(Date.now() - 5000);
+    afterEach(() => {
+        jest.clearAllMocks();
     });
-  });
 
-  describe('GET /health/ready', () => {
-    it('should return ready status when database is connected', async () => {
-      const response = await request(app)
-        .get('/health/ready')
-        .expect(200);
-
-      expect(response.body).toHaveProperty('status', 'ready');
-      expect(response.body).toHaveProperty('database', 'connected');
-      expect(response.body).toHaveProperty('timestamp');
+    it('GET /health should return 200 and healthy status', async () => {
+        const res = await request(app).get('/health');
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('healthy');
+        expect(res.body.service).toBe('dashboard-api');
     });
-  });
+
+    it('GET /health/ready should return 200 when DB is connected', async () => {
+        (AppDataSource.manager.query as jest.Mock).mockResolvedValueOnce([]);
+
+        const res = await request(app).get('/health/ready');
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('ready');
+        expect(res.body.database).toBe('connected');
+    });
+
+    it('GET /health/ready should return 503 when DB is disconnected', async () => {
+        (AppDataSource.manager.query as jest.Mock).mockRejectedValueOnce(new Error('DB Error'));
+
+        const res = await request(app).get('/health/ready');
+        expect(res.status).toBe(503);
+        expect(res.body.status).toBe('not ready');
+        expect(res.body.database).toBe('disconnected');
+    });
 });

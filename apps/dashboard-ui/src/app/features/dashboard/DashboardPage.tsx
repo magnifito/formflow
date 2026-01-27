@@ -24,7 +24,7 @@ export function DashboardPage() {
         }
     };
 
-    const handleSaveForm = async (data: any) => {
+    const handleSaveForm = async (data: Partial<Form>) => {
         if (editingForm) {
             await updateForm(editingForm.id, data);
         } else {

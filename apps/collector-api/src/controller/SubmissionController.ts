@@ -407,7 +407,7 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         }
 
         // CSRF validation with Referer fallback support
-        if (csrfSecret) {
+        if (csrfSecret && form.csrfEnabled) {
             if (!origin) {
                 return res.status(400).json({ error: 'Origin or Referer header required' });
             }

@@ -125,32 +125,32 @@ const transporter = nodemailer.createTransport({
 
 ```bash
 # Run all test suites
-npm run test
+pnpm test
 
 # If tests fail, run individually
-npm run test:dashboard-api
-npm run test:collector-api
-npm run test:dashboard-ui
+pnpm test:dashboard-api
+pnpm test:collector-api
+pnpm test:dashboard-ui
 ```
 
 ### 2. Manual Testing Checklist
 
-- [ ] Start all services: `npm run dev`
+- [ ] Start all services: `pnpm dev`
 - [ ] Login to Dashboard UI
 - [ ] Create a new form
 - [ ] Submit a form via Test Lab
 - [ ] Verify webhooks fire
 - [ ] Test authentication endpoints
 - [ ] Test admin endpoints
-- [ ] Run seed script: `npm run seed`
+- [ ] Run seed script: `pnpm seed`
 - [ ] Test with seeded data
 
 ### 3. Check for Deprecation Warnings
 
 ```bash
 # Start services and watch for warnings
-npm run dashboard-api  # Watch console for deprecations
-npm run collector-api  # Watch console for deprecations
+pnpm dashboard-api  # Watch console for deprecations
+pnpm collector-api  # Watch console for deprecations
 ```
 
 ## Known Issues & Solutions
@@ -179,7 +179,7 @@ npm run collector-api  # Watch console for deprecations
 npx jest --clearCache
 
 # Re-run tests
-npm run test
+pnpm test
 ```
 
 ## Rollback Plan
@@ -230,7 +230,7 @@ Updated packages include security fixes:
 
 1. ✅ **Packages Updated** - All package.json files updated
 2. ⏳ **Dependencies Installing** - `npm install` in progress
-3. 🔄 **Run Tests** - Execute `npm run test` after install completes
+3. 🔄 **Run Tests** - Execute `pnpm test` after install completes
 4. 🧪 **Manual Testing** - Use Test Lab to verify functionality
 5. 📝 **Monitor** - Watch for any runtime warnings or errors
 

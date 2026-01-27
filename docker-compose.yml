@@ -36,8 +36,8 @@ services:
   # ---------------------------------------------------------------------------
   dashboard-api:
     build:
-      context: ./apps/dashboard-api
-      dockerfile: dockerfile
+      context: .
+      dockerfile: apps/dashboard-api/Dockerfile
     container_name: formflow-dashboard-api
     restart: unless-stopped
     depends_on:
@@ -52,17 +52,8 @@ services:
       DB_USER: ${DB_USER:-formflow}
       DB_PASSWORD: ${DB_PASSWORD:?Database password required}
       JWT_SECRET: ${JWT_SECRET:?JWT secret required}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Encryption key required}
-      GMAIL_CLIENT: ${GMAIL_CLIENT}
-      GMAIL_SECRET: ${GMAIL_SECRET}
-      GMAIL_EMAIL: ${GMAIL_EMAIL}
-      GMAIL_REFRESH: ${GMAIL_REFRESH}
-      GMAIL_ACCESS: ${GMAIL_ACCESS}
-      STRIPE_TEST_KEY: ${STRIPE_TEST_KEY}
-      STRIPE_WHSEC: ${STRIPE_WHSEC}
+
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       REDIRECT_URL: ${REDIRECT_URL:-https://formflow.fyi}
     ports:
       - "${DASHBOARD_API_PORT:-4000}:4000"
@@ -86,8 +77,8 @@ services:
   # ---------------------------------------------------------------------------
   collector-api:
     build:
-      context: ./apps/collector-api
-      dockerfile: dockerfile
+      context: .
+      dockerfile: apps/collector-api/Dockerfile
     container_name: formflow-collector-api
     restart: unless-stopped
     depends_on:
@@ -101,19 +92,11 @@ services:
       DB_NAME: ${DB_NAME:-formflow}
       DB_USER: ${DB_USER:-formflow}
       DB_PASSWORD: ${DB_PASSWORD:?Database password required}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Encryption key required}
+
       CSRF_SECRET: ${CSRF_SECRET}
       CSRF_TTL_MINUTES: ${CSRF_TTL_MINUTES:-15}
-      GMAIL_CLIENT: ${GMAIL_CLIENT}
-      GMAIL_SECRET: ${GMAIL_SECRET}
-      GMAIL_EMAIL: ${GMAIL_EMAIL}
-      GMAIL_REFRESH: ${GMAIL_REFRESH}
-      GMAIL_ACCESS: ${GMAIL_ACCESS}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       DASHBOARD_API_URL: ${DASHBOARD_API_URL:-http://dashboard-api:4000}
-      HMAC: ${HMAC}
     ports:
       - "${COLLECTOR_API_PORT:-3000}:3000"
     healthcheck:

@@ -48,8 +48,7 @@
           "DB_USER": "formflow",
           "DB_PASSWORD": "formflow_dev_password",
           "DB_NAME": "formflow",
-          "JWT_SECRET": "dev_jwt_secret_not_for_production",
-          "ENCRYPTION_KEY": "dev_encryption_key_not_for_production"
+          "JWT_SECRET": "dev_jwt_secret_not_for_production"
         }
       }
     },
@@ -66,7 +65,7 @@
         "{workspaceRoot}/coverage/{projectRoot}"
       ],
       "options": {
-        "jestConfig": "apps/dashboard-api/jest.config.ts",
+        "jestConfig": "apps/dashboard-api/jest.config.js",
         "passWithNoTests": true
       },
       "configurations": {

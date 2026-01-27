@@ -8,9 +8,9 @@ interface WebhookRequest {
     id: string;
     timestamp: string;
     method: string;
-    headers: any;
-    body: any;
-    query: any;
+    headers: Record<string, string>;
+    body: Record<string, unknown>;
+    query: Record<string, string>;
 }
 
 export function WebhookTester() {
@@ -28,8 +28,8 @@ export function WebhookTester() {
             const response = await axios.get(apiPath);
             setWebhooks(response.data);
             setError(null);
-        } catch (err: any) {
-            setError(err?.message || 'Failed to fetch webhooks');
+        } catch (err) {
+            setError((err as Error)?.message || 'Failed to fetch webhooks');
             console.error('Failed to fetch webhooks:', err);
         }
     }, [apiPath]);
@@ -45,11 +45,12 @@ export function WebhookTester() {
     };
 
     useEffect(() => {
-        fetchWebhooks();
-    }, [fetchWebhooks]);
+        void fetchWebhooks();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
-        let interval: any;
+        let interval: ReturnType<typeof setInterval> | undefined;
         if (autoRefresh) {
             interval = setInterval(fetchWebhooks, 3000);
         }

@@ -199,11 +199,18 @@ const errorFileTransport = new DailyRotateFile({
   zippedArchive: true,
 });
 
+// Custom transport for tests to bypass Jest's console interception
+const testTransport = new winston.transports.Stream({
+  stream: process.stdout,
+  format: consoleFormat,
+  level: LOG_LEVEL,
+});
+
 // Create logger instance
 const logger = winston.createLogger({
   level: LOG_LEVEL,
   transports: [
-    consoleTransport,
+    ...(NODE_ENV === 'test' ? [testTransport] : [consoleTransport]),
     fileTransport,
     errorFileTransport,
   ],

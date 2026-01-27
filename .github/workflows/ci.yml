@@ -127,6 +127,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build dashboard-ui image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/dashboard-ui/Dockerfile
+          push: false
+          tags: formflow-dashboard-ui:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   # ---------------------------------------------------------------------------
   # Nx Affected (for PRs)
   # ---------------------------------------------------------------------------

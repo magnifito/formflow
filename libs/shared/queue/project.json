@@ -4,7 +4,8 @@
     "sourceRoot": "libs/shared/queue/src",
     "projectType": "library",
     "tags": [
-        "scope:shared"
+        "scope:shared",
+        "type:lib"
     ],
     "targets": {
         "build": {

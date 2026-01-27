@@ -398,23 +398,25 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
             source: "FormFlow Integration Tester"
         };
 
+        const config = integration.config as any;
+
         try {
             switch (integration.type) {
                 case IntegrationType.EMAIL_SMTP: {
-                    const recipients = parseRecipients(integration.config.recipients);
+                    const recipients = parseRecipients(config.recipients);
                     if (!recipients.length) throw new Error('No recipients configured');
-                    if (!integration.config.smtp && !integration.config.oauth) {
+                    if (!config.smtp && !config.oauth) {
                         throw new Error('Email integration missing SMTP or OAuth configuration');
                     }
 
-                    const transporter = integration.config.smtp
+                    const transporter = config.smtp
                         ? nodemailer.createTransport({
-                            host: integration.config.smtp.host,
-                            port: integration.config.smtp.port,
-                            secure: integration.config.smtp.secure ?? (integration.config.smtp.port === 465),
+                            host: config.smtp.host,
+                            port: config.smtp.port,
+                            secure: config.smtp.secure ?? (config.smtp.port === 465),
                             auth: {
-                                user: integration.config.smtp.username,
-                                pass: integration.config.smtp.password,
+                                user: config.smtp.username,
+                                pass: config.smtp.password,
                             },
                             tls: {
                                 rejectUnauthorized: false
@@ -424,7 +426,7 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
                             connectionTimeout: 10000,
                             greetingTimeout: 10000,
                             socketTimeout: 10000,
-                            ignoreTLS: integration.config.smtp.host === '127.0.0.1' || integration.config.smtp.host === 'localhost' || integration.config.smtp.port === 1025,
+                            ignoreTLS: config.smtp.host === '127.0.0.1' || config.smtp.host === 'localhost' || config.smtp.port === 1025,
                         })
                         : nodemailer.createTransport({
                             host: 'smtp.gmail.com',
@@ -432,26 +434,26 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
                             secure: true,
                             auth: {
                                 type: 'OAuth2',
-                                clientId: integration.config.oauth?.clientId,
-                                clientSecret: integration.config.oauth?.clientSecret,
+                                clientId: config.oauth?.clientId,
+                                clientSecret: config.oauth?.clientSecret,
                             },
                         });
 
                     await transporter.sendMail({
-                        from: integration.config.fromEmail || '"FormFlow Test" <no-reply@formflow.fyi>',
+                        from: config.fromEmail || '"FormFlow Test" <no-reply@formflow.fyi>',
                         to: recipients,
                         subject: `Test: ${integration.name}`,
                         text: testMessage,
-                        auth: integration.config.smtp ? undefined : {
-                            user: integration.config.oauth?.user,
-                            refreshToken: integration.config.oauth?.refreshToken,
-                            accessToken: integration.config.oauth?.accessToken,
+                        auth: config.smtp ? undefined : {
+                            user: config.oauth?.user,
+                            refreshToken: config.oauth?.refreshToken,
+                            accessToken: config.oauth?.accessToken,
                         },
                     });
                     break;
                 }
                 case IntegrationType.TELEGRAM: {
-                    const chatId = integration.config.chatId;
+                    const chatId = config.chatId;
                     if (!chatId) throw new Error('No Chat ID configured');
                     const tgResult = await getTelegramService().sendMessage({
                         chatId: Number(chatId),
@@ -461,13 +463,13 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
                     break;
                 }
                 case IntegrationType.DISCORD: {
-                    const webhookUrl = integration.config.webhookUrl;
+                    const webhookUrl = config.webhookUrl;
                     if (!webhookUrl) throw new Error('No Webhook URL configured');
                     await axios.post(webhookUrl, { content: `**${testMessage}**` });
                     break;
                 }
                 case IntegrationType.SLACK: {
-                    const { accessToken, channelId } = integration.config;
+                    const { accessToken, channelId } = config;
                     if (!accessToken || !channelId) throw new Error('Slack config missing');
                     await axios.post('https://slack.com/api/chat.postMessage', {
                         channel: channelId,
@@ -481,7 +483,7 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
                     break;
                 }
                 case IntegrationType.WEBHOOK: {
-                    const url = integration.config.webhook;
+                    const url = config.webhook;
                     if (!url) throw new Error('No Webhook URL configured');
                     await axios.post(url, testData);
                     break;

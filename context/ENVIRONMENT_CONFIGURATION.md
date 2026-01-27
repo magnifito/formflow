@@ -38,40 +38,34 @@ This allows you to have environment-specific overrides while keeping common vari
 
 ### Development Setup
 
-1. **Copy the development template**:
+1. Copy the development template:
    ```bash
    cp .env.development.example .env.development
    ```
-
-2. **Update values** (optional for local dev):
+2. (Optional) adjust values if you need non-default ports/db.
+3. Start services:
    ```bash
-   # Most defaults work out of the box for local development
-   # Only change if you need custom ports or database settings
-   ```
-
-3. **Start services**:
-   ```bash
-   npm run dev
+   pnpm dev
    ```
 
 ### Production Setup
 
-1. **Copy the production template**:
+1. Copy the production template:
    ```bash
    cp .env.production.example .env.production
    ```
 
-2. **Update all values** (required):
+2. Update all values (required):
    ```bash
    # Edit .env.production and replace ALL placeholder values:
    # - Database credentials
    # - JWT secret (32+ characters)
-   # - Encryption key (32+ characters)
+
    # - Domain URLs
    # - API keys for integrations
    ```
 
-3. **Deploy**:
+3. Deploy:
    ```bash
    docker-compose up -d
    ```
@@ -92,7 +86,7 @@ This allows you to have environment-specific overrides while keeping common vari
 | `DB_USER` | formflow | formflow | Database user |
 | `DB_PASSWORD` | formflow_dev_password | **CHANGE ME** | Database password |
 | `JWT_SECRET` | dev_jwt_secret | **CHANGE ME** | JWT signing secret (32+ chars) |
-| `ENCRYPTION_KEY` | dev_encryption_key | **CHANGE ME** | Data encryption key (32+ chars) |
+
 
 ### Application URLs
 
@@ -108,7 +102,7 @@ This allows you to have environment-specific overrides while keeping common vari
 |----------|---------------------|------------|-------------|
 | `CSRF_SECRET` | dev_csrf_secret | **CHANGE ME** | CSRF token secret |
 | `CSRF_TTL_MINUTES` | 15 | 15 | CSRF token lifetime |
-| `HMAC` | dev_hmac_secret | **CHANGE ME** | CAPTCHA HMAC secret |
+
 
 ### Initial Admin Account
 
@@ -118,49 +112,41 @@ This allows you to have environment-specific overrides while keeping common vari
 | `SUPER_ADMIN_PASSWORD` | password123 | Super admin password |
 | `SUPER_ADMIN_NAME` | System Administrator | Super admin display name |
 
-**Usage**: Run `npm run migrate:create-super-admin` to create the initial admin account.
+**Usage**: Run `pnpm migrate:create-super-admin` to create the initial admin account.
 
 ### Integrations (Optional)
 
 | Variable | Description |
 |----------|-------------|
-| `GMAIL_CLIENT` | Gmail OAuth2 client ID |
-| `GMAIL_SECRET` | Gmail OAuth2 client secret |
-| `GMAIL_EMAIL` | Gmail email address |
-| `GMAIL_REFRESH` | Gmail OAuth2 refresh token |
-| `GMAIL_ACCESS` | Gmail OAuth2 access token |
-| `STRIPE_TEST_KEY` | Stripe API test key |
-| `STRIPE_WHSEC` | Stripe webhook secret |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot API token |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 
 ---
 
 ## Docker Configuration
 
-### Development Docker Compose
+### Development Docker Compose (db + mailpit)
 
 File: `docker-compose.dev.yml`
 
-**Environment handling**:
-- Hardcoded development values in the compose file
-- No `.env` file needed for basic development
-- Hot reload enabled with volume mounts
+- Provides Postgres (exposed on 5433) and Mailpit.
+- Used automatically by `pnpm dev` (`docker-compose -f docker-compose.dev.yml up -d --wait`).
+- Does not run the apps; Nx runs them on the host for hot reload.
+
+**Start just the services** (if you want manually):
+```bash
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+### Stage / Full dev stack
+
+File: `docker-compose.stage.yml`
+
+- Runs Postgres, Mailpit, dashboard-api, collector-api, and dashboard-ui in containers with hot reload mounts.
+- Good for an all-in-one local stack without running Nx on the host.
 
 **Start**:
 ```bash
-docker-compose -f docker-compose.dev.yml up
-```
-
-**Configuration**:
-```yaml
-environment:
-  NODE_ENV: development
-  DB_HOST: postgres
-  DB_PASSWORD: formflow_dev_password  # Hardcoded dev value
-  JWT_SECRET: dev_jwt_secret_not_for_production
-  # ... other dev defaults
+docker-compose -f docker-compose.stage.yml up --build
 ```
 
 ### Production Docker Compose
@@ -184,7 +170,7 @@ environment:
   NODE_ENV: production
   DB_PASSWORD: ${DB_PASSWORD:?Database password required}  # Must be set
   JWT_SECRET: ${JWT_SECRET:?JWT secret required}            # Must be set
-  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Encryption key required} # Must be set
+
   DB_USER: ${DB_USER:-formflow}                             # Default: formflow
   # ... other variables
 ```
@@ -278,7 +264,7 @@ const dbPort = getEnv('DB_PORT') || '5432'; // with default
 1. **Never commit real secrets**: All `.env`, `.env.development`, `.env.production` files are git-ignored
 2. **Use strong secrets in production**:
    - JWT_SECRET: 32+ random characters
-   - ENCRYPTION_KEY: 32+ random characters
+
    - DB_PASSWORD: Strong password
 3. **Rotate secrets periodically**: Especially for production
 4. **Use different secrets per environment**: Don't reuse development secrets in production
@@ -306,7 +292,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 1. **Always set required variables**: Check the production template for all required fields
 2. **Use environment-specific URLs**: Update all `*_URL` variables to production domains
 3. **Enable security features**: Set `CSRF_SECRET` and other security variables
-4. **Test before deploying**: Run `npm run test` with production env settings
+4. **Test before deploying**: Run `pnpm test` with production env settings
 
 ### Docker
 
@@ -325,7 +311,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 1. DB_HOST is correct (localhost for local, postgres for Docker)
 2. DB_PORT matches PostgreSQL port (5433 for local dev, 5432 for Docker)
 3. DB_PASSWORD matches PostgreSQL password
-4. Database is running: `docker ps` or `npm run db:up`
+4. Database is running: `docker ps` or `pnpm db:up`
 
 ### Issue: "JWT token invalid"
 
@@ -334,19 +320,14 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 2. Token hasn't expired
 3. Same JWT_SECRET used in both dashboard-api and collector-api
 
-### Issue: "Encryption key error"
 
-**Check**:
-1. ENCRYPTION_KEY is set
-2. ENCRYPTION_KEY is at least 32 characters
-3. Same key used across all services
 
 ### Issue: "Docker Compose fails to start"
 
 **Check**:
 1. Required variables are set in `.env`:
    ```bash
-   cat .env | grep -E "DB_PASSWORD|JWT_SECRET|ENCRYPTION_KEY"
+   cat .env | grep -E "DB_PASSWORD|JWT_SECRET"
    ```
 2. No syntax errors in `.env` file
 3. Docker Compose version is up to date: `docker-compose --version`
@@ -361,7 +342,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 2. Correct `.env.{NODE_ENV}` file exists
 3. Clear any cached environment variables:
    ```bash
-   unset $(env | grep -E '^(DB_|JWT_|ENCRYPTION)' | cut -d= -f1)
+   unset $(env | grep -E '^(DB_|JWT_)' | cut -d= -f1)
    ```
 
 ---
@@ -416,7 +397,7 @@ LOG_LEVEL=info
 DB_PORT=5432
 # Strong production secrets
 JWT_SECRET=<64-char-random-string>
-ENCRYPTION_KEY=<64-char-random-string>
+
 ```
 
 ### Testing (.env.test)

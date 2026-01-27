@@ -24,8 +24,9 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         try {
             const response = await api.auth.login(email, password);
             onLoginSuccess(response.token, response.userId);
-        } catch (err: any) {
-            setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+        } catch (err) {
+            const e = err as { response?: { data?: { error?: string } } };
+            setError(e.response?.data?.error || 'Login failed. Please check your credentials.');
         } finally {
             setLoading(false);
         }

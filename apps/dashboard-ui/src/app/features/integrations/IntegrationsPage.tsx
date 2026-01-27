@@ -65,7 +65,14 @@ export function IntegrationsPage() {
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [targetScope, setTargetScope] = useState<Scope>('organization');
     const [targetFormId, setTargetFormId] = useState<number | null>(null);
-    const [selectedNodeData, setSelectedNodeData] = useState<any | null>(null);
+    const [selectedNodeData, setSelectedNodeData] = useState<{
+        scope?: 'organization' | 'form';
+        formId?: number;
+        integrationId?: number;
+        metaType?: string;
+        isPlaceholder?: boolean;
+        isInherited?: boolean;
+    } | null>(null);
 
     // Helper to find full integration object from ID
     const findIntegration = (id?: number) => {
@@ -76,7 +83,7 @@ export function IntegrationsPage() {
 
         // Search in forms
         for (const form of formNodes) {
-            const formInt = form.integrations?.find((i: any) => i.id === id);
+            const formInt = form.integrations?.find((i) => i.id === id);
             if (formInt) return formInt as Integration;
         }
         return null;
@@ -121,7 +128,7 @@ export function IntegrationsPage() {
         }
     };
 
-    const handleNodeClick = (data: any) => {
+    const handleNodeClick = (data: typeof selectedNodeData) => {
         setSelectedNodeData(data);
     };
 

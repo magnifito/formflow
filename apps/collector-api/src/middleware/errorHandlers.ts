@@ -24,7 +24,7 @@ export function setupGlobalErrorHandlers() {
   });
 
   // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  process.on('unhandledRejection', (reason: unknown) => {
     logger.error(LogMessages.systemUnhandledRejection, {
       operation: LogOperation.SYSTEM_ERROR,
       outcome: LogOutcome.FAILURE,

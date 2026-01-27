@@ -1,0 +1,145 @@
+# =============================================================================
+# FormFlow Development Docker Compose
+# =============================================================================
+# Usage:
+#   docker-compose -f docker-compose.dev.yml up      # Start dev environment
+#   docker-compose -f docker-compose.dev.yml down    # Stop dev environment
+#
+# Or use the Makefile shortcuts:
+#   make dev                                          # Start dev environment
+#   make dev-down                                     # Stop dev environment
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database (Development)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: formflow-db-dev
+    environment:
+      POSTGRES_USER: formflow
+      POSTGRES_PASSWORD: formflow_dev_password
+      POSTGRES_DB: formflow
+    ports:
+      - "5433:5432" # External 5433 to avoid conflicts
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U formflow -d formflow" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - formflow-dev-network
+
+  # ---------------------------------------------------------------------------
+  # FormFlow Dashboard API (Development with hot reload)
+  # ---------------------------------------------------------------------------
+  dashboard-api:
+    build:
+      context: .
+      dockerfile: apps/dashboard-api/Dockerfile
+    container_name: formflow-dashboard-api-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DASHBOARD_API_PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: formflow
+      DB_USER: formflow
+      DB_PASSWORD: formflow_dev_password
+      JWT_SECRET: dev_jwt_secret_not_for_production
+
+      REDIRECT_URL: http://localhost:4200
+    ports:
+      - "${DASHBOARD_API_PORT:-4000}:4000"
+    volumes:
+      # Mount source code for hot reload
+      - ./apps/dashboard-api/src:/app/apps/dashboard-api/src:ro
+      - ./apps/dashboard-api/package.json:/app/apps/dashboard-api/package.json:ro
+    networks:
+      - formflow-dev-network
+    # Override command for development with watch mode (using node native watch + ts-node + tsconfig-paths)
+    command: [ "node", "--watch", "-r", "ts-node/register", "-r", "tsconfig-paths/register", "src/index.ts" ]
+
+  # ---------------------------------------------------------------------------
+  # FormFlow Collector API (Development with hot reload)
+  # ---------------------------------------------------------------------------
+  collector-api:
+    build:
+      context: .
+      dockerfile: apps/collector-api/Dockerfile
+    container_name: formflow-collector-api-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      COLLECTOR_API_PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: formflow
+      DB_USER: formflow
+      DB_PASSWORD: formflow_dev_password
+
+      CSRF_SECRET: dev_csrf_secret_not_for_production
+      CSRF_TTL_MINUTES: 15
+      DASHBOARD_API_URL: http://dashboard-api:4000
+    ports:
+      - "${COLLECTOR_API_PORT:-3000}:3000"
+    volumes:
+      # Mount source code for hot reload
+      - ./apps/collector-api/src:/app/apps/collector-api/src:ro
+      - ./apps/collector-api/package.json:/app/apps/collector-api/package.json:ro
+    networks:
+      - formflow-dev-network
+    # Override command for development with watch mode (using node native watch + ts-node + tsconfig-paths)
+    command: [ "node", "--watch", "-r", "ts-node/register", "-r", "tsconfig-paths/register", "src/index.ts" ]
+
+  # ---------------------------------------------------------------------------
+  # FormFlow Test Lab (Development with hot reload)
+  # ---------------------------------------------------------------------------
+  test-lab:
+    build:
+      context: .
+      dockerfile: apps/test-lab/Dockerfile
+    container_name: formflow-test-lab-dev
+    environment:
+      NODE_ENV: development
+      PORT: 4200
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./apps/test-lab:/app/apps/test-lab
+    networks:
+      - formflow-dev-network
+    command: [ "npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "4200" ]
+
+  # ---------------------------------------------------------------------------
+  # Mailpit (Email Testing) - ARM64 compatible alternative to Mailhog
+  # ---------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: formflow-mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - formflow-dev-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  formflow-dev-network:
+    driver: bridge

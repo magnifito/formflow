@@ -14,7 +14,7 @@ const stateFilters = [
 
 export function QueuePage() {
     const { fetchStats, fetchJobs, retryJob, loading, error } = useQueue();
-    const [stats, setStats] = useState<Record<string, any> | null>(null);
+    const [stats, setStats] = useState<Record<string, { active: number; completed: number; failed: number; retry: number }> | null>(null);
     const [jobs, setJobs] = useState<Job[]>([]);
     const [selectedQueue, setSelectedQueue] = useState<string>('');
     const [selectedState, setSelectedState] = useState<string>('');

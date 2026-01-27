@@ -64,16 +64,7 @@ export function generateTestCsrfToken(): string {
   return `${timestamp}.${hmac.digest('hex')}`;
 }
 
-/**
- * Solve CAPTCHA challenge (mocked for tests)
- */
-export function solveTestCaptcha(challenge: string): string {
-  // In tests, we'll mock this or use a simple solution
-  const crypto = require('crypto');
-  const hmac = crypto.createHmac('sha256', process.env.HMAC || 'test-hmac');
-  hmac.update(challenge);
-  return hmac.digest('hex');
-}
+
 
 /**
  * Create test form data

@@ -22,7 +22,7 @@ const BCRYPT_ROUNDS = 10;
 async function manageSuperAdmin() {
     const emailArg = process.argv[2];
     let targetEmail = emailArg;
-    let isAutomated = !emailArg;
+    const isAutomated = !emailArg;
 
     if (isAutomated) {
         targetEmail = getEnv("SUPER_ADMIN_EMAIL") || "";

@@ -52,19 +52,19 @@ export const api = {
             const { data } = await dashboardApi.get<User>('/auth/me');
             return data;
         },
-        setup: async (payload: any) => {
+        setup: async (payload: Record<string, unknown>) => {
             const { data } = await dashboardApi.post<LoginResponse>('/setup', payload);
             return data;
         }
     },
     org: {
         getFormsWithOrgs: async () => {
-            const { data } = await dashboardApi.get<{ organization: any; forms: Form[] }[]>('/org/forms/all');
+            const { data } = await dashboardApi.get<{ organization: { id: number; name: string; slug: string }; forms: Form[] }[]>('/org/forms/all');
             return data;
         }
     },
     collector: {
-        getCsrfToken: async (submitHash: string, origin: string) => {
+        getCsrfToken: async (submitHash: string) => {
             // CSRF endpoint requires Origin/Referer to match whitelist
             const { data } = await collectorApi.get<{ token: string; expiresInSeconds: number }>(
                 `/s/${submitHash}/csrf`
@@ -73,7 +73,7 @@ export const api = {
         },
         submit: async (
             submitHash: string,
-            payload: any,
+            payload: Record<string, unknown>,
             options: {
                 csrfToken?: string;
                 format?: 'json' | 'multipart';

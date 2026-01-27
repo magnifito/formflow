@@ -1,7 +1,7 @@
-import type { Config } from '@jest/types';
-
-const config: Config.InitialOptions = {
-  displayName: 'collector-api',
+/* eslint-disable */
+/** @type {import('@jest/types').Config.InitialOptions} */
+module.exports = {
+  displayName: 'dashboard-api',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   maxWorkers: 1, // Run tests sequentially to avoid database conflicts
@@ -11,12 +11,16 @@ const config: Config.InitialOptions = {
     }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: '../../coverage/apps/collector-api',
+  coverageDirectory: '../../coverage/apps/dashboard-api',
+  coverageProvider: 'v8',
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.spec.ts',
     '!src/**/*.test.ts',
     '!src/**/index.ts',
+    '!src/scripts/**/*',
+    '!src/migrations/**/*',
+    '!src/data-source.ts',
   ],
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.[jt]s?(x)',
@@ -31,7 +35,7 @@ const config: Config.InitialOptions = {
     '^@formflow/shared/data-source$': '<rootDir>/../../libs/shared/data-source/src/index.ts',
     '^@formflow/shared/encryption$': '<rootDir>/../../libs/shared/encryption/src/index.ts',
     '^@formflow/shared/logger$': '<rootDir>/../../libs/shared/logger/src/index.ts',
+    '^pg-boss$': '<rootDir>/test/mocks/pg-boss.mock.ts',
+    '^uuid$': '<rootDir>/test/mocks/uuid.mock.ts',
   },
 };
-
-export default config;

@@ -32,8 +32,8 @@ generate_secret() {
 }
 
 JWT_SECRET=$(generate_secret)
-ENCRYPTION_KEY=$(generate_secret)
-HMAC_SECRET=$(generate_secret)
+
+
 
 # Create .env.development file with development defaults
 cat > "$ENV_FILE" << EOF
@@ -80,33 +80,14 @@ DB_PASSWORD=formflow_dev_password
 # Security (auto-generated - safe for development only)
 # -----------------------------------------------------------------------------
 JWT_SECRET=${JWT_SECRET}
-ENCRYPTION_KEY=${ENCRYPTION_KEY}
 
-# -----------------------------------------------------------------------------
-# Gmail OAuth2 (optional - for sending emails)
-# -----------------------------------------------------------------------------
-# GMAIL_CLIENT=
-# GMAIL_SECRET=
-# GMAIL_EMAIL=
-# GMAIL_REFRESH=
-# GMAIL_ACCESS=
-
-# -----------------------------------------------------------------------------
-# Stripe (optional - for payments)
-# -----------------------------------------------------------------------------
-# STRIPE_TEST_KEY=
-# STRIPE_WHSEC=
 
 # -----------------------------------------------------------------------------
 # Telegram (optional)
 # -----------------------------------------------------------------------------
 # TELEGRAM_BOT_TOKEN=
 
-# -----------------------------------------------------------------------------
-# Google OAuth (optional - for custom return emails)
-# -----------------------------------------------------------------------------
-# GOOGLE_CLIENT_ID=
-# GOOGLE_CLIENT_SECRET=
+
 
 # =============================================================================
 # Handler Service Configuration
@@ -116,7 +97,7 @@ ENCRYPTION_KEY=${ENCRYPTION_KEY}
 ORIGIN=*
 
 # CAPTCHA (auto-generated)
-HMAC=${HMAC_SECRET}
+
 
 # Email (enabled by default in dev - use Mailpit at localhost:8025)
 EMAIL_PROVIDER=localhost
@@ -125,7 +106,7 @@ SMTP_PORT=1026
 EMAIL_USER=test@localhost
 EMAIL_PASSWORD=
 EMAIL_TO=test@localhost
-GMAIL_TRUE=False
+
 
 # Webhook (optional)
 # WEBHOOK_URL=

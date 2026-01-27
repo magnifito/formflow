@@ -34,26 +34,20 @@ const requiredVars = [
   'DB_USER',
   'DB_PASSWORD',
   'JWT_SECRET',
-  'ENCRYPTION_KEY',
-  'HMAC',
+
+
   'EMAIL_USER',
 ];
 
 const optionalVars = [
   'CSRF_SECRET',
   'CSRF_TTL_MINUTES',
-  'QUEUE_ENABLED',
+
   'SUPER_ADMIN_EMAIL',
   'SUPER_ADMIN_PASSWORD',
   'SUPER_ADMIN_NAME',
   'LOG_LEVEL',
-  'GITHUB_CLIENT_ID',
-  'GITHUB_CLIENT_SECRET',
   'TELEGRAM_BOT_TOKEN',
-  'SLACK_BOT_TOKEN',
-  'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET',
-  'EMAIL_PROVIDER',
 ];
 
 type EnvTarget = {

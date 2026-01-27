@@ -1,10 +1,20 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import type { IncomingMessage, ServerResponse } from 'http'
+
+interface WebhookEntry {
+  id: string;
+  timestamp: string;
+  method: string;
+  headers: Record<string, string | string[] | undefined>;
+  body: unknown;
+  query: unknown;
+}
 
 // Minimal in-memory webhook sink so the Lab runs entirely on the Vite dev/preview server (single port).
 const createWebhookMiddleware = () => {
-  const parseBody = (req: any): Promise<any> => new Promise((resolve, reject) => {
+  const parseBody = (req: IncomingMessage): Promise<unknown> => new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     req.on('data', (chunk: Buffer) => chunks.push(chunk))
     req.on('end', () => {
@@ -30,11 +40,11 @@ const createWebhookMiddleware = () => {
     req.on('error', reject)
   })
 
-  let webhooks: any[] = []
+  let webhooks: WebhookEntry[] = []
   const MAX_WEBHOOKS = 50
 
   return {
-    handle: (req: any, res: any, next: any) => {
+    handle: (req: IncomingMessage & { query?: unknown }, res: ServerResponse, next: () => void) => {
       if (req.method === 'POST' && req.url.startsWith('/webhook')) {
         parseBody(req).then((body) => {
           const entry = {
@@ -54,7 +64,7 @@ const createWebhookMiddleware = () => {
           res.statusCode = 200
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify({ status: 'received', id: entry.id }))
-        }).catch((err) => {
+        }).catch((err: Error) => {
           res.statusCode = 400
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify({ error: 'Invalid webhook payload', message: err?.message }))

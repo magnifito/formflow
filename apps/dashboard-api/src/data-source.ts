@@ -1,15 +1,8 @@
 import "reflect-metadata";
 import path from "path";
 import { DataSource } from "typeorm";
-import {
-  Form,
-  Organization,
-  Submission,
-  User,
-  WhitelistedDomain,
-  Integration,
-} from "../../../libs/shared/entities/src";
-import { loadEnv } from "../../../libs/shared/env/src";
+import { Form, Organization, Submission, User, WhitelistedDomain, Integration } from '@formflow/shared/entities';
+import { loadEnv } from '@formflow/shared/env';
 
 loadEnv();
 

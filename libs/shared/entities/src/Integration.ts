@@ -1,7 +1,16 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from "typeorm"
 import { Organization } from "./Organization"
 import { Form } from "./Form"
-import { IntegrationType } from "@formflow/shared/queue"
+
+// Duplicate here to avoid circular dependency with @formflow/shared/queue
+export enum IntegrationType {
+    WEBHOOK = 'webhook',
+    SLACK = 'slack',
+    TELEGRAM = 'telegram',
+    EMAIL_SMTP = 'email-smtp',
+    EMAIL_API = 'email-api',
+    DISCORD = 'discord',
+}
 
 export enum IntegrationScope {
     ORGANIZATION = 'organization',
@@ -37,7 +46,7 @@ export class Integration {
     name: string
 
     @Column({ type: "jsonb", default: {} })
-    config: any
+    config: Record<string, unknown>
 
     @Column({ default: true })
     isActive: boolean

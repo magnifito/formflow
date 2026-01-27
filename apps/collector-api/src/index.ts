@@ -12,6 +12,7 @@ import { errorHandler } from "./middleware/errorHandler";
 import { setupGlobalErrorHandlers } from "./middleware/errorHandlers";
 import SubmissionController from "./controller/SubmissionController";
 import logger from "@formflow/shared/logger";
+import { startWorker, stopBoss } from "@formflow/shared/queue";
 
 loadEnv();
 
@@ -111,7 +112,7 @@ async function createApp() {
 async function startServer() {
     const app = await createApp();
 
-    const { startWorker, stopBoss } = await import("@formflow/shared/queue");
+    // startWorker and stopBoss imported at top of file
 
     // Start queue worker
     try {

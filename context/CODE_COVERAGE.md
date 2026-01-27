@@ -15,12 +15,12 @@ All test configurations are written in **TypeScript** (`jest.config.ts` files), 
 
 Run coverage for all projects:
 ```bash
-npm run test:coverage
+pnpm test:coverage
 ```
 
 Run coverage in CI mode (fails if coverage thresholds not met):
 ```bash
-npm run test:coverage:ci
+pnpm test:coverage:ci
 ```
 
 ### Individual Projects
@@ -28,28 +28,28 @@ npm run test:coverage:ci
 #### Dashboard UI
 ```bash
 # Coverage with HTML report
-npm run test:dashboard-ui:coverage
+pnpm test:dashboard-ui:coverage
 
 # CI mode (strict thresholds)
-npm run test:dashboard-ui:coverage:ci
+pnpm test:dashboard-ui:coverage:ci
 ```
 
 #### Dashboard API
 ```bash
 # Coverage with HTML report
-npm run test:dashboard-api:coverage
+pnpm test:dashboard-api:coverage
 
 # CI mode (strict thresholds)
-npm run test:dashboard-api:coverage:ci
+pnpm test:dashboard-api:coverage:ci
 ```
 
 #### Collector API
 ```bash
 # Coverage with HTML report
-npm run test:collector-api:coverage
+pnpm test:collector-api:coverage
 
 # CI mode (strict thresholds)
-npm run test:collector-api:coverage:ci
+pnpm test:collector-api:coverage:ci
 ```
 
 ### Using Nx Directly
@@ -133,7 +133,7 @@ The CI pipeline automatically runs coverage tests in CI mode:
 ```yaml
 # .github/workflows/ci.yml
 - name: Run tests with coverage
-  run: npm run test:coverage:ci
+  run: pnpm test:coverage:ci
 ```
 
 ## TypeScript Configuration
@@ -152,7 +152,7 @@ The root `jest.preset.js` remains JavaScript as it's a Jest configuration file t
 
 1. Ensure tests are actually running:
    ```bash
-   npm run test:dashboard-api
+   pnpm test:dashboard-api
    ```
 
 2. Check that coverage directory is writable:
@@ -163,7 +163,7 @@ The root `jest.preset.js` remains JavaScript as it's a Jest configuration file t
 3. Clear cache and retry:
    ```bash
    nx reset
-   npm run test:coverage
+   pnpm test:coverage
    ```
 
 ### Low Coverage
@@ -179,7 +179,7 @@ The root `jest.preset.js` remains JavaScript as it's a Jest configuration file t
 
 ## Best Practices
 
-1. **Run coverage before committing**: `npm run test:coverage`
+1. **Run coverage before committing**: `pnpm test:coverage`
 2. **Check HTML reports** to identify untested code
 3. **Aim for 80%+ coverage** on critical business logic
 4. **Use CI mode** in your CI/CD pipeline to enforce thresholds

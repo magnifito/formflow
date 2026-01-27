@@ -108,21 +108,7 @@ Multiple layers of request validation:
 - Empty message rejection
 - Field-level validation
 
-### 6. Encrypted Fields
 
-Sensitive form fields can be encrypted at rest:
-
-**Implementation:**
-- AES-256-CBC encryption
-- `ENCRYPTION_KEY` environment variable (32 characters)
-- Fields marked as encrypted in form config
-- Decrypted only when needed by authorized users
-
-**Use Cases:**
-- PII (Personal Identifiable Information)
-- Payment information
-- Medical records
-- Confidential data
 
 ### 7. Security Headers
 
@@ -188,10 +174,9 @@ DB_USER=formflow
 DB_PASSWORD=your_secure_password
 
 # Encryption
-ENCRYPTION_KEY=your-32-character-encryption-key
 
-# HMAC for PoW CAPTCHA
-HMAC=your-hmac-secret-key
+
+
 ```
 
 ### Optional (Collector API)
@@ -221,7 +206,7 @@ DB_PASSWORD=your_secure_password
 JWT_SECRET=your-jwt-secret-key
 
 # Encryption
-ENCRYPTION_KEY=your-32-character-encryption-key
+
 
 # Telegram Auth
 TELEGRAM_BOT_TOKEN=your-bot-token
@@ -274,7 +259,7 @@ REDIRECT_URL=http://localhost:4200
 - [x] Domain whitelisting with Referer fallback
 - [x] Request body size limits
 - [x] Content-Type validation
-- [x] Encrypted fields support
+
 - [x] JWT authentication
 - [x] Organization-based authorization
 - [x] Security headers

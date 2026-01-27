@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.nx
+.git
+.env
+.env.*
+.DS_Store
+tmp
+apps/*/node_modules
+apps/*/dist
+apps/*/coverage
+libs/*/node_modules
+libs/*/dist
+libs/*/coverage

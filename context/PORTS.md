@@ -9,7 +9,7 @@ This document defines the port allocation scheme for all FormFlow services.
 | **Dashboard UI** | 4200 | Development | React frontend application |
 | **Dashboard API** | 3000 | Development/Production | Authentication and admin backend |
 | **Collector API** | 3001 | Development/Production | Public form submission endpoint |
-| **Test Lab** | 5177 | Development | Testing and experimentation environment |
+| **Test Lab** | 4200 | Development | Testing and experimentation environment |
 | **PostgreSQL** | 5432 | Docker Internal | Database (internal to Docker network) |
 | **PostgreSQL** | 5433 | Development | Database (exposed for local development) |
 | **Mailpit SMTP** | 1025 | Development | Email testing SMTP server |
@@ -23,8 +23,7 @@ This document defines the port allocation scheme for all FormFlow services.
 
 #### Dashboard UI - Port 4200
 ```bash
-# Default React CLI development server port
-npm run dashboard-ui
+pnpm dashboard-ui   # nx run dashboard-ui:serve
 # Access: http://localhost:4200
 ```
 
@@ -44,8 +43,7 @@ npm run dashboard-ui
 
 #### Dashboard API - Port 3000
 ```bash
-# Main authentication and admin API
-npm run dashboard-api
+pnpm dashboard-api   # nx run dashboard-api:dev
 # Access: http://localhost:3000
 ```
 
@@ -69,8 +67,7 @@ npm run dashboard-api
 
 #### Collector API - Port 3001
 ```bash
-# Public form submission endpoint
-npm run collector-api
+pnpm collector-api   # nx run collector-api:dev
 # Access: http://localhost:3001
 ```
 
@@ -92,11 +89,10 @@ npm run collector-api
 
 ### Development Tools
 
-#### Test Lab - Port 5177
+#### Test Lab - Port 4200
 ```bash
-# Testing and experimentation environment
-npm run test-lab
-# Access: http://localhost:5177
+pnpm test-lab    # nx run test-lab:dev
+# Access: http://localhost:4200
 ```
 
 **Purpose:**
@@ -106,7 +102,7 @@ npm run test-lab
 - Session management testing
 
 **Configuration:**
-- Environment: `PORT=5177`
+- Environment: `PORT=4200`
 - Configured in: `apps/test-lab/project.json`
 
 **When to access:**
@@ -126,7 +122,7 @@ npm run test-lab
 ```
 
 **Configuration:**
-- Used by: `docker-compose.yml`, `docker-compose.dev.yml`
+- Used by: `docker-compose.yml`, `docker-compose.stage.yml`
 - Connection string: `postgresql://formflow:password@postgres:5432/formflow`
 - Environment: `DB_HOST=postgres`, `DB_PORT=5432`
 
@@ -141,7 +137,7 @@ npm run test-lab
 ```
 
 **Configuration:**
-- Used by: `docker-compose.db.yml`
+- Used by: `docker-compose.dev.yml` (db + mailpit) and `docker-compose.stage.yml`
 - Connection: `postgresql://formflow:password@localhost:5433/formflow`
 - Exposed to host machine for database tools
 
@@ -197,21 +193,21 @@ npm run test-lab
 
 ### Local Development (Native)
 ```bash
-npm run dev
+pnpm dev
 ```
 
 **Active Ports:**
 - 4200 - Dashboard UI (React dev server)
 - 3000 - Dashboard API (ts-node-dev with hot reload)
 - 3001 - Collector API (ts-node-dev with hot reload)
-- 5177 - Test Lab (node server)
+- 4200 - Test Lab (node server)
 - 5433 - PostgreSQL (Docker, mapped from 5432)
 - 1025 - Mailpit SMTP (Docker)
 - 8025 - Mailpit UI (Docker)
 
-### Docker Development
+### Docker Dev/Stage (full stack containers)
 ```bash
-npm run docker:dev
+pnpm stage   # uses docker-compose.stage.yml
 ```
 
 **Active Ports:**
@@ -221,11 +217,11 @@ npm run docker:dev
 - 1025 - Mailpit SMTP (Docker)
 - 8025 - Mailpit UI (Docker)
 
-**Note:** Dashboard UI runs separately via `nx serve` when needed.
+**Note:** Dashboard UI runs inside the stage stack; for host-served UI use `pnpm dashboard-ui`.
 
 ### Production (Docker)
 ```bash
-npm run docker:up
+pnpm docker:up
 ```
 
 **Active Ports:**
@@ -258,7 +254,7 @@ npm run docker:up
 **Port 5433:**
 - Rarely conflicts
 - Some PostgreSQL secondary instances
-- Solution: Change Docker port mapping in `docker-compose.db.yml`
+- Solution: Change Docker port mapping in `docker-compose.dev.yml`
 
 ### Checking Port Usage
 
@@ -319,7 +315,7 @@ const PORT = process.env.PORT || 3001;  // Change default or set PORT env var
     "dev": {
       "options": {
         "env": {
-          "PORT": "5177"  // Change here
+          "PORT": "4200"  // Change here
         }
       }
     }
@@ -329,7 +325,7 @@ const PORT = process.env.PORT || 3001;  // Change default or set PORT env var
 
 **PostgreSQL (Development):**
 ```yaml
-# docker-compose.db.yml
+# docker-compose.dev.yml
 services:
   postgres:
     ports:
@@ -342,7 +338,7 @@ services:
 
 ### Development Ports
 
-All development ports (4200, 3000, 3001, 5177, 5433, 8025) should:
+All development ports (4200, 3000, 3001, 4200, 5433, 8025) should:
 - Only bind to `localhost` (not `0.0.0.0`)
 - Never be exposed to the internet
 - Use firewall rules to restrict access
@@ -406,13 +402,13 @@ psql -h localhost -p 5433 -U formflow -d formflow
 
 ```bash
 # Check all ports
-npm run docker:ps
+pnpm docker:ps
 
 # View logs
-npm run docker:logs
+pnpm docker:logs
 
 # Check for port conflicts
-lsof -i :3000 -i :3001 -i :4200 -i :5177 -i :5433
+lsof -i :3000 -i :3001 -i :4200 -i :4200 -i :5433
 ```
 
 ---

@@ -1,0 +1,108 @@
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # Postgres Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-formflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-formflow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-formflow} -d ${DB_NAME:-formflow}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - formflow-network
+
+  # ---------------------------------------------------------------------------
+  # Dashboard API (Admin Backend)
+  # ---------------------------------------------------------------------------
+  dashboard-api:
+    build:
+      context: .
+      dockerfile: apps/dashboard-api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DASHBOARD_API_PORT: 4000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-formflow}
+      DB_USER: ${DB_USER:-formflow}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      REDIRECT_URL: ${REDIRECT_URL:-https://formflow.fyi}
+    networks:
+      - formflow-network
+
+  # ---------------------------------------------------------------------------
+  # Collector API (Public Form Submission Backend)
+  # ---------------------------------------------------------------------------
+  collector-api:
+    build:
+      context: .
+      dockerfile: apps/collector-api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      COLLECTOR_API_PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-formflow}
+      DB_USER: ${DB_USER:-formflow}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      CSRF_SECRET: ${CSRF_SECRET}
+      CSRF_TTL_MINUTES: ${CSRF_TTL_MINUTES:-15}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      DASHBOARD_API_URL: ${DASHBOARD_API_URL:-http://dashboard-api:4000}
+    networks:
+      - formflow-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.collector-api.rule=Host(`${COLLECTOR_API_DOMAIN}`)"
+      - "traefik.http.routers.collector-api.entrypoints=websecure"
+      - "traefik.http.routers.collector-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.collector-api.loadbalancer.server.port=3000"
+
+  # ---------------------------------------------------------------------------
+  # Dashboard UI (Frontend)
+  # ---------------------------------------------------------------------------
+  dashboard-ui:
+    build:
+      context: .
+      dockerfile: apps/dashboard-ui/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - dashboard-api
+    networks:
+      - formflow-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard-ui.rule=Host(`${DASHBOARD_UI_DOMAIN}`)"
+      - "traefik.http.routers.dashboard-ui.entrypoints=websecure"
+      - "traefik.http.routers.dashboard-ui.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dashboard-ui.loadbalancer.server.port=80"
+
+volumes:
+  postgres_data:
+
+
+networks:
+  formflow-network:
+    driver: bridge

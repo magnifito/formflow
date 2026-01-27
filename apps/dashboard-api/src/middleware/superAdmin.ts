@@ -30,11 +30,12 @@ export const verifySuperAdmin = async (req: AuthRequest, res: Response, next: Ne
         }
 
         // Attach full user to request for convenience
-        (req as any).adminUser = user;
+        (req as AuthRequest & { adminUser?: User }).adminUser = user;
         logger.debug('Super admin verification successful', { userId: user.id, correlationId: req.correlationId });
         next();
-    } catch (error: any) {
-        logger.error('Super Admin verification error', { error: error.message, stack: error.stack, userId: req.user?.userId, correlationId: req.correlationId });
+    } catch (error) {
+        const err = error as Error;
+        logger.error('Super Admin verification error', { error: err.message, stack: err.stack, userId: req.user?.userId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Internal server error' });
     }
 };

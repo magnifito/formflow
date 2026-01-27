@@ -33,7 +33,7 @@ SUPER_ADMIN_NAME=System Administrator
 Execute the migration script to create the initial super admin:
 
 ```bash
-npm run migrate:create-super-admin
+pnpm migrate:create-super-admin
 ```
 
 You should see output like:
@@ -146,7 +146,7 @@ If you lose access to your super admin account:
 **Option 2: Re-run Migration**
 1. Update `SUPER_ADMIN_EMAIL` to an existing user's email
 2. Update `SUPER_ADMIN_PASSWORD` to a new password
-3. Run `npm run migrate:create-super-admin`
+3. Run `pnpm migrate:create-super-admin`
 4. The script will promote the existing user to super admin
 
 ## User Management Workflow

@@ -42,11 +42,11 @@ git clone https://github.com/magnifito/FormFlow.git
 cd FormFlow
 
 # Install it
-npm install
+pnpm install
 
-# Start it
-npm run db:up
-npm run dev
+# Start it (db + all services locally)
+pnpm db:up     # brings up postgres + mailpit via docker-compose.dev.yml
+pnpm dev       # runs dashboard-api, collector-api, dashboard-ui, test-lab
 ```
 
 Go to `localhost:4200`. You're done.
@@ -55,10 +55,7 @@ Go to `localhost:4200`. You're done.
 
 ```bash
 # Guided setup (creates .env.development interactively)
-npm run setup:env
-
-# Quick copy (uses defaults if no env file exists)
-npm run setup:env:copy
+pnpm setup:env
 ```
 
 ### What You Get
@@ -66,7 +63,7 @@ npm run setup:env:copy
 - **Dashboard UI** (localhost:4200) - Manage forms and integrations
 - **Dashboard API** (localhost:3000) - Backend for dashboard
 - **Collector API** (localhost:3001) - Public submission endpoint
-- **Test Lab** (localhost:5177) - Test your forms
+- **Test Lab** (localhost:4200) - Test your forms
 
 ### First Time Setup
 
@@ -79,7 +76,7 @@ SUPER_ADMIN_PASSWORD=your-password
 SUPER_ADMIN_NAME=Your Name
 
 # Create admin
-npm run migrate:create-super-admin
+pnpm migrate:create-super-admin
 ```
 
 Login at `localhost:4200/login`. Create a form. Done.
@@ -90,22 +87,22 @@ Want to see everything working end-to-end with sample data?
 
 ```bash
 # 1. Start services
-npm run db:up
-npm run collector-api  # Terminal 1
-npm run dashboard-api  # Terminal 2
-npm run test-lab:webhooks  # Terminal 3
+pnpm db:up
+pnpm collector-api          # Terminal 1
+pnpm dashboard-api          # Terminal 2
+pnpm --filter test-lab dev  # Terminal 3 (UI + webhook sink on 5177)
 
 # 2. Seed sample data (creates 3 orgs, forms, integrations)
-npm run seed
+pnpm seed
 
 # 3. Open Test Lab UI
-# Visit http://localhost:5177
+# Visit http://localhost:4200
 # Login: admin@acme-corp.dev / password123
 # Click "Refresh Data", select a form, fill, submit
-# Watch webhook deliveries in Terminal 3
+# Webhooks visible in the Lab UI (/api/webhooks) on the same port
 ```
 
-**📖 [Complete Testing Guide](QUICKSTART_TESTING.md)** - Full walkthrough with screenshots
+**📖 [Complete Testing Guide](context/TESTING.md)** - Full walkthrough with screenshots
 
 This creates:
 - 3 organizations with different integrations
@@ -121,10 +118,13 @@ This creates:
 
 ```bash
 # Build everything
-npm run docker:build
+pnpm docker:build
 
-# Run everything
-docker-compose up -d
+# Run dev db/mailpit only (matches pnpm dev)
+docker-compose -f docker-compose.dev.yml up -d
+
+# Run the full stack stage compose
+pnpm stage          # or: docker-compose -f docker-compose.stage.yml up --build
 ```
 
 ### Railway
