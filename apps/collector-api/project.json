@@ -38,7 +38,7 @@
     "dev": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/index.ts",
+        "command": "npx tsx watch -r tsconfig-paths/register src/index.ts",
         "cwd": "apps/collector-api",
         "env": {
           "NODE_ENV": "development",

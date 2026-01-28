@@ -8,7 +8,7 @@ FormFlow uses Docker for both development and production deployments. All applic
 
 | App | Description | Port | Location |
 |-----|-------------|------|----------|
-| **dashboard-api** | Dashboard and admin API backend with TypeORM/PostgreSQL | 3000 | `apps/dashboard-api/` |
+| **dashboard-api** | Dashboard and admin API backend with Drizzle ORM/PostgreSQL | 3000 | `apps/dashboard-api/` |
 | **collector-api** | Public form submission API backend | 3001 | `apps/collector-api/` |
 | **dashboard-ui** | React frontend (built, served via nginx/CDN) | 4200 dev | `apps/dashboard-ui/` |
 | **test-lab** | Lab UI + webhook sink for manual testing | 4200 dev | `apps/test-lab/` |
@@ -118,7 +118,7 @@ docker build -t formflow-collector-api .
 The main authentication and admin API backend:
 
 ### Features
-- TypeORM/PostgreSQL database
+- Drizzle ORM/PostgreSQL database
 - Telegram OAuth authentication
 - Organization management
 - Form configuration
@@ -129,7 +129,7 @@ The main authentication and admin API backend:
 - Multi-stage build for smaller image
 - Non-root user for security
 - Health check endpoint at `/health`
-- Uses ts-node for TypeScript execution
+- Uses tsx for TypeScript execution
 
 ### Environment Variables
 
@@ -159,7 +159,7 @@ Public form submission service:
 - Multi-stage build
 - Non-root user
 - Health check at `/health`
-- Uses ts-node for TypeScript execution
+- Uses tsx for TypeScript execution
 
 ### Environment Variables
 

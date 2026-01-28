@@ -30,7 +30,7 @@ jest.mock('../src/db', () => ({
     },
 }));
 
-jest.mock('@formflow/shared/drizzle', () => ({
+jest.mock('@formflow/shared/db', () => ({
     users: { id: 'id', email: 'email', isSuperAdmin: 'isSuperAdmin' },
     organizations: { id: 'id', slug: 'slug' },
     forms: {},

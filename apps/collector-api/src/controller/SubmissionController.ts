@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db";
-import { forms, whitelistedDomains, submissions, integrations } from "@formflow/shared/drizzle";
+import { forms, whitelistedDomains, submissions, integrations } from "@formflow/shared/db";
 import { getEnv } from "@formflow/shared/env";
 import crypto from "crypto";
 import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
@@ -524,7 +524,7 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         });
 
         const integrationsToProcess: Array<{ type: IntegrationType, config: any }> = resolvedIntegrations.map(i => ({
-            type: i.type,
+            type: i.type as IntegrationType,
             config: i.config
         }));
 

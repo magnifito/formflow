@@ -1,4 +1,4 @@
-import { createDbClient } from '@formflow/shared/drizzle';
+import { createDbClient } from '@formflow/shared/db';
 import { getEnv } from '@formflow/shared/env';
 
 const user = getEnv('DB_USERNAME') || getEnv('DB_USER');

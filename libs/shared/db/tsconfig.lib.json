@@ -1,11 +1,17 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc",
+    "outDir": "../../../dist/out-tsc/libs/shared/db",
+    "tsBuildInfoFile": "../../../dist/out-tsc/libs/shared/db/tsconfig.lib.tsbuildinfo",
+    "rootDir": "src",
     "declaration": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "exclude": [
     "vite.config.ts",
     "vite.config.mts",

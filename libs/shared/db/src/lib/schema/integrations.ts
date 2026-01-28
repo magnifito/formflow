@@ -13,9 +13,15 @@ export const integrationTypeEnum = pgEnum('integration_type_enum', [
     'discord',
 ]);
 
+// Defines the scope of the integration
+export const IntegrationScope = {
+    ORGANIZATION: 'organization',
+    FORM: 'form',
+} as const;
+
 export const integrationScopeEnum = pgEnum('integration_scope_enum', [
-    'organization',
-    'form',
+    IntegrationScope.ORGANIZATION,
+    IntegrationScope.FORM,
 ]);
 
 export const integrations = pgTable('integration', {
@@ -42,3 +48,8 @@ export const integrationsRelations = relations(integrations, ({ one }) => ({
         references: [forms.id],
     }),
 }));
+
+export type Integration = typeof integrations.$inferSelect;
+export type NewIntegration = typeof integrations.$inferInsert;
+export type IntegrationScope = (typeof IntegrationScope)[keyof typeof IntegrationScope];
+

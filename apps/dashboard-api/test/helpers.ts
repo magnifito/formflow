@@ -1,5 +1,5 @@
 import { db } from '../src/db';
-import { users, organizations, forms } from '@formflow/shared/drizzle';
+import { users, organizations, forms } from '@formflow/shared/db';
 import { eq } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';

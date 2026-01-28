@@ -1,4 +1,4 @@
-import { Integration, IntegrationScope } from "@formflow/shared/entities";
+import { Integration, IntegrationScope } from "@formflow/shared/db";
 import { IntegrationType } from "@formflow/shared/queue";
 
 export type IntegrationLike = Pick<Integration, 'id' | 'organizationId' | 'formId' | 'scope' | 'type' | 'name' | 'config' | 'isActive'>;
@@ -15,10 +15,10 @@ const toRecipientsArray = (value: unknown): string[] => {
 };
 
 export const normalizeIntegrationConfig = (integration: IntegrationLike): IntegrationLike => {
-    const normalizedConfig = { ...(integration.config || {}) };
+    const normalizedConfig = { ...((integration.config as object) || {}) } as Record<string, any>;
 
-    if ([IntegrationType.EMAIL_SMTP, IntegrationType.EMAIL_API].includes(integration.type)) {
-        normalizedConfig.recipients = toRecipientsArray(normalizedConfig.recipients);
+    if (([IntegrationType.EMAIL_SMTP, IntegrationType.EMAIL_API] as string[]).includes(integration.type)) {
+        normalizedConfig['recipients'] = toRecipientsArray(normalizedConfig['recipients']);
     }
 
     return {

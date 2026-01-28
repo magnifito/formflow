@@ -19,8 +19,8 @@
       "@formflow/shared/integrations": [
         "libs/shared/integrations/src/index.ts"
       ],
-      "@formflow/shared/drizzle": [
-        "libs/shared/drizzle/src/index.ts"
+      "@formflow/shared/db": [
+        "libs/shared/db/src/index.ts"
       ]
     },
     "lib": [

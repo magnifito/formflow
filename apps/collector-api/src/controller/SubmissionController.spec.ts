@@ -27,7 +27,7 @@ jest.mock('../db', () => ({
     },
 }));
 
-jest.mock('@formflow/shared/drizzle', () => ({
+jest.mock('@formflow/shared/db', () => ({
     forms: { submitHash: 'submitHash', slug: 'slug', organizationId: 'organizationId', isActive: 'isActive', id: 'id' },
     whitelistedDomains: { organizationId: 'organizationId' },
     submissions: {},

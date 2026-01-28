@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./auth";
 import { db } from "../db";
-import { users, organizations } from "@formflow/shared/drizzle";
+import { users, organizations } from "@formflow/shared/db";
 import { eq, asc, InferSelectModel } from "drizzle-orm";
 import logger from "@formflow/shared/logger";
 

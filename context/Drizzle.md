@@ -18,7 +18,7 @@ Replace TypeORM with Drizzle ORM to improve performance (`tsx` compatibility), t
 *   Create `libs/shared/drizzle` library to house the shared schema.
 
 ### 2. Schema Conversion (`libs/shared/drizzle`)
-We will create a new shared library for the Drizzle schema. The old entities in `libs/shared/entities` will be kept as reference until the switch is complete, then deleted.
+We created a new shared library for the Drizzle schema in `libs/shared/db`.
 
 *   **Users Table**: Map `User` entity to `pgTable('user', ...)`
 *   **Organizations Table**: Map `Organization` entity.

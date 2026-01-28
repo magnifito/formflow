@@ -190,7 +190,7 @@ environment:
 Run the automated test script:
 
 ```bash
-npx ts-node --esm scripts/test-env-config.ts
+pnpm test:env
 ```
 
 **This tests**:

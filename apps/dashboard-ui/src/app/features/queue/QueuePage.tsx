@@ -74,6 +74,32 @@ export function QueuePage() {
         return `${diff}ms`;
     };
 
+    const formatErrorOutput = (output: unknown): string => {
+        if (!output) return '';
+        if (typeof output === 'string') return output;
+
+        // Handle error objects with stack traces
+        if (typeof output === 'object' && output !== null) {
+            const err = output as Record<string, unknown>;
+            const parts: string[] = [];
+
+            if (err.message) parts.push(`Error: ${err.message}`);
+            if (err.code) parts.push(`Code: ${err.code}`);
+            if (err.command) parts.push(`Command: ${err.command}`);
+
+            // Format stack trace with proper line breaks
+            if (err.stack && typeof err.stack === 'string') {
+                parts.push('\nStack Trace:');
+                parts.push(err.stack.replace(/\\n/g, '\n'));
+            }
+
+            if (parts.length > 0) return parts.join('\n');
+        }
+
+        // Fallback to formatted JSON
+        return JSON.stringify(output, null, 2);
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -241,8 +267,8 @@ export function QueuePage() {
                             {selectedJob.output && (
                                 <div>
                                     <h3 className="font-semibold text-sm mb-2">Output/Error</h3>
-                                    <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-40 text-red-600 dark:text-red-400">
-                                        {JSON.stringify(selectedJob.output, null, 2)}
+                                    <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-60 text-red-600 dark:text-red-400 whitespace-pre-wrap">
+                                        {formatErrorOutput(selectedJob.output)}
                                     </pre>
                                 </div>
                             )}

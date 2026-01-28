@@ -8,8 +8,7 @@ import { sql, eq, count, and, asc } from "drizzle-orm";
 
 // import { AppDataSource } from "./data-source"; // Removed TypeORM DataSource
 import { db } from "./db";
-import { users, organizations, forms } from "@formflow/shared/drizzle";
-// import { User, Organization } from "@formflow/shared/entities"; // Removed TypeORM entities
+import { users, organizations, forms } from "@formflow/shared/db";
 import { getEnv, loadEnv } from "@formflow/shared/env";
 import { verifyToken, AuthRequest } from "./middleware/auth";
 import { requestLogger } from "./middleware/requestLogger";

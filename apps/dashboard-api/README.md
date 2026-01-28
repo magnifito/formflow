@@ -162,7 +162,7 @@ apps/dashboard-api/
 
 ## Shared Libraries
 
-This API uses shared entities and utilities from the monorepo:
+This API uses shared db and utilities from the monorepo:
 
 - `@formflow/drizzle` - Drizzle ORM schema and database client
 - `@formflow/utils-encryption` - Encryption utilities for sensitive data

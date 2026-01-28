@@ -64,8 +64,8 @@ services:
       - ./apps/dashboard-api/package.json:/app/apps/dashboard-api/package.json:ro
     networks:
       - formflow-dev-network
-    # Override command for development with watch mode (using node native watch + ts-node + tsconfig-paths)
-    command: [ "node", "--watch", "-r", "ts-node/register", "-r", "tsconfig-paths/register", "src/index.ts" ]
+    # Override command for development with watch mode
+    command: [ "npx", "tsx", "watch", "-r", "tsconfig-paths/register", "src/index.ts" ]
 
   # ---------------------------------------------------------------------------
   # FormFlow Collector API (Development with hot reload)
@@ -99,8 +99,8 @@ services:
       - ./apps/collector-api/package.json:/app/apps/collector-api/package.json:ro
     networks:
       - formflow-dev-network
-    # Override command for development with watch mode (using node native watch + ts-node + tsconfig-paths)
-    command: [ "node", "--watch", "-r", "ts-node/register", "-r", "tsconfig-paths/register", "src/index.ts" ]
+    # Override command for development with watch mode
+    command: [ "npx", "tsx", "watch", "-r", "tsconfig-paths/register", "src/index.ts" ]
 
   # ---------------------------------------------------------------------------
   # FormFlow Test Lab (Development with hot reload)

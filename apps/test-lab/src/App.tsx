@@ -5,7 +5,7 @@ import { FormSelector } from './features/lab/FormSelector';
 import { TestPayloadForm } from './features/lab/TestPayloadForm';
 import { ResponseViewer } from './features/lab/ResponseViewer';
 import { Button } from './components/ui/button';
-import { LogOut, LayoutList, Beaker, MessageSquare, Terminal } from 'lucide-react';
+import { LogOut, LayoutList, Beaker, MessageSquare, Terminal, ExternalLink } from 'lucide-react';
 import { WebhookTester } from './features/lab/WebhookTester';
 
 interface ResponseState {
@@ -175,6 +175,26 @@ function App() {
           </div>
 
           <div className="flex items-center gap-4 text-sm">
+            <div className="hidden md:flex items-center gap-2 border-r pr-4">
+              <a
+                href={import.meta.env.VITE_DASHBOARD_UI_URL || 'http://localhost:4100'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                Dashboard
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              <a
+                href={import.meta.env.VITE_MAILPIT_UI_URL || 'http://localhost:8025'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                Mailpit
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
             <div className="flex flex-col items-end">
               <span className="font-medium">{user?.name || user?.email}</span>
               <span className="text-xs text-muted-foreground">{user?.organization?.name || 'Personal'}</span>

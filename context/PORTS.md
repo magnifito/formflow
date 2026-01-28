@@ -198,8 +198,8 @@ pnpm dev
 
 **Active Ports:**
 - 4200 - Dashboard UI (React dev server)
-- 3000 - Dashboard API (ts-node-dev with hot reload)
-- 3001 - Collector API (ts-node-dev with hot reload)
+- 3000 - Dashboard API (tsx watch with hot reload)
+- 3001 - Collector API (tsx watch with hot reload)
 - 4200 - Test Lab (node server)
 - 5433 - PostgreSQL (Docker, mapped from 5432)
 - 1025 - Mailpit SMTP (Docker)

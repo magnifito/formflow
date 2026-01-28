@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env tsx
 
 /**
  * Seed a minimal dataset:
@@ -7,35 +7,39 @@
  * - Integration: Org-scoped Email SMTP pointing to MailPit
  *
  * Run (from repo root):
- * pnpm exec ts-node --project scripts/tsconfig.json scripts/seed-mailpit-acme.ts
+ * pnpm seed:integrations
  */
 
 import "reflect-metadata";
 import { loadEnv } from "@formflow/shared/env";
-import { AppDataSource } from "@formflow/shared/data-source";
-import { Organization, Form, Integration, IntegrationScope } from "@formflow/shared/entities";
+import { createDbClient, organizations, forms, integrations, IntegrationScope, generateSubmitHash } from "@formflow/shared/db";
 import { IntegrationType } from "@formflow/shared/queue";
-import crypto from "crypto";
-import { generateSubmitHash } from "@formflow/shared/entities";
+import { eq, and } from "drizzle-orm";
 
 loadEnv();
 
 async function main() {
-    await AppDataSource.initialize();
+    const connectionString = process.env.DATABASE_URL || `postgres://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
 
-    const orgRepo = AppDataSource.getRepository(Organization);
-    const formRepo = AppDataSource.getRepository(Form);
-    const integrationRepo = AppDataSource.getRepository(Integration);
+    if (!connectionString || connectionString.includes('undefined')) {
+        console.error('DATABASE_URL or DB credentials not found in environment');
+        process.exit(1);
+    }
+
+    const db = createDbClient(connectionString);
 
     // 1) Organization
-    let org = await orgRepo.findOne({ where: { slug: 'acme-org' } });
+    let org = await db.query.organizations.findFirst({
+        where: eq(organizations.slug, 'acme-org')
+    });
+
     if (!org) {
-        org = orgRepo.create({
+        const [newOrg] = await db.insert(organizations).values({
             name: 'Acme Org',
             slug: 'acme-org',
             isActive: true,
-        });
-        org = await orgRepo.save(org);
+        }).returning();
+        org = newOrg;
         console.log('Created organization: Acme Org');
     } else {
         console.log('Organization exists: Acme Org');
@@ -48,19 +52,22 @@ async function main() {
         { name: 'Webhook Demo', slug: 'webhook-demo', useOrgIntegrations: false },
     ];
 
-    const savedForms: Record<string, Form> = {};
+    const savedForms: Record<string, typeof forms.$inferSelect> = {};
     for (const def of formsToEnsure) {
-        let form = await formRepo.findOne({ where: { slug: def.slug, organizationId: org.id } });
+        let form = await db.query.forms.findFirst({
+            where: and(eq(forms.slug, def.slug), eq(forms.organizationId, org.id))
+        });
+
         if (!form) {
-            form = formRepo.create({
+            const [newForm] = await db.insert(forms).values({
                 organizationId: org.id,
                 name: def.name,
                 slug: def.slug,
                 submitHash: generateSubmitHash(),
                 useOrgIntegrations: def.useOrgIntegrations,
                 isActive: true,
-            });
-            form = await formRepo.save(form);
+            }).returning();
+            form = newForm;
             console.log(`Created form: ${def.name}`);
         } else {
             console.log(`Form exists: ${def.name}`);
@@ -69,85 +76,77 @@ async function main() {
     }
 
     // 3) Org MailPit SMTP integration
-    const existingIntegration = await integrationRepo.findOne({
-        where: {
-            organizationId: org.id,
-            scope: IntegrationScope.ORGANIZATION,
-            type: IntegrationType.EMAIL_SMTP,
-            name: 'MailPit SMTP',
-        }
+    const existingIntegration = await db.query.integrations.findFirst({
+        where: and(
+            eq(integrations.organizationId, org.id),
+            eq(integrations.scope, IntegrationScope.ORGANIZATION),
+            eq(integrations.type, IntegrationType.EMAIL_SMTP),
+            eq(integrations.name, 'MailPit SMTP')
+        )
     });
+
+    const mailpitConfig = {
+        recipients: ['team@acme.test'],
+        fromEmail: 'no-reply@acme.test',
+        subject: 'New Contact Form Submission',
+        smtp: {
+            host: process.env.MAILPIT_HOST || '127.0.0.1',
+            port: Number(process.env.MAILPIT_PORT || 1026),
+            username: process.env.MAILPIT_USER || 'mailpit',
+            password: process.env.MAILPIT_PASS || 'mailpit',
+            secure: false,
+        },
+    };
 
     if (existingIntegration) {
         console.log('Updating existing integration: MailPit SMTP');
-        existingIntegration.config = {
-            recipients: ['team@acme.test'],
-            fromEmail: 'no-reply@acme.test',
-            subject: 'New Contact Form Submission',
-            smtp: {
-                host: process.env.MAILPIT_HOST || '127.0.0.1',
-                port: Number(process.env.MAILPIT_PORT || 1026),
-                username: process.env.MAILPIT_USER || 'mailpit',
-                password: process.env.MAILPIT_PASS || 'mailpit',
-                secure: false,
-            },
-        };
-        await integrationRepo.save(existingIntegration);
+        await db.update(integrations)
+            .set({ config: mailpitConfig })
+            .where(eq(integrations.id, existingIntegration.id));
     } else {
-        const mailpitIntegration = integrationRepo.create({
+        await db.insert(integrations).values({
             organizationId: org.id,
             formId: null,
             scope: IntegrationScope.ORGANIZATION,
             type: IntegrationType.EMAIL_SMTP,
             name: 'MailPit SMTP',
             isActive: true,
-            config: {
-                recipients: ['team@acme.test'],
-                fromEmail: 'no-reply@acme.test',
-                subject: 'New Contact Form Submission',
-                smtp: {
-                    host: process.env.MAILPIT_HOST || '127.0.0.1',
-                    port: Number(process.env.MAILPIT_PORT || 1026),
-                    username: process.env.MAILPIT_USER || 'mailpit',
-                    password: process.env.MAILPIT_PASS || 'mailpit',
-                    secure: false,
-                },
-            },
+            config: mailpitConfig,
         });
-        await integrationRepo.save(mailpitIntegration);
         console.log('Created integration: MailPit SMTP');
     }
 
     // 4) Telegram form-scoped integration
     const telegramForm = savedForms['telegram-feedback'];
     if (telegramForm) {
-        const existingTelegram = await integrationRepo.findOne({
-            where: {
-                organizationId: org.id,
-                formId: telegramForm.id,
-                scope: IntegrationScope.FORM,
-                type: IntegrationType.TELEGRAM,
-            }
+        const existingTelegram = await db.query.integrations.findFirst({
+            where: and(
+                eq(integrations.organizationId, org.id),
+                eq(integrations.formId, telegramForm.id),
+                eq(integrations.scope, IntegrationScope.FORM),
+                eq(integrations.type, IntegrationType.TELEGRAM)
+            )
         });
+
+        const telegramConfig = {
+            chatId: process.env.TELEGRAM_CHAT_ID || '-1003716477840',
+        };
+
         if (existingTelegram) {
             console.log('Updating existing integration: Telegram Alerts');
-            existingTelegram.config = {
-                chatId: process.env.TELEGRAM_CHAT_ID || '-1003716477840',
-            };
-            await integrationRepo.save(existingTelegram);
+            await db.update(integrations)
+                .set({ config: telegramConfig })
+                .where(eq(integrations.id, existingTelegram.id));
         } else {
-            const telegramIntegration = integrationRepo.create({
+            await db.insert(integrations).values({
                 organizationId: org.id,
                 formId: telegramForm.id,
                 scope: IntegrationScope.FORM,
                 type: IntegrationType.TELEGRAM,
                 name: 'Telegram Alerts',
                 isActive: true,
-                config: {
-                    chatId: process.env.TELEGRAM_CHAT_ID || '-1003716477840',
-                },
+                config: telegramConfig,
             });
-            await integrationRepo.save(telegramIntegration);
             console.log('Created integration: Telegram Alerts (form override)');
         }
     }
@@ -155,16 +154,17 @@ async function main() {
     // 5) Webhook form-scoped integration
     const webhookForm = savedForms['webhook-demo'];
     if (webhookForm) {
-        const existingWebhook = await integrationRepo.findOne({
-            where: {
-                organizationId: org.id,
-                formId: webhookForm.id,
-                scope: IntegrationScope.FORM,
-                type: IntegrationType.WEBHOOK,
-            }
+        const existingWebhook = await db.query.integrations.findFirst({
+            where: and(
+                eq(integrations.organizationId, org.id),
+                eq(integrations.formId, webhookForm.id),
+                eq(integrations.scope, IntegrationScope.FORM),
+                eq(integrations.type, IntegrationType.WEBHOOK)
+            )
         });
+
         if (!existingWebhook) {
-            const webhookIntegration = integrationRepo.create({
+            await db.insert(integrations).values({
                 organizationId: org.id,
                 formId: webhookForm.id,
                 scope: IntegrationScope.FORM,
@@ -176,7 +176,6 @@ async function main() {
                     webhookSource: 'generic',
                 },
             });
-            await integrationRepo.save(webhookIntegration);
             console.log('Created integration: Local Webhook (form override)');
         } else {
             console.log('Integration exists: Local Webhook');
@@ -184,13 +183,10 @@ async function main() {
     }
 
     console.log('\nDone.');
-    await AppDataSource.destroy();
+    process.exit(0);
 }
 
 main().catch(async (err) => {
     console.error('Seeding failed:', err);
-    if (AppDataSource.isInitialized) {
-        await AppDataSource.destroy();
-    }
     process.exit(1);
 });

@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { db } from "../db";
 import logger from "@formflow/shared/logger";
-import { organizations, forms, submissions, whitelistedDomains, generateSubmitHash } from "@formflow/shared/drizzle";
+import { organizations, forms, submissions, whitelistedDomains, generateSubmitHash } from "@formflow/shared/db";
 import { eq, desc, count, and, gte, isNull } from "drizzle-orm";
 import { verifyToken } from "../middleware/auth";
 import { injectOrgContext, verifyOrgAdmin, OrgContextRequest } from "../middleware/orgContext";

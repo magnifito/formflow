@@ -1,9 +1,9 @@
 import { Router, Request, Response } from "express";
 import { db } from "../db";
-import { users, integrations, forms, organizations } from "@formflow/shared/drizzle";
+import { users, integrations, forms, organizations } from "@formflow/shared/db";
 import { eq, and, desc, asc, isNull } from "drizzle-orm";
-// We need IntegrationScope from entities as it might be an enum shared across apps
-import { IntegrationScope } from "@formflow/shared/drizzle";
+// We need IntegrationScope from db as it might be an enum shared across apps
+import { IntegrationScope } from "@formflow/shared/db";
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import logger, { LogOperation } from "@formflow/shared/logger";
 import { IntegrationType } from "@formflow/shared/queue";

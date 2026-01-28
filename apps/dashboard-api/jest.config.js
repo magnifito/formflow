@@ -31,9 +31,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   moduleNameMapper: {
     '^@formflow/shared/env$': '<rootDir>/../../libs/shared/env/src/index.ts',
-    '^@formflow/shared/entities$': '<rootDir>/../../libs/shared/entities/src/index.ts',
     '^@formflow/shared/data-source$': '<rootDir>/../../libs/shared/data-source/src/index.ts',
-    '^@formflow/shared/encryption$': '<rootDir>/../../libs/shared/encryption/src/index.ts',
     '^@formflow/shared/logger$': '<rootDir>/../../libs/shared/logger/src/index.ts',
     '^pg-boss$': '<rootDir>/test/mocks/pg-boss.mock.ts',
     '^uuid$': '<rootDir>/test/mocks/uuid.mock.ts',

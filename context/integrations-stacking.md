@@ -20,7 +20,7 @@
 - [x] Sensitive fields live in config (encryption achieved for most paths).
 
 ## Implementation status
-1. **Schema & entities** [DONE]
+1. **Schema & db** [DONE]
    - `formId` and `scope` added to `Integration`.
 2. **Domain services & API** [DONE]
    - `resolveIntegrationStack` implemented in `libs/shared/integrations`.

@@ -206,7 +206,7 @@ FormFlow/
 │   ├── collector-api/    # Public submission API (the actual form backend)
 │   └── test-lab/         # Testing playground
 ├── libs/
-│   └── shared/           # Shared code (entities, utilities)
+│   └── shared/           # Shared code (db, utilities)
 └── docs/                 # Documentation
 ```
 
