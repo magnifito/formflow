@@ -1,18 +1,36 @@
 import { Outlet } from 'react-router-dom';
-import { Sidebar } from '../components/Sidebar';
+import { Sidebar, NavSection } from '../components/Sidebar';
 import { Header } from '../components/Header';
 import { useAuth } from '../hooks/useAuth';
 import { useOrganization } from '../hooks/useOrganization';
 
-import { LayoutDashboard, FileText, ClipboardList, ArrowLeftRight, Settings, LayoutGrid } from 'lucide-react';
+import { LayoutDashboard, FileText, ClipboardList, ArrowLeftRight, LayoutGrid, Shield, Bell, User, Key } from 'lucide-react';
 
-const TENANT_NAV_ITEMS = [
-    { label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard' },
-    { label: 'Forms', icon: FileText, route: '/forms' },
-    { label: 'Submissions', icon: ClipboardList, route: '/submissions' },
-    { label: 'Integrations', icon: ArrowLeftRight, route: '/integrations' },
-    { label: 'Gallery', icon: LayoutGrid, route: '/gallery' },
-    { label: 'Settings', icon: Settings, route: '/settings' }
+const NAV_SECTIONS: NavSection[] = [
+    {
+        label: 'Workspace',
+        items: [
+            { label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard' },
+            { label: 'Forms', icon: FileText, route: '/forms' },
+            { label: 'Submissions', icon: ClipboardList, route: '/submissions' },
+            { label: 'Integrations', icon: ArrowLeftRight, route: '/integrations' },
+            { label: 'Gallery', icon: LayoutGrid, route: '/gallery' },
+        ]
+    },
+    {
+        label: 'Organization',
+        items: [
+            { label: 'Security', icon: Shield, route: '/security' },
+            { label: 'Credentials', icon: Key, route: '/credentials' },
+            { label: 'Notifications', icon: Bell, route: '/notifications' },
+        ]
+    },
+    {
+        label: 'Account',
+        items: [
+            { label: 'Profile', icon: User, route: '/account' },
+        ]
+    }
 ];
 
 export function AppShell() {
@@ -21,7 +39,7 @@ export function AppShell() {
 
     return (
         <div className="min-h-screen bg-muted/30">
-            <Sidebar sectionLabel="TENANT" navItems={TENANT_NAV_ITEMS} />
+            <Sidebar navSections={NAV_SECTIONS} />
 
             <div className="ml-60">
                 <Header

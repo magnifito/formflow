@@ -59,19 +59,29 @@ export function Header({
 
                     {dropdownOpen && (
                         <div className="absolute right-0 top-full mt-2 w-48 overflow-hidden rounded-lg border border-border bg-card shadow-lg animate-in fade-in zoom-in-95 duration-200">
-                            <Link to="/settings" className="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted">
-                                Settings
+                            <Link to="/account" className="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted">
+                                Profile
+                            </Link>
+                            <Link to="/security" className="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted">
+                                Security
+                            </Link>
+                            <Link to="/notifications" className="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted">
+                                Notifications
                             </Link>
                             {isSuperAdmin && (
-                                <Link to="/admin" className="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted">
-                                    Admin Panel
-                                </Link>
+                                <>
+                                    <div className="border-t border-border my-1" />
+                                    <Link to="/admin" className="block w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted">
+                                        Admin Panel
+                                    </Link>
+                                </>
                             )}
+                            <div className="border-t border-border my-1" />
                             <button
                                 onClick={(e) => { e.stopPropagation(); onLogout(); }}
                                 className="block w-full px-4 py-2.5 text-left text-sm text-destructive hover:bg-destructive/10"
                             >
-                                Logout
+                                Sign Out
                             </button>
                         </div>
                     )}

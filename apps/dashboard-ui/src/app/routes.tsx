@@ -3,7 +3,10 @@ import { AppShell } from './layouts/AppShell';
 import { DashboardPage } from './features/dashboard/DashboardPage';
 import { SubmissionsPage } from './features/submissions/SubmissionsPage';
 import { IntegrationsPage } from './features/integrations/IntegrationsPage';
-import { SettingsPage } from './features/settings/SettingsPage';
+import { SecurityPage } from './features/settings/SecurityPage';
+import { NotificationsPage } from './features/settings/NotificationsPage';
+import { AccountPage } from './features/settings/AccountPage';
+import { IntegrationCredentialsPage } from './features/settings/IntegrationCredentialsPage';
 import { GalleryPage } from './features/gallery/GalleryPage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage } from './pages/SetupPage';
@@ -50,12 +53,31 @@ export const router = createBrowserRouter([
                 element: <IntegrationsPage />,
             },
             {
-                path: 'settings',
-                element: <SettingsPage />,
-            },
-            {
                 path: 'gallery',
                 element: <GalleryPage />,
+            },
+            // Organization settings
+            {
+                path: 'security',
+                element: <SecurityPage />,
+            },
+            {
+                path: 'credentials',
+                element: <IntegrationCredentialsPage />,
+            },
+            {
+                path: 'notifications',
+                element: <NotificationsPage />,
+            },
+            // Account
+            {
+                path: 'account',
+                element: <AccountPage />,
+            },
+            // Redirect old settings route
+            {
+                path: 'settings',
+                element: <Navigate to="/security" replace />,
             },
             {
                 path: '',

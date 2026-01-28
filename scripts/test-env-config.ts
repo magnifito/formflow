@@ -34,20 +34,21 @@ const requiredVars = [
   'DB_USER',
   'DB_PASSWORD',
   'JWT_SECRET',
-
-
-  'EMAIL_USER',
+  'SYSTEM_MAIL_PROVIDER',
+  'SYSTEM_MAIL_HOST',
+  'SYSTEM_MAIL_SMTP_PORT',
+  'SYSTEM_MAIL_USER',
+  'SYSTEM_MAIL_PASSWORD',
+  'SYSTEM_MAIL_TO'
 ];
 
 const optionalVars = [
   'CSRF_SECRET',
   'CSRF_TTL_MINUTES',
-
   'SUPER_ADMIN_EMAIL',
   'SUPER_ADMIN_PASSWORD',
   'SUPER_ADMIN_NAME',
-  'LOG_LEVEL',
-  'TELEGRAM_BOT_TOKEN',
+  'LOG_LEVEL'
 ];
 
 type EnvTarget = {

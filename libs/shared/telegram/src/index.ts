@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { getEnv } from '@formflow/shared/env';
 import logger, { LogOperation, LogMessages } from '@formflow/shared/logger';
 
 export interface TelegramSendOptions {
@@ -33,8 +32,11 @@ export class TelegramService {
     private readonly botToken: string;
     private readonly baseUrl: string;
 
-    constructor(botToken?: string) {
-        this.botToken = botToken || getEnv('TELEGRAM_BOT_TOKEN');
+    constructor(botToken: string) {
+        if (!botToken) {
+            throw new Error('Telegram bot token is required');
+        }
+        this.botToken = botToken;
         this.baseUrl = `https://api.telegram.org/bot${this.botToken}`;
     }
 
@@ -117,19 +119,6 @@ export class TelegramService {
             .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
             .join('\n\n');
     }
-}
-
-// Default singleton instance
-let defaultInstance: TelegramService | null = null;
-
-/**
- * Get the default TelegramService instance (singleton)
- */
-export function getTelegramService(): TelegramService {
-    if (!defaultInstance) {
-        defaultInstance = new TelegramService();
-    }
-    return defaultInstance;
 }
 
 export default TelegramService;

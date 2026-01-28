@@ -523,10 +523,25 @@ router.post('/:identifier', async (req: Request, res: Response) => {
             useOrgIntegrations: form.useOrgIntegrations ?? true
         });
 
-        const integrationsToProcess: Array<{ type: IntegrationType, config: any }> = resolvedIntegrations.map(i => ({
-            type: i.type as IntegrationType,
-            config: i.config
-        }));
+        // Inject org-level bot tokens into integration configs
+        const integrationsToProcess: Array<{ type: IntegrationType, config: any }> = resolvedIntegrations.map(i => {
+            const config = { ...i.config } as Record<string, any>;
+
+            // Inject org-level Slack bot token
+            if (i.type === IntegrationType.SLACK && !config.accessToken && form.organization?.slackBotToken) {
+                config.accessToken = form.organization.slackBotToken;
+            }
+
+            // Inject org-level Telegram bot token
+            if (i.type === IntegrationType.TELEGRAM && !config.botToken && form.organization?.telegramBotToken) {
+                config.botToken = form.organization.telegramBotToken;
+            }
+
+            return {
+                type: i.type as IntegrationType,
+                config
+            };
+        });
 
         if (integrationsToProcess.length === 0) {
             return res.json({ message: 'Submission received' });

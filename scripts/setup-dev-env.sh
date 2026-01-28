@@ -50,7 +50,6 @@ NODE_ENV=development
 DASHBOARD_API_PORT=4000
 REDIRECT_URL=http://localhost:4200
 DASHBOARD_API_URL=http://localhost:4000
-EMAIL_USER=test@localhost
 
 # -----------------------------------------------------------------------------
 # Logging Configuration
@@ -100,12 +99,12 @@ ORIGIN=*
 
 
 # Email (enabled by default in dev - use Mailpit at localhost:8025)
-EMAIL_PROVIDER=localhost
-MAILPIT_HOST=127.0.0.1
-SMTP_PORT=1026
-EMAIL_USER=test@localhost
-EMAIL_PASSWORD=
-EMAIL_TO=test@localhost
+SYSTEM_MAIL_PROVIDER=localhost
+SYSTEM_MAIL_HOST=127.0.0.1
+SYSTEM_MAIL_SMTP_PORT=1026
+SYSTEM_MAIL_USER=test@localhost
+SYSTEM_MAIL_PASSWORD=
+SYSTEM_MAIL_TO=test@localhost
 
 
 # Webhook (optional)

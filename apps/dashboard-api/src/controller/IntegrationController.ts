@@ -7,7 +7,7 @@ import { IntegrationScope } from "@formflow/shared/db";
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import logger, { LogOperation } from "@formflow/shared/logger";
 import { IntegrationType } from "@formflow/shared/queue";
-import { getTelegramService } from "@formflow/shared/telegram";
+import { TelegramService } from "@formflow/shared/telegram";
 import { resolveIntegrationStack } from "@formflow/shared/integrations";
 import axios from "axios";
 import nodemailer from "nodemailer";
@@ -61,9 +61,8 @@ const normalizeConfigForType = (type: IntegrationType, rawConfig: any) => {
             break;
         }
         case IntegrationType.SLACK: {
-            if (!config.accessToken || !config.channelId) {
-                throw new Error('Slack access token and channel ID are required');
-            }
+            // accessToken can come from org settings, only channelId is required per-integration
+            if (!config.channelId) throw new Error('Slack channel ID is required');
             break;
         }
         case IntegrationType.DISCORD: {
@@ -71,6 +70,7 @@ const normalizeConfigForType = (type: IntegrationType, rawConfig: any) => {
             break;
         }
         case IntegrationType.TELEGRAM: {
+            // botToken can come from org settings, only chatId is required per-integration
             if (!config.chatId) throw new Error('Telegram chat ID is required');
             break;
         }
@@ -392,6 +392,11 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
             return res.status(404).json({ error: 'Integration not found' });
         }
 
+        // Get organization for bot tokens
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, user.organizationId)
+        });
+
         const testMessage = `FormFlow Test: Your "${integration.name}" integration is working correctly!`;
         const testData = {
             test: true,
@@ -400,7 +405,14 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
             source: "FormFlow Integration Tester"
         };
 
-        const config = integration.config as any;
+        // Merge org-level bot tokens with integration config
+        const rawConfig = integration.config as any;
+        const config = {
+            ...rawConfig,
+            // Use org tokens if not in integration config
+            accessToken: rawConfig.accessToken || organization?.slackBotToken,
+            botToken: rawConfig.botToken || organization?.telegramBotToken,
+        };
 
         try {
             switch (integration.type) {
@@ -455,9 +467,11 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
                     break;
                 }
                 case IntegrationType.TELEGRAM: {
-                    const chatId = config.chatId;
+                    const { botToken, chatId } = config;
+                    if (!botToken) throw new Error('No Bot Token configured');
                     if (!chatId) throw new Error('No Chat ID configured');
-                    const tgResult = await getTelegramService().sendMessage({
+                    const telegramService = new TelegramService(botToken);
+                    const tgResult = await telegramService.sendMessage({
                         chatId: Number(chatId),
                         message: testMessage
                     });

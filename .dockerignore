@@ -13,3 +13,4 @@ apps/*/coverage
 libs/*/node_modules
 libs/*/dist
 libs/*/coverage
+.env.keys

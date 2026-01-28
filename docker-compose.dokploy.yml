@@ -41,8 +41,6 @@ services:
       DB_USER: ${DB_USER:-formflow}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       REDIRECT_URL: ${REDIRECT_URL:-https://formflow.fyi}
     networks:
       - formflow-network
@@ -69,7 +67,6 @@ services:
 
       CSRF_SECRET: ${CSRF_SECRET}
       CSRF_TTL_MINUTES: ${CSRF_TTL_MINUTES:-15}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       DASHBOARD_API_URL: ${DASHBOARD_API_URL:-http://dashboard-api:4000}
     networks:
       - formflow-network

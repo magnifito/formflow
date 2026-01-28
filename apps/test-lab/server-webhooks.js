@@ -64,7 +64,24 @@ app.get('*', (req, res, next) => {
     res.sendFile(path.join(distPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`FormFlow Lab server running on http://localhost:${PORT}`);
     console.log(`Webhook endpoint: http://localhost:${PORT}/webhook`);
 });
+
+const shutdown = () => {
+    console.log('Shutting down server...');
+    server.close(() => {
+        console.log('HTTP server closed');
+        process.exit(0);
+    });
+
+    // Force exit if hanging
+    setTimeout(() => {
+        console.error('Forcing shutdown after timeout');
+        process.exit(1);
+    }, 10000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

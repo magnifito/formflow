@@ -379,6 +379,25 @@ async function startServer() {
         logger.info(`Dashboard API server has started on port ${DASHBOARD_API_PORT}`, { port: DASHBOARD_API_PORT, environment: process.env.NODE_ENV || 'development' });
     });
 
+    const shutdown = async () => {
+        logger.info('Shutting down server...');
+        server.close(async () => {
+            logger.info('HTTP server closed');
+            // Close database connections if needed, though Drizzle pool often handles itself or process exit is fine
+            process.exit(0);
+        });
+        server.closeAllConnections();
+
+        // Force exit if hanging
+        setTimeout(() => {
+            logger.error('Forcing shutdown after timeout');
+            process.exit(1);
+        }, 10000);
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+
     return { app, server };
 }
 

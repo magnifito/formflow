@@ -290,25 +290,17 @@ export function IntegrationModal({ isOpen, onClose, onSave, initialData, organiz
                             )}
 
                             {formData.type === 'slack' && (
-                                <>
-                                    <div className="space-y-1.5">
-                                        <label className="text-sm font-medium">Access Token</label>
-                                        <Input
-                                            type="password"
-                                            placeholder="xoxb-..."
-                                            value={formData.config?.accessToken || ''}
-                                            onChange={(e) => updateConfig('accessToken', e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-sm font-medium">Channel ID</label>
-                                        <Input
-                                            placeholder="C01234..."
-                                            value={formData.config?.channelId || ''}
-                                            onChange={(e) => updateConfig('channelId', e.target.value)}
-                                        />
-                                    </div>
-                                </>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium">Channel ID</label>
+                                    <Input
+                                        placeholder="C01234..."
+                                        value={formData.config?.channelId || ''}
+                                        onChange={(e) => updateConfig('channelId', e.target.value)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Bot token is configured in Organization &rarr; Credentials.
+                                    </p>
+                                </div>
                             )}
 
                             {formData.type === 'discord' && (
@@ -326,11 +318,13 @@ export function IntegrationModal({ isOpen, onClose, onSave, initialData, organiz
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium">Chat ID</label>
                                     <Input
-                                        placeholder="123456789"
+                                        placeholder="-1001234567890"
                                         value={formData.config?.chatId || ''}
                                         onChange={(e) => updateConfig('chatId', e.target.value)}
                                     />
-                                    <p className="text-xs text-muted-foreground">Start conversation with the bot first.</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Bot token is configured in Organization &rarr; Credentials.
+                                    </p>
                                 </div>
                             )}
 

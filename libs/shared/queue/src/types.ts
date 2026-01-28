@@ -65,15 +65,16 @@ export interface IntegrationJobData {
             region?: string;      // Mailgun region (US/EU), SES region
         };
 
-        // Telegram
-        chatId?: string; // string or number, library often handles string
+        // Telegram (chatId per-integration, botToken from org)
+        chatId?: string;
+        botToken?: string;  // Injected from organization settings
 
         // Discord
         webhookUrl?: string;
 
-        // Slack
+        // Slack (channelId per-integration, accessToken from org)
         channelId?: string;
-        accessToken?: string;
+        accessToken?: string;  // Injected from organization settings
 
         // Webhook (generic, Make.com, n8n - all use same handler)
         webhook?: string;

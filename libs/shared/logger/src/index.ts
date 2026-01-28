@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { maskSensitiveData, maskHeaders, maskUrl } from './maskSensitiveData';
 import { serializeError } from './errorSerializer';
+import { SystemMailTransport } from './mailTransport';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const LOG_LEVEL = process.env.LOG_LEVEL || (NODE_ENV === 'production' ? 'info' : 'debug');
@@ -213,6 +214,7 @@ const logger = winston.createLogger({
     ...(NODE_ENV === 'test' ? [testTransport] : [consoleTransport]),
     fileTransport,
     errorFileTransport,
+    new SystemMailTransport() as any,
   ],
   // Don't exit on handled exceptions
   exitOnError: false,

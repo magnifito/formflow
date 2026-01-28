@@ -11,43 +11,40 @@ export async function handleSlackJob(job: IntegrationJobData): Promise<void> {
         throw new PermanentError('Slack configuration missing (accessToken or channelId)');
     }
 
-    try {
-        await axios.post('https://slack.com/api/chat.postMessage', {
-            channel: config.channelId,
-            text: formattedMessage,
-        }, {
-            headers: {
-                'Authorization': `Bearer ${config.accessToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        logger.info(LogMessages.integrationSendSuccess('Slack'), {
-            operation: LogOperation.INTEGRATION_SLACK_SEND,
-            formId,
-            submissionId,
-            correlationId,
-        });
-    } catch (error: any) {
-        const status = error.response?.status;
-        // Slack API often returns 200 OK even on error with { ok: false, error: '...' } body.
-        // Axios usually only throws on http error codes.
-        // So logic might need to check response body if I want to catch "invalid_auth" etc.
-        // But existing controller didn't check body 'ok' status, it just caught axios errors.
-        // I will stick to basic axios error handling for now.
-
-        if (status === 401 || status === 403) {
-            throw new PermanentError(`Slack API error ${status}: ${error.message}`);
+    const response = await axios.post('https://slack.com/api/chat.postMessage', {
+        channel: config.channelId,
+        text: formattedMessage,
+    }, {
+        headers: {
+            'Authorization': `Bearer ${config.accessToken}`,
+            'Content-Type': 'application/json'
         }
+    });
+
+    // Slack API returns 200 OK even on errors, with { ok: false, error: '...' }
+    if (!response.data.ok) {
+        const errorMsg = response.data.error || 'Unknown Slack error';
 
         logger.error(LogMessages.integrationSendFailed('Slack'), {
             operation: LogOperation.INTEGRATION_SLACK_SEND,
-            error: error.message,
+            error: errorMsg,
             formId,
             submissionId,
             correlationId,
         });
 
-        throw error;
+        // Permanent errors
+        if (['invalid_auth', 'account_inactive', 'token_revoked', 'channel_not_found', 'not_in_channel'].includes(errorMsg)) {
+            throw new PermanentError(`Slack error: ${errorMsg}`);
+        }
+
+        throw new Error(`Slack error: ${errorMsg}`);
     }
+
+    logger.info(LogMessages.integrationSendSuccess('Slack'), {
+        operation: LogOperation.INTEGRATION_SLACK_SEND,
+        formId,
+        submissionId,
+        correlationId,
+    });
 }

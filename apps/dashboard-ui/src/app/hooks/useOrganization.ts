@@ -96,6 +96,13 @@ export interface ReturnSettings {
     returnMessage: boolean;
 }
 
+export interface BotCredentials {
+    slackBotToken: string | null;
+    telegramBotToken: string | null;
+    hasSlackToken: boolean;
+    hasTelegramToken: boolean;
+}
+
 export interface PaginatedResponse<T> {
     data: T[];
     pagination: {
@@ -116,6 +123,7 @@ export function useOrganization() {
     const [integrationHierarchy, setIntegrationHierarchy] = useState<IntegrationHierarchy | null>(null);
     const [domains, setDomains] = useState<WhitelistedDomain[]>([]);
     const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
+    const [botCredentials, setBotCredentials] = useState<BotCredentials | null>(null);
     const [pagination, setPagination] = useState<PaginatedResponse<unknown>['pagination'] | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -268,6 +276,28 @@ export function useOrganization() {
         }
     };
 
+    const loadBotCredentials = useCallback(async () => {
+        try {
+            const data = await apiFetch<BotCredentials>('/org/bot-credentials');
+            setBotCredentials(data);
+        } catch (err) {
+            setError((err as Error).message);
+        }
+    }, []);
+
+    const updateBotCredentials = async (credentials: { slackBotToken?: string; telegramBotToken?: string }) => {
+        try {
+            const data = await apiFetch<BotCredentials>('/org/bot-credentials', {
+                method: 'PUT',
+                body: JSON.stringify(credentials)
+            });
+            setBotCredentials(data);
+            return data;
+        } catch (err) {
+            throw new Error((err as Error).message);
+        }
+    };
+
     const updateReturnSettings = async (settings: ReturnSettings) => {
         const userId = localStorage.getItem('FB_user_id');
         if (!userId) return;
@@ -348,6 +378,7 @@ export function useOrganization() {
         integrationHierarchy,
         domains,
         securitySettings,
+        botCredentials,
         pagination,
         loading,
         error,
@@ -363,6 +394,8 @@ export function useOrganization() {
         removeDomain,
         loadSecuritySettings,
         updateSecuritySettings,
+        loadBotCredentials,
+        updateBotCredentials,
         updateReturnSettings,
         toggleFormStatus,
         createForm,

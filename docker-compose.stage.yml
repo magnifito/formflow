@@ -121,22 +121,7 @@ services:
       - formflow-dev-network
     command: [ "npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "4200" ]
 
-  # ---------------------------------------------------------------------------
-  # Mailpit (Email Testing) - ARM64 compatible alternative to Mailhog
-  # ---------------------------------------------------------------------------
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: formflow-mailpit
-    ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI
-    environment:
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_SMTP_AUTH_ALLOW_INSECURE: 1
-    networks:
-      - formflow-dev-network
-
-volumes:
+  volumes:
   postgres_dev_data:
     driver: local
 

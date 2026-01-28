@@ -480,6 +480,72 @@ router.get('/security-settings', async (req: OrgContextRequest, res: Response) =
     }
 });
 
+// ============ BOT CREDENTIALS ============
+
+// GET /org/bot-credentials - Get organization bot credentials (masked)
+router.get('/bot-credentials', async (req: OrgContextRequest, res: Response) => {
+    try {
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, req.organization!.id)
+        });
+
+        if (!organization) {
+            return res.status(404).json({ error: 'Organization not found' });
+        }
+
+        // Return masked tokens (only show if configured)
+        res.json({
+            slackBotToken: organization.slackBotToken ? '••••••••' + organization.slackBotToken.slice(-8) : null,
+            telegramBotToken: organization.telegramBotToken ? '••••••••' + organization.telegramBotToken.slice(-8) : null,
+            hasSlackToken: !!organization.slackBotToken,
+            hasTelegramToken: !!organization.telegramBotToken,
+        });
+    } catch (error: any) {
+        logger.error('Error fetching bot credentials', { error: error.message, stack: error.stack, correlationId: req.correlationId });
+        res.status(500).json({ error: 'Failed to fetch bot credentials' });
+    }
+});
+
+// PUT /org/bot-credentials - Update organization bot credentials (org admin only)
+router.put('/bot-credentials', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
+    try {
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, req.organization!.id)
+        });
+
+        if (!organization) {
+            return res.status(404).json({ error: 'Organization not found' });
+        }
+
+        const { slackBotToken, telegramBotToken } = req.body;
+
+        const updates: any = { updatedAt: new Date() };
+
+        // Only update if explicitly provided (allow empty string to clear)
+        if (slackBotToken !== undefined) {
+            updates.slackBotToken = slackBotToken || null;
+        }
+        if (telegramBotToken !== undefined) {
+            updates.telegramBotToken = telegramBotToken || null;
+        }
+
+        await db.update(organizations).set(updates).where(eq(organizations.id, organization.id));
+
+        // Re-fetch to confirm
+        const updatedOrg = await db.query.organizations.findFirst({ where: eq(organizations.id, organization.id) });
+
+        res.json({
+            slackBotToken: updatedOrg!.slackBotToken ? '••••••••' + updatedOrg!.slackBotToken.slice(-8) : null,
+            telegramBotToken: updatedOrg!.telegramBotToken ? '••••••••' + updatedOrg!.telegramBotToken.slice(-8) : null,
+            hasSlackToken: !!updatedOrg!.slackBotToken,
+            hasTelegramToken: !!updatedOrg!.telegramBotToken,
+        });
+    } catch (error: any) {
+        logger.error('Error updating bot credentials', { error: error.message, stack: error.stack, correlationId: req.correlationId });
+        res.status(500).json({ error: 'Failed to update bot credentials' });
+    }
+});
+
 // PUT /org/security-settings - Update organization default security settings (org admin only)
 router.put('/security-settings', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
     try {

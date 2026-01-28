@@ -128,6 +128,7 @@ async function startServer() {
             await stopBoss();
             process.exit(0);
         });
+        server.closeAllConnections();
 
         // Force exit if hanging
         setTimeout(() => {

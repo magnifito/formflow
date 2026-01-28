@@ -7,7 +7,7 @@
   "scripts": {
     "nx": "nx",
     "// --- Setup ---": "",
-    "setup": "pnpm install && pnpm sync-deps && pnpm setup:env && echo '✓ Setup complete! Run: pnpm dev'",
+    "setup": "pnpm install && pnpm sync-deps && pnpm setup:env && pnpm db:up && pnpm db:push && echo '✓ Setup complete! Run: pnpm dev'",
     "setup:env": "bash scripts/setup-dev-env.sh",
     "sync-deps": "pnpm exec tsx scripts/sync-deps.ts",
     "postinstall": "nx reset",
@@ -18,7 +18,7 @@
     "collector-api": "nx run collector-api:dev",
     "test-lab": "node apps/test-lab/server.js",
     "// --- Database Seeding ---": "",
-    "seed:integrations": "pnpm exec tsx --tsconfig tsconfig.base.json scripts/seed-integrations.ts",
+    "seed:integrations": "dotenvx run -f .env.seed -- pnpm exec tsx --tsconfig tsconfig.base.json scripts/seed-integrations.ts",
     "// --- Environment ---": "",
     "test:env": "pnpm exec tsx scripts/test-env-config.ts",
     "// --- Build ---": "",
@@ -50,7 +50,7 @@
     "// --- Docker (database only for dev) ---": "",
     "db:up": "docker-compose -f docker-compose.dev.yml up -d --remove-orphans",
     "db:down": "docker-compose -f docker-compose.dev.yml down --remove-orphans",
-    "db:reset": "docker-compose -f docker-compose.dev.yml down -v --remove-orphans && docker-compose -f docker-compose.dev.yml up -d --wait --remove-orphans && pnpm db:migrate",
+    "db:reset": "docker-compose -f docker-compose.dev.yml down -v --remove-orphans && docker-compose -f docker-compose.dev.yml up -d --wait --remove-orphans && pnpm db:push",
     "db:destroy": "docker-compose -f docker-compose.dev.yml down -v --remove-orphans && echo '✓ Database completely wiped. Run pnpm db:up to start fresh.'",
     "// --- Docker Full Stack (alternative) ---": "",
     "docker:dev": "docker-compose -f docker-compose.stage.yml up --build --remove-orphans",
@@ -79,11 +79,10 @@
     "affected:build": "nx affected -t build",
     "reset": "nx reset",
     "nx:reset": "nx reset",
-    "// --- Migrations ---": "",
-    "db:migrate": "pnpm --filter dashboard-api migration:run",
-    "db:migrate:revert": "pnpm --filter dashboard-api migration:revert",
-    "db:migrate:show": "pnpm --filter dashboard-api migration:show",
-    "db:migrate:generate": "pnpm --filter dashboard-api migration:generate",
+    "// --- Database Schema (Drizzle) ---": "",
+    "db:push": "dotenvx run -f .env.development -- npx drizzle-kit push --force",
+    "db:generate": "dotenvx run -f .env.development -- npx drizzle-kit generate",
+    "db:studio": "dotenvx run -f .env.development -- npx drizzle-kit studio",
     "// --- Cleanup ---": "",
     "clean": "rm -rf dist/ node_modules/.cache",
     "clean:all": "rm -rf dist/ node_modules/ .nx/ && find apps -name node_modules -type d -exec rm -rf {} + 2>/dev/null || true",
@@ -93,6 +92,7 @@
     "docker:prune:networks": "docker network prune -f && echo '✅ Orphaned networks removed'"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^1.52.0",
     "@nx/cypress": "22.4.2",
     "@nx/eslint": "^22.4.2",
     "@nx/eslint-plugin": "^22.4.2",
@@ -167,6 +167,14 @@
       "keygrip": "^1.1.0",
       "whatwg-encoding": "^3.1.1",
       "html-encoding-sniffer": "^6.0.0"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "bcrypt",
+      "cypress",
+      "esbuild",
+      "nx",
+      "unrs-resolver"
+    ]
   }
 }

@@ -1,17 +1,23 @@
 
 import { IntegrationJobData } from '../types';
-import { getTelegramService } from '@formflow/shared/telegram';
-import logger, { LogOperation, LogMessages } from '@formflow/shared/logger';
+import { TelegramService } from '@formflow/shared/telegram';
 import { PermanentError } from './index';
 
 export async function handleTelegramJob(job: IntegrationJobData): Promise<void> {
     const { submissionId, formId, formattedMessage, config, correlationId } = job;
 
+    if (!config.botToken) {
+        throw new PermanentError('No Telegram bot token configured');
+    }
+
     if (!config.chatId) {
         throw new PermanentError('No Telegram chat ID configured');
     }
 
-    const result = await getTelegramService().sendSubmissionNotification(
+    // Create a TelegramService instance with the integration's bot token
+    const telegramService = new TelegramService(config.botToken);
+
+    const result = await telegramService.sendSubmissionNotification(
         parseInt(config.chatId, 10),
         formattedMessage,
         {

@@ -35,21 +35,34 @@ async function main() {
 
     if (!org) {
         const [newOrg] = await db.insert(organizations).values({
-            name: 'Acme Org',
+            name: 'Acme Corp',
             slug: 'acme-org',
             isActive: true,
+            // Set org-level bot tokens if provided
+            slackBotToken: process.env.SLACK_BOT_TOKEN || null,
+            telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || null,
         }).returning();
         org = newOrg;
-        console.log('Created organization: Acme Org');
+        console.log('Created organization: Acme Corp');
     } else {
-        console.log('Organization exists: Acme Org');
+        // Update org-level bot tokens if provided
+        const updates: any = {};
+        if (process.env.SLACK_BOT_TOKEN) updates.slackBotToken = process.env.SLACK_BOT_TOKEN;
+        if (process.env.TELEGRAM_BOT_TOKEN) updates.telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+
+        if (Object.keys(updates).length > 0) {
+            await db.update(organizations).set(updates).where(eq(organizations.id, org.id));
+            console.log('Updated organization bot tokens');
+        }
+        console.log('Organization exists: Acme Corp');
     }
 
     // 2) Forms
     const formsToEnsure = [
-        { name: 'Contact Form', slug: 'contact-form', useOrgIntegrations: true },
-        { name: 'Telegram Feedback', slug: 'telegram-feedback', useOrgIntegrations: false },
-        { name: 'Webhook Demo', slug: 'webhook-demo', useOrgIntegrations: false },
+        { name: 'Website Contact', slug: 'website-contact', useOrgIntegrations: true },
+        { name: 'Bug Reports', slug: 'bug-reports', useOrgIntegrations: false },
+        { name: 'Customer Feedback', slug: 'customer-feedback', useOrgIntegrations: false },
+        { name: 'Newsletter Signup', slug: 'newsletter-signup', useOrgIntegrations: false },
     ];
 
     const savedForms: Record<string, typeof forms.$inferSelect> = {};
@@ -75,22 +88,21 @@ async function main() {
         savedForms[def.slug] = form;
     }
 
-    // 3) Org MailPit SMTP integration
+    // 3) Org Email SMTP integration
     const existingIntegration = await db.query.integrations.findFirst({
         where: and(
             eq(integrations.organizationId, org.id),
             eq(integrations.scope, IntegrationScope.ORGANIZATION),
-            eq(integrations.type, IntegrationType.EMAIL_SMTP),
-            eq(integrations.name, 'MailPit SMTP')
+            eq(integrations.type, IntegrationType.EMAIL_SMTP)
         )
     });
 
     const mailpitConfig = {
         recipients: ['team@acme.test'],
         fromEmail: 'no-reply@acme.test',
-        subject: 'New Contact Form Submission',
+        subject: 'New Website Contact Submission',
         smtp: {
-            host: process.env.MAILPIT_HOST || '127.0.0.1',
+            host: process.env.SYSTEM_MAIL_HOST || '127.0.0.1',
             port: Number(process.env.MAILPIT_PORT || 1026),
             username: process.env.MAILPIT_USER || 'mailpit',
             password: process.env.MAILPIT_PASS || 'mailpit',
@@ -99,7 +111,7 @@ async function main() {
     };
 
     if (existingIntegration) {
-        console.log('Updating existing integration: MailPit SMTP');
+        console.log('Updating existing integration: Contact Notifications → Email');
         await db.update(integrations)
             .set({ config: mailpitConfig })
             .where(eq(integrations.id, existingIntegration.id));
@@ -109,55 +121,96 @@ async function main() {
             formId: null,
             scope: IntegrationScope.ORGANIZATION,
             type: IntegrationType.EMAIL_SMTP,
-            name: 'MailPit SMTP',
+            name: 'Contact Notifications → Email',
             isActive: true,
             config: mailpitConfig,
         });
-        console.log('Created integration: MailPit SMTP');
+        console.log('Created integration: Contact Notifications → Email');
     }
 
-    // 4) Telegram form-scoped integration
-    const telegramForm = savedForms['telegram-feedback'];
-    if (telegramForm) {
+    // 4) Telegram form-scoped integration (bot token comes from org)
+    const bugReportsForm = savedForms['bug-reports'];
+    if (bugReportsForm && process.env.TELEGRAM_CHAT_ID) {
         const existingTelegram = await db.query.integrations.findFirst({
             where: and(
                 eq(integrations.organizationId, org.id),
-                eq(integrations.formId, telegramForm.id),
+                eq(integrations.formId, bugReportsForm.id),
                 eq(integrations.scope, IntegrationScope.FORM),
                 eq(integrations.type, IntegrationType.TELEGRAM)
             )
         });
 
+        // Only store chatId - botToken comes from organization settings
         const telegramConfig = {
-            chatId: process.env.TELEGRAM_CHAT_ID || '-1003716477840',
+            chatId: process.env.TELEGRAM_CHAT_ID,
         };
 
         if (existingTelegram) {
-            console.log('Updating existing integration: Telegram Alerts');
+            console.log('Updating existing integration: Bug Reports → Telegram');
             await db.update(integrations)
                 .set({ config: telegramConfig })
                 .where(eq(integrations.id, existingTelegram.id));
         } else {
             await db.insert(integrations).values({
                 organizationId: org.id,
-                formId: telegramForm.id,
+                formId: bugReportsForm.id,
                 scope: IntegrationScope.FORM,
                 type: IntegrationType.TELEGRAM,
-                name: 'Telegram Alerts',
+                name: 'Bug Reports → Telegram',
                 isActive: true,
                 config: telegramConfig,
             });
-            console.log('Created integration: Telegram Alerts (form override)');
+            console.log('Created integration: Bug Reports → Telegram');
         }
+    } else if (bugReportsForm) {
+        console.log('Skipping Telegram integration (TELEGRAM_CHAT_ID not set)');
     }
 
-    // 5) Webhook form-scoped integration
-    const webhookForm = savedForms['webhook-demo'];
-    if (webhookForm) {
+    // 5) Slack form-scoped integration (bot token comes from org)
+    const feedbackForm = savedForms['customer-feedback'];
+    if (feedbackForm && process.env.SLACK_CHANNEL_ID) {
+        const existingSlack = await db.query.integrations.findFirst({
+            where: and(
+                eq(integrations.organizationId, org.id),
+                eq(integrations.formId, feedbackForm.id),
+                eq(integrations.scope, IntegrationScope.FORM),
+                eq(integrations.type, IntegrationType.SLACK)
+            )
+        });
+
+        // Only store channelId - accessToken comes from organization settings
+        const slackConfig = {
+            channelId: process.env.SLACK_CHANNEL_ID,
+        };
+
+        if (existingSlack) {
+            console.log('Updating existing integration: Customer Feedback → Slack');
+            await db.update(integrations)
+                .set({ config: slackConfig })
+                .where(eq(integrations.id, existingSlack.id));
+        } else {
+            await db.insert(integrations).values({
+                organizationId: org.id,
+                formId: feedbackForm.id,
+                scope: IntegrationScope.FORM,
+                type: IntegrationType.SLACK,
+                name: 'Customer Feedback → Slack',
+                isActive: true,
+                config: slackConfig,
+            });
+            console.log('Created integration: Customer Feedback → Slack');
+        }
+    } else if (feedbackForm) {
+        console.log('Skipping Slack integration (SLACK_CHANNEL_ID not set)');
+    }
+
+    // 6) Webhook form-scoped integration
+    const newsletterForm = savedForms['newsletter-signup'];
+    if (newsletterForm) {
         const existingWebhook = await db.query.integrations.findFirst({
             where: and(
                 eq(integrations.organizationId, org.id),
-                eq(integrations.formId, webhookForm.id),
+                eq(integrations.formId, newsletterForm.id),
                 eq(integrations.scope, IntegrationScope.FORM),
                 eq(integrations.type, IntegrationType.WEBHOOK)
             )
@@ -166,19 +219,19 @@ async function main() {
         if (!existingWebhook) {
             await db.insert(integrations).values({
                 organizationId: org.id,
-                formId: webhookForm.id,
+                formId: newsletterForm.id,
                 scope: IntegrationScope.FORM,
                 type: IntegrationType.WEBHOOK,
-                name: 'Local Webhook',
+                name: 'Newsletter → CRM Webhook',
                 isActive: true,
                 config: {
                     webhook: 'http://localhost:4200/webhook',
                     webhookSource: 'generic',
                 },
             });
-            console.log('Created integration: Local Webhook (form override)');
+            console.log('Created integration: Newsletter → CRM Webhook');
         } else {
-            console.log('Integration exists: Local Webhook');
+            console.log('Integration exists: Newsletter → CRM Webhook');
         }
     }
 

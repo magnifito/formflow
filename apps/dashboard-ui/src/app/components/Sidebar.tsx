@@ -8,9 +8,15 @@ export interface NavItem {
     route: string;
 }
 
+export interface NavSection {
+    label: string;
+    items: NavItem[];
+}
+
 interface SidebarProps {
     sectionLabel?: string;
-    navItems: NavItem[];
+    navItems?: NavItem[];
+    navSections?: NavSection[];
     showBackLink?: boolean;
     backLinkText?: string;
     backLinkRoute?: string;
@@ -19,11 +25,32 @@ interface SidebarProps {
 export function Sidebar({
     sectionLabel = 'TENANT',
     navItems,
+    navSections,
     showBackLink = false,
     backLinkText = 'Back',
     backLinkRoute = '/dashboard'
 }: SidebarProps) {
     const location = useLocation();
+
+    const renderNavItem = (item: NavItem) => {
+        const Icon = item.icon;
+        const isActive = location.pathname === item.route || (item.route !== '/' && location.pathname.startsWith(item.route));
+        return (
+            <Link
+                key={item.route}
+                to={item.route}
+                className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    isActive
+                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+            >
+                <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                {item.label}
+            </Link>
+        );
+    };
 
     return (
         <aside className="fixed left-0 top-0 z-50 flex h-screen w-60 flex-col border-r border-border bg-card">
@@ -38,31 +65,28 @@ export function Sidebar({
                 <span className="text-xl font-bold text-foreground tracking-tight">FormFlow</span>
             </div>
 
-            <div className="flex flex-1 flex-col py-6">
-                <span className="mb-3 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
-                    {sectionLabel}
-                </span>
-                <nav className="flex flex-col gap-1 px-3">
-                    {navItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = location.pathname === item.route || (item.route !== '/' && location.pathname.startsWith(item.route));
-                        return (
-                            <Link
-                                key={item.route}
-                                to={item.route}
-                                className={cn(
-                                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                                    isActive
-                                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                )}
-                            >
-                                <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                                {item.label}
-                            </Link>
-                        );
-                    })}
-                </nav>
+            <div className="flex flex-1 flex-col py-4 overflow-y-auto">
+                {navSections ? (
+                    navSections.map((section, idx) => (
+                        <div key={section.label} className={cn(idx > 0 && "mt-4")}>
+                            <span className="mb-2 px-6 block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+                                {section.label}
+                            </span>
+                            <nav className="flex flex-col gap-1 px-3">
+                                {section.items.map(renderNavItem)}
+                            </nav>
+                        </div>
+                    ))
+                ) : navItems ? (
+                    <>
+                        <span className="mb-3 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">
+                            {sectionLabel}
+                        </span>
+                        <nav className="flex flex-col gap-1 px-3">
+                            {navItems.map(renderNavItem)}
+                        </nav>
+                    </>
+                ) : null}
             </div>
 
             {showBackLink && (

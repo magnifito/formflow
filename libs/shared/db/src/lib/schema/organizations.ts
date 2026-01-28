@@ -24,6 +24,10 @@ export const organizations = pgTable('organization', {
     defaultMaxRequestSizeBytes: integer('defaultMaxRequestSizeBytes').default(100000),
     defaultRefererFallbackEnabled: boolean('defaultRefererFallbackEnabled').default(true).notNull(),
 
+    // Integration Bot Credentials (org-level)
+    slackBotToken: text('slackBotToken'),
+    telegramBotToken: text('telegramBotToken'),
+
     createdAt: timestamp('createdAt').defaultNow().notNull(),
     updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });
