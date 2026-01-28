@@ -1,68 +1,65 @@
-import { DataSource } from 'typeorm';
+import { db } from '../src/db';
+import { users, organizations, forms } from '@formflow/shared/drizzle';
+import { eq } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { User, Form, Organization, generateSubmitHash } from '@formflow/shared/entities';
+import { getEnv } from '@formflow/shared/env';
 
 /**
  * Test database helper
  */
 export class TestDatabase {
-  private dataSource: DataSource;
-
-  constructor(dataSource: DataSource) {
-    this.dataSource = dataSource;
-  }
 
   async cleanup() {
-    const entities = this.dataSource.entityMetadatas;
-
-    for (const entity of entities) {
-      const repository = this.dataSource.getRepository(entity.name);
-      await repository.query(`TRUNCATE TABLE "${entity.tableName}" CASCADE;`);
-    }
+    // Truncate tables in reverse order of dependency
+    await db.execute(sql`TRUNCATE TABLE "submission" CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE "integration" CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE "whitelisted_domain" CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE "form" CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE "user" CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE "organization" CASCADE`);
   }
 
-  async createTestOrganization(data: Partial<Organization> = {}): Promise<Organization> {
-    const orgRepo = this.dataSource.getRepository(Organization);
-    const org = orgRepo.create({
+  async createTestOrganization(data: any = {}) {
+    // Check if organization slug is already taken
+    const slug = data.slug || `test-org-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // Create organization
+    const [savedOrganization] = await db.insert(organizations).values({
       name: data.name || 'Test Organization',
-      slug: data.slug || `test-org-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      maxForms: data.maxForms,
+      slug: slug,
       maxSubmissionsPerMonth: data.maxSubmissionsPerMonth,
-      ...data,
-    });
-    return await orgRepo.save(org);
+      isActive: true, // Default to true
+      ...data
+    }).returning(); // Drizzle returns array
+
+    return savedOrganization;
   }
 
-  async createTestUser(data: Partial<User> = {}): Promise<User> {
-    const userRepo = this.dataSource.getRepository(User);
-
+  async createTestUser(data: any = {}) {
     // Hash password (default to 'password123' if not provided)
     const passwordToHash = data.passwordHash || 'password123';
     const passwordHash = await bcrypt.hash(passwordToHash, 10);
 
-    // Remove undefined values from data to prevent FK issues
-    const cleanData = Object.fromEntries(
-      Object.entries(data).filter(([_, v]) => v !== undefined)
-    );
-
     // Prepare user data with defaults
-    const userData = {
-      email: cleanData.email || 'test@formflow.fyi',
-      name: cleanData.name || 'Test User',
-      isSuperAdmin: cleanData.isSuperAdmin || false,
-      role: cleanData.role || 'member',
-      organizationId: null, // Default to null
-      ...cleanData,
-      passwordHash, // Always use hashed password
-    };
+    const email = data.email || 'test@formflow.fyi';
 
-    const user = userRepo.create(userData);
-    return await userRepo.save(user);
+    const [savedUser] = await db.insert(users).values({
+      email,
+      passwordHash,
+      name: data.name || 'Test User',
+      isSuperAdmin: data.isSuperAdmin || false,
+      role: data.role || 'member',
+      organizationId: data.organizationId || null,
+      isActive: true
+    }).returning();
+
+    return savedUser;
   }
 
-  async createSuperAdmin(email = 'admin@formflow.fyi', password = 'formflow123'): Promise<User> {
+  async createSuperAdmin(email = 'admin@formflow.fyi', password = 'formflow123') {
     return this.createTestUser({
       email,
       passwordHash: password,
@@ -71,18 +68,19 @@ export class TestDatabase {
     });
   }
 
-  async createTestForm(organizationId: number, data: Partial<Form> = {}): Promise<Form> {
-    const formRepo = this.dataSource.getRepository(Form);
-    const form = formRepo.create({
+  async createTestForm(organizationId: number, data: any = {}) {
+    const [savedForm] = await db.insert(forms).values({
       name: data.name || 'Test Form',
       slug: data.slug || `test-form-${uuidv4()}`,
       organizationId,
-      submitHash: data.submitHash || generateSubmitHash(),
+      submitHash: data.submitHash || uuidv4(), // generateSubmitHash replacement
       captchaEnabled: data.captchaEnabled ?? true,
       csrfEnabled: data.csrfEnabled ?? false,
+      isActive: true,
       ...data,
-    });
-    return await formRepo.save(form);
+    }).returning();
+
+    return savedForm;
   }
 }
 
@@ -113,7 +111,7 @@ export function generateOrgContextToken(userId: number, organizationId: number):
 /**
  * Create test form configuration data
  */
-export function createTestFormConfig(overrides: Partial<Form> = {}): Partial<Form> {
+export function createTestFormConfig(overrides: any = {}): any {
   return {
     name: 'Test Contact Form',
     captchaEnabled: true,
@@ -126,7 +124,7 @@ export function createTestFormConfig(overrides: Partial<Form> = {}): Partial<For
 /**
  * Create test organization data
  */
-export function createTestOrgData(overrides: Partial<Organization> = {}) {
+export function createTestOrgData(overrides: any = {}) {
   return {
     name: 'Test Organization',
     slug: `test-org-${Date.now()}`,
@@ -137,7 +135,7 @@ export function createTestOrgData(overrides: Partial<Organization> = {}) {
 /**
  * Create test user data
  */
-export function createTestUserData(overrides: Partial<User> = {}) {
+export function createTestUserData(overrides: any = {}) {
   return {
     email: `test-${Date.now()}@formflow.fyi`,
     name: 'Test User',

@@ -7,12 +7,6 @@
       "@formflow/shared/env": [
         "libs/shared/env/src/index.ts"
       ],
-      "@formflow/shared/entities": [
-        "libs/shared/entities/src/index.ts"
-      ],
-      "@formflow/shared/data-source": [
-        "libs/shared/data-source/src/index.ts"
-      ],
       "@formflow/shared/logger": [
         "libs/shared/logger/src/index.ts"
       ],
@@ -24,6 +18,9 @@
       ],
       "@formflow/shared/integrations": [
         "libs/shared/integrations/src/index.ts"
+      ],
+      "@formflow/shared/drizzle": [
+        "libs/shared/drizzle/src/index.ts"
       ]
     },
     "lib": [

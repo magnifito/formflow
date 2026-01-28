@@ -1,12 +1,10 @@
 import { Router, Request, Response } from "express";
-import { AppDataSource } from "../data-source";
-import { Form, WhitelistedDomain, Submission, Integration, IntegrationScope } from "@formflow/shared/entities";
+import { eq, and } from "drizzle-orm";
+import { db } from "../db";
+import { forms, whitelistedDomains, submissions, integrations } from "@formflow/shared/drizzle";
 import { getEnv } from "@formflow/shared/env";
-import nodemailer from "nodemailer";
-import axios from "axios";
 import crypto from "crypto";
 import logger, { LogOperation, LogMessages } from "@formflow/shared/logger";
-import { getTelegramService } from "@formflow/shared/telegram";
 import { getBoss, QUEUE_NAMES, IntegrationType, IntegrationJobData, JOB_OPTIONS } from "@formflow/shared/queue";
 import { resolveIntegrationStack } from "@formflow/shared/integrations";
 
@@ -239,13 +237,18 @@ router.get('/:identifier/csrf', async (req: Request, res: Response) => {
         }
 
         const { identifier } = req.params;
-        const form = await AppDataSource.manager.findOne(Form, {
-            where: [
-                { submitHash: identifier },
-                { slug: identifier }
-            ],
-            relations: ['organization']
+        // Try to find by submitHash first, then by slug
+        let form = await db.query.forms.findFirst({
+            where: eq(forms.submitHash, identifier),
+            with: { organization: true }
         });
+
+        if (!form) {
+            form = await db.query.forms.findFirst({
+                where: eq(forms.slug, identifier),
+                with: { organization: true }
+            });
+        }
 
         if (!form) {
             return res.status(404).json({ error: 'Form not found' });
@@ -268,12 +271,12 @@ router.get('/:identifier/csrf', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Organization is inactive' });
         }
 
-        const whitelistedDomains = await AppDataSource.manager.find(WhitelistedDomain, {
-            where: { organizationId: form.organizationId }
+        const domainsList = await db.query.whitelistedDomains.findMany({
+            where: eq(whitelistedDomains.organizationId, form.organizationId!)
         });
 
-        if (whitelistedDomains.length > 0) {
-            const isAllowed = whitelistedDomains.some(d => origin.includes(d.domain))
+        if (domainsList.length > 0) {
+            const isAllowed = domainsList.some(d => origin.includes(d.domain))
                 || origin.includes("localhost");
 
             if (!isAllowed) {
@@ -344,9 +347,9 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         delete formData._csrf;
 
         // Find form by submitHash only
-        const form = await AppDataSource.manager.findOne(Form, {
-            where: { submitHash: identifier },
-            relations: ['organization']
+        const form = await db.query.forms.findFirst({
+            where: eq(forms.submitHash, identifier),
+            with: { organization: true }
         });
 
         if (!form) {
@@ -417,12 +420,12 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         }
 
         // Check whitelisted domains with Referer fallback
-        const whitelistedDomains = await AppDataSource.manager.find(WhitelistedDomain, {
-            where: { organizationId: form.organizationId }
+        const domainsList = await db.query.whitelistedDomains.findMany({
+            where: eq(whitelistedDomains.organizationId, form.organizationId!)
         });
 
-        if (whitelistedDomains.length > 0 && origin) {
-            const isAllowed = whitelistedDomains.some(d => origin.includes(d.domain))
+        if (domainsList.length > 0 && origin) {
+            const isAllowed = domainsList.some(d => origin.includes(d.domain))
                 || origin.includes("localhost");
 
             if (!isAllowed) {
@@ -488,36 +491,35 @@ router.post('/:identifier', async (req: Request, res: Response) => {
         }
 
         // Save submission
-        const submission = AppDataSource.manager.create(Submission, {
+        const [submission] = await db.insert(submissions).values({
             formId: form.id,
             data: formData,
             originDomain: origin || null,
             ipAddress: clientIp
-        });
-        await AppDataSource.manager.save(submission);
+        }).returning();
 
         // Get integrations to process (org + form stacked with form overrides)
         const [orgIntegrations, formScopedIntegrations] = await Promise.all([
-            AppDataSource.manager.find(Integration, {
-                where: {
-                    organizationId: form.organizationId,
-                    scope: IntegrationScope.ORGANIZATION,
-                    isActive: true
-                }
+            db.query.integrations.findMany({
+                where: and(
+                    eq(integrations.organizationId, form.organizationId!),
+                    eq(integrations.scope, 'organization'),
+                    eq(integrations.isActive, true)
+                )
             }),
-            AppDataSource.manager.find(Integration, {
-                where: {
-                    organizationId: form.organizationId,
-                    formId: form.id,
-                    scope: IntegrationScope.FORM,
-                    isActive: true
-                }
+            db.query.integrations.findMany({
+                where: and(
+                    eq(integrations.organizationId, form.organizationId!),
+                    eq(integrations.formId, form.id),
+                    eq(integrations.scope, 'form'),
+                    eq(integrations.isActive, true)
+                )
             })
         ]);
 
         const resolvedIntegrations = resolveIntegrationStack({
-            orgIntegrations,
-            formIntegrations: formScopedIntegrations,
+            orgIntegrations: orgIntegrations as any,
+            formIntegrations: formScopedIntegrations as any,
             useOrgIntegrations: form.useOrgIntegrations ?? true
         });
 

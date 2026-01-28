@@ -1,11 +1,9 @@
 import "reflect-metadata";
 import express, { Request, Response } from "express";
 import bodyParser from "body-parser";
-import nodemailer from "nodemailer";
 import cors from "cors";
-import axios from 'axios';
-import { AppDataSource } from "./data-source";
-import { User } from "@formflow/shared/entities";
+import { sql } from "drizzle-orm";
+import { db } from "./db";
 import { getEnv, loadEnv } from "@formflow/shared/env";
 import { requestLogger } from "./middleware/requestLogger";
 import { errorHandler } from "./middleware/errorHandler";
@@ -27,10 +25,7 @@ const DASHBOARD_API_URL = getEnv("DASHBOARD_API_URL") || `http://localhost:${DAS
 async function createApp() {
     const app = express();
 
-    // Initialize database connection if not already initialized
-    if (!AppDataSource.isInitialized) {
-        await AppDataSource.initialize();
-    }
+    // Drizzle does not require explicit initialization like TypeORM
 
     // CORS - Allow all origins for public form submissions
     // CORS - Allow all origins for public form submissions, referencing the request origin if needed
@@ -71,7 +66,7 @@ async function createApp() {
     app.get('/health/ready', async (req, res) => {
         try {
             // Check database connectivity
-            await AppDataSource.manager.query('SELECT 1');
+            await db.execute(sql`SELECT 1`);
             res.status(200).json({
                 status: 'ready',
                 timestamp: new Date().toISOString(),

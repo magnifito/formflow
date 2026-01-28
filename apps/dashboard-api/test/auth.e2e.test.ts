@@ -1,21 +1,39 @@
 
 import request from 'supertest';
 import { createApp } from '../src/index';
-import { AppDataSource } from '../src/data-source';
+import { db } from '../src/db';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-// Mock Data Source
-jest.mock('../src/data-source', () => ({
-    AppDataSource: {
-        isInitialized: false,
-        initialize: jest.fn().mockResolvedValue(true),
-        manager: {
-            findOne: jest.fn(),
-            save: jest.fn(),
-            create: jest.fn(),
+// Mock the db module (Drizzle)
+jest.mock('../src/db', () => ({
+    db: {
+        query: {
+            users: {
+                findFirst: jest.fn(),
+            },
+            organizations: {
+                findFirst: jest.fn(),
+            },
         },
+        select: jest.fn().mockReturnValue({
+            from: jest.fn().mockReturnValue({
+                where: jest.fn().mockResolvedValue([{ count: 0 }]),
+            }),
+        }),
+        insert: jest.fn().mockReturnValue({
+            values: jest.fn().mockReturnValue({
+                returning: jest.fn(),
+            }),
+        }),
+        execute: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
     },
+}));
+
+jest.mock('@formflow/shared/drizzle', () => ({
+    users: { id: 'id', email: 'email', isSuperAdmin: 'isSuperAdmin' },
+    organizations: { id: 'id', slug: 'slug' },
+    forms: {},
 }));
 
 jest.mock('@formflow/shared/logger', () => ({
@@ -49,6 +67,8 @@ jest.mock('jsonwebtoken', () => ({
     verify: jest.fn(),
 }));
 
+const mockedDb = db as jest.Mocked<typeof db>;
+
 describe('Auth Endpoints (E2E)', () => {
     let app: any;
 
@@ -70,7 +90,7 @@ describe('Auth Endpoints (E2E)', () => {
                 organizationId: 1
             };
 
-            (AppDataSource.manager.findOne as jest.Mock).mockResolvedValue(mockUser);
+            (mockedDb.query.users.findFirst as jest.Mock).mockResolvedValue(mockUser);
             (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
             const res = await request(app)
@@ -83,7 +103,7 @@ describe('Auth Endpoints (E2E)', () => {
         });
 
         it('should return 401 for invalid credentials', async () => {
-            (AppDataSource.manager.findOne as jest.Mock).mockResolvedValue(null);
+            (mockedDb.query.users.findFirst as jest.Mock).mockResolvedValue(null);
 
             const res = await request(app)
                 .post('/auth/login')
@@ -103,7 +123,7 @@ describe('Auth Endpoints (E2E)', () => {
                 email: 'test@example.com',
                 organization: { id: 1, name: 'Org 1' }
             };
-            (AppDataSource.manager.findOne as jest.Mock).mockResolvedValue(mockUser);
+            (mockedDb.query.users.findFirst as jest.Mock).mockResolvedValue(mockUser);
 
             const res = await request(app)
                 .get('/auth/me')
@@ -122,22 +142,35 @@ describe('Auth Endpoints (E2E)', () => {
 
     describe('POST /setup', () => {
         it('should complete setup if no superadmin exists', async () => {
-            // Mock check for existing superadmin
-            (AppDataSource.manager.findOne as jest.Mock)
+            // Mock check for existing superadmin - using select().from().where() pattern
+            const mockSelectChain = {
+                from: jest.fn().mockReturnValue({
+                    where: jest.fn().mockResolvedValue([{ count: 0 }]),
+                }),
+            };
+            (mockedDb.select as jest.Mock).mockReturnValue(mockSelectChain);
+
+            // Mock findFirst calls
+            (mockedDb.query.users.findFirst as jest.Mock)
                 .mockResolvedValueOnce(null) // No existing superadmin
-                .mockResolvedValueOnce(null) // No user with email
+                .mockResolvedValueOnce(null); // No user with email
+
+            (mockedDb.query.organizations.findFirst as jest.Mock)
                 .mockResolvedValueOnce(null); // No org with slug
 
             const mockOrg = { id: 1, name: 'Admin Org', slug: 'admin-org' };
             const mockUser = { id: 1, email: 'admin@example.com', organizationId: 1, isSuperAdmin: true };
 
-            (AppDataSource.manager.create as jest.Mock)
-                .mockReturnValueOnce(mockOrg)
-                .mockReturnValueOnce(mockUser);
+            // Mock insert chain
+            const mockReturningOrg = jest.fn().mockResolvedValue([mockOrg]);
+            const mockValuesOrg = jest.fn().mockReturnValue({ returning: mockReturningOrg });
 
-            (AppDataSource.manager.save as jest.Mock)
-                .mockResolvedValueOnce(mockOrg)
-                .mockResolvedValueOnce(mockUser);
+            const mockReturningUser = jest.fn().mockResolvedValue([mockUser]);
+            const mockValuesUser = jest.fn().mockReturnValue({ returning: mockReturningUser });
+
+            (mockedDb.insert as jest.Mock)
+                .mockReturnValueOnce({ values: mockValuesOrg })
+                .mockReturnValueOnce({ values: mockValuesUser });
 
             const res = await request(app).post('/setup').send({
                 email: 'admin@example.com',

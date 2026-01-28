@@ -24,8 +24,9 @@
       "express": "^5.2.1",
       "nodemailer": "^7.0.12",
       "pg": "^8.17.2",
+      "drizzle-orm": "^0.30.10",
+      "postgres": "^3.4.4",
       "reflect-metadata": "^0.2.2",
-      "typeorm": "0.3.28",
       "uuid": "^13.0.0",
       "winston": "^3.19.0",
       "winston-daily-rotate-file": "^5.0.0"
@@ -33,7 +34,6 @@
    "scripts": {
       "dev": "tsx watch src/index.ts",
       "start": "ts-node src/index.ts",
-      "typeorm": "ts-node ./node_modules/typeorm/cli.js",
       "test": "jest",
       "test:watch": "jest --watch",
       "test:coverage": "jest --coverage",

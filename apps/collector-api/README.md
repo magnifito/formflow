@@ -23,7 +23,7 @@ The Collector API is the public-facing backend service that handles form submiss
 
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js
-- **Database**: PostgreSQL with TypeORM
+- **Database**: PostgreSQL with Drizzle ORM
 - **Email**: Nodemailer
 - **Anti-Spam**: Custom Proof of Work (Alcha) CAPTCHA
 
@@ -133,7 +133,7 @@ apps/collector-api/
 │   │   └── Challenge.js      # PoW challenge validation
 │   ├── controller/           # Route controllers
 │   │   └── SubmissionController.ts
-│   ├── data-source.ts        # TypeORM data source
+│   ├── db.ts                 # Drizzle database client
 │   └── index.ts              # Express app entry point
 ├── dockerfile                # Docker configuration
 ├── package.json
@@ -248,8 +248,7 @@ Post to Discord channels:
 
 This API uses shared libraries from the monorepo:
 
-- `@formflow/entities` - TypeORM entities (Form, Submission, Integration, etc.)
-- `@formflow/data-source` - Database connection configuration
+- `@formflow/drizzle` - Drizzle ORM schema and database client
 - `@formflow/utils-encryption` - Decryption utilities for integration credentials
 
 ## Testing
@@ -344,12 +343,12 @@ docker run -p 3001:3001 \
 ## Performance
 
 - Submissions are processed asynchronously
-- Database queries are optimized with TypeORM
+- Database queries are optimized with Drizzle ORM
 - Integration triggers run in parallel
 - Consider adding Redis for caching in production
 
 ## Further Reading
 
-- [TypeORM Documentation](https://typeorm.io)
+- [Drizzle ORM Documentation](https://orm.drizzle.team)
 - [Express.js Documentation](https://expressjs.com)
 - [Nodemailer Documentation](https://nodemailer.com)

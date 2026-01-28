@@ -1,6 +1,9 @@
 import { Router, Request, Response } from "express";
-import { AppDataSource } from "../data-source";
-import { User, Integration, Form, IntegrationScope, Organization } from "@formflow/shared/entities";
+import { db } from "../db";
+import { users, integrations, forms, organizations } from "@formflow/shared/drizzle";
+import { eq, and, desc, asc, isNull } from "drizzle-orm";
+// We need IntegrationScope from entities as it might be an enum shared across apps
+import { IntegrationScope } from "@formflow/shared/drizzle";
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import logger, { LogOperation } from "@formflow/shared/logger";
 import { IntegrationType } from "@formflow/shared/queue";
@@ -9,7 +12,7 @@ import { resolveIntegrationStack } from "@formflow/shared/integrations";
 import axios from "axios";
 import nodemailer from "nodemailer";
 import cors from "cors";
-import { EntityMetadataNotFoundError } from "typeorm";
+
 
 const router = Router();
 
@@ -84,13 +87,16 @@ const normalizeConfigForType = (type: IntegrationType, rawConfig: any) => {
 
 const getFormIfAuthorized = async (formId: number | undefined, organizationId: number) => {
     if (!formId) return null;
-    return AppDataSource.manager.findOne(Form, {
-        where: { id: formId, organizationId }
+    return db.query.forms.findFirst({
+        where: and(eq(forms.id, formId), eq(forms.organizationId, organizationId))
     });
 };
 
 const resolveOrganizationContext = async (req: AuthRequest) => {
-    const user = await AppDataSource.manager.findOne(User, { where: { id: req.user!.userId }, relations: ['organization'] });
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, req.user!.userId),
+        with: { organization: true }
+    });
     if (!user) {
         throw new Error('User not found');
     }
@@ -100,8 +106,8 @@ const resolveOrganizationContext = async (req: AuthRequest) => {
         if (headerOrg) {
             const orgId = parseInt(String(headerOrg), 10);
             if (!isNaN(orgId)) {
-                const org = await AppDataSource.manager.findOne(Organization, {
-                    where: { id: orgId, isActive: true }
+                const org = await db.query.organizations.findFirst({
+                    where: and(eq(organizations.id, orgId), eq(organizations.isActive, true))
                 });
                 if (org) {
                     return { user, organizationId: org.id };
@@ -112,9 +118,9 @@ const resolveOrganizationContext = async (req: AuthRequest) => {
         if (user.organizationId) {
             return { user, organizationId: user.organizationId };
         }
-        const firstOrg = await AppDataSource.manager.findOne(Organization, {
-            where: { isActive: true },
-            order: { id: 'ASC' }
+        const firstOrg = await db.query.organizations.findFirst({
+            where: eq(organizations.isActive, true),
+            orderBy: asc(organizations.id)
         });
         if (!firstOrg) throw new Error('No active organization available for context');
         return { user, organizationId: firstOrg.id };
@@ -142,18 +148,18 @@ router.get('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, r
             }
         }
 
-        const where: any = { organizationId };
-        if (formId) where.formId = formId;
+        const whereConditions: any[] = [eq(integrations.organizationId, organizationId)];
+        if (formId) whereConditions.push(eq(integrations.formId, formId));
         if (scope === IntegrationScope.ORGANIZATION || scope === IntegrationScope.FORM) {
-            where.scope = scope;
+            whereConditions.push(eq(integrations.scope, scope));
         }
 
-        const integrations = await AppDataSource.manager.find(Integration, {
-            where,
-            order: { createdAt: 'DESC' }
+        const integrationsList = await db.query.integrations.findMany({
+            where: and(...whereConditions),
+            orderBy: desc(integrations.createdAt)
         });
 
-        res.json(integrations);
+        res.json(integrationsList);
     } catch (error: any) {
         logger.error('Failed to list integrations', { error: error.message, userId: req.user?.userId });
         res.status(500).json({ error: 'Internal Server Error' });
@@ -193,7 +199,7 @@ router.post('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, 
 
         const normalizedConfig = normalizeConfigForType(type, config);
 
-        const integration = AppDataSource.manager.create(Integration, {
+        const [integration] = await db.insert(integrations).values({
             organizationId,
             formId: formId || null,
             scope,
@@ -201,9 +207,7 @@ router.post('/', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, 
             name,
             config: normalizedConfig,
             isActive: isActive !== undefined ? Boolean(isActive) : true
-        });
-
-        await AppDataSource.manager.save(integration);
+        }).returning();
 
         logger.info('Integration created', {
             operation: LogOperation.INTEGRATION_CREATE,
@@ -228,28 +232,45 @@ router.put('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequest
 
         const { organizationId } = await resolveOrganizationContext(req);
 
-        const integration = await AppDataSource.manager.findOne(Integration, {
-            where: { id: integrationId, organizationId }
+        const integration = await db.query.integrations.findFirst({
+            where: and(eq(integrations.id, integrationId), eq(integrations.organizationId, organizationId))
         });
 
         if (!integration) {
             return res.status(404).json({ error: 'Integration not found' });
         }
 
+        // Prepare updates
+        const updates: any = { updatedAt: new Date() };
+
         if (rawFormId) {
             const form = await getFormIfAuthorized(parseInt(String(rawFormId), 10), organizationId);
             if (!form) {
                 return res.status(404).json({ error: 'Form not found for this organization' });
             }
+            updates.formId = form.id;
+            updates.scope = IntegrationScope.FORM;
+
+            // Update local object for logging/response
             integration.formId = form.id;
             integration.scope = IntegrationScope.FORM;
         }
 
-        if (name !== undefined) integration.name = name;
-        if (config !== undefined) integration.config = normalizeConfigForType(integration.type, config);
-        if (isActive !== undefined) integration.isActive = Boolean(isActive);
+        if (name !== undefined) {
+            updates.name = name;
+            integration.name = name;
+        }
+        if (config !== undefined) {
+            const newConfig = normalizeConfigForType(integration.type as IntegrationType, config);
+            updates.config = newConfig;
+            integration.config = newConfig;
+        }
+        if (isActive !== undefined) {
+            updates.isActive = Boolean(isActive);
+            integration.isActive = Boolean(isActive);
+        }
 
-        await AppDataSource.manager.save(integration);
+        await db.update(integrations).set(updates).where(eq(integrations.id, integrationId));
 
         logger.info('Integration updated', {
             operation: LogOperation.INTEGRATION_UPDATE,
@@ -272,15 +293,15 @@ router.delete('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequ
 
         const { organizationId, user } = await resolveOrganizationContext(req);
 
-        const integration = await AppDataSource.manager.findOne(Integration, {
-            where: { id: integrationId, organizationId }
+        const integration = await db.query.integrations.findFirst({
+            where: and(eq(integrations.id, integrationId), eq(integrations.organizationId, organizationId))
         });
 
         if (!integration) {
             return res.status(404).json({ error: 'Integration not found' });
         }
 
-        await AppDataSource.manager.remove(integration);
+        await db.delete(integrations).where(eq(integrations.id, integrationId));
 
         logger.info('Integration deleted', {
             operation: LogOperation.INTEGRATION_DELETE,
@@ -297,46 +318,27 @@ router.delete('/:id', cors(strictCorsOptions), verifyToken, async (req: AuthRequ
 });
 
 // GET /hierarchy - Fetch org + form integrations and resolved stacks
+// GET /hierarchy - Fetch org + form integrations and resolved stacks
 router.get('/hierarchy', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
     try {
         const { organizationId } = await resolveOrganizationContext(req);
 
-        let forms: any[] = [];
-        let integrations: any[] = [];
+        let formsList: any[] = [];
+        let integrationsList: any[] = [];
 
-        try {
-            [forms, integrations] = await Promise.all([
-                AppDataSource.manager.find(Form, {
-                    where: { organizationId }
-                }),
-                AppDataSource.manager.find(Integration, {
-                    where: { organizationId }
-                })
-            ]);
-        } catch (metaError) {
-            if (metaError instanceof EntityMetadataNotFoundError) {
-                logger.warn('Integration hierarchy metadata missing - using raw query fallback', {
-                    organizationId,
-                    error: metaError.message,
-                    correlationId: req.correlationId
-                });
-                forms = await AppDataSource.query(
-                    `SELECT * FROM "form" WHERE "organizationId" = $1 ORDER BY "createdAt" DESC`,
-                    [organizationId]
-                );
-                integrations = await AppDataSource.query(
-                    `SELECT * FROM "integration" WHERE "organizationId" = $1`,
-                    [organizationId]
-                );
-            } else {
-                throw metaError;
-            }
-        }
+        [formsList, integrationsList] = await Promise.all([
+            db.query.forms.findMany({
+                where: eq(forms.organizationId, organizationId)
+            }),
+            db.query.integrations.findMany({
+                where: eq(integrations.organizationId, organizationId)
+            })
+        ]);
 
-        const orgIntegrations = integrations.filter(i => i.scope === IntegrationScope.ORGANIZATION || !i.formId);
-        const formScoped = integrations.filter(i => i.scope === IntegrationScope.FORM || i.formId);
+        const orgIntegrations = integrationsList.filter(i => i.scope === IntegrationScope.ORGANIZATION || !i.formId);
+        const formScoped = integrationsList.filter(i => i.scope === IntegrationScope.FORM || i.formId);
 
-        const formsPayload = forms.map(form => {
+        const formsPayload = formsList.map(form => {
             const scoped = formScoped.filter(i => i.formId === form.id);
             const effectiveIntegrations = resolveIntegrationStack({
                 orgIntegrations,
@@ -362,7 +364,7 @@ router.get('/hierarchy', cors(strictCorsOptions), verifyToken, async (req: AuthR
         logger.info('Integrations hierarchy fetched', {
             organizationId,
             orgIntegrationCount: orgIntegrations.length,
-            formCount: forms.length,
+            formCount: formsList.length,
             correlationId: req.correlationId
         });
     } catch (error: any) {
@@ -377,13 +379,13 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
         const userId = req.user!.userId;
         const integrationId = parseInt(req.params.id);
 
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
         if (!user || user.organizationId === null) {
             return res.status(404).json({ error: 'Organization not found' });
         }
 
-        const integration = await AppDataSource.manager.findOne(Integration, {
-            where: { id: integrationId, organizationId: user.organizationId }
+        const integration = await db.query.integrations.findFirst({
+            where: and(eq(integrations.id, integrationId), eq(integrations.organizationId, user.organizationId))
         });
 
         if (!integration) {

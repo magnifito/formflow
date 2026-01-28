@@ -17,7 +17,7 @@ The Dashboard API is the backend service for the FormFlow dashboard. It handles 
 
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js
-- **Database**: PostgreSQL with TypeORM
+- **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: JWT with bcrypt password hashing
 - **Email**: Nodemailer
 
@@ -121,8 +121,7 @@ apps/dashboard-api/
 │   │   ├── auth.ts           # JWT authentication
 │   │   ├── orgContext.ts     # Organization context
 │   │   └── superAdmin.ts     # Super admin guard
-│   ├── migrations/           # Database migrations
-│   ├── data-source.ts        # TypeORM data source
+│   ├── db.ts                 # Drizzle database client
 │   └── index.ts              # Express app entry point
 ├── dockerfile                # Docker configuration
 ├── package.json
@@ -165,8 +164,7 @@ apps/dashboard-api/
 
 This API uses shared entities and utilities from the monorepo:
 
-- `@formflow/entities` - TypeORM entities (User, Organization, Form, Submission, etc.)
-- `@formflow/data-source` - Database connection configuration
+- `@formflow/drizzle` - Drizzle ORM schema and database client
 - `@formflow/utils-encryption` - Encryption utilities for sensitive data
 
 ## Testing
@@ -235,14 +233,14 @@ See [docs/SECURITY.md](../../docs/SECURITY.md) for security best practices.
 ### Database Migrations
 
 ```bash
-# Generate migration
-npm run typeorm migration:generate -- -n MigrationName
+# Generate migration (from root directory)
+pnpm drizzle-kit generate
 
 # Run migrations
-npm run typeorm migration:run
+pnpm drizzle-kit migrate
 
-# Revert migration
-npm run typeorm migration:revert
+# View database in Drizzle Studio
+pnpm drizzle-kit studio
 ```
 
 ## Troubleshooting
@@ -271,6 +269,6 @@ kill -9 <PID>
 
 ## Further Reading
 
-- [TypeORM Documentation](https://typeorm.io)
+- [Drizzle ORM Documentation](https://orm.drizzle.team)
 - [Express.js Documentation](https://expressjs.com)
 - [JWT Documentation](https://jwt.io)

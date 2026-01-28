@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
-import { AppDataSource } from "../data-source";
-import { Organization, User, Form, Submission } from "@formflow/shared/entities";
+import { db } from "../db";
+import { organizations, users, forms, submissions } from "@formflow/shared/drizzle";
+import { eq, desc, count, sql, and, gte } from "drizzle-orm";
 import { verifyToken, AuthRequest } from "../middleware/auth";
 import { verifySuperAdmin } from "../middleware/superAdmin";
 import bcrypt from "bcrypt";
@@ -16,28 +17,36 @@ router.use(verifySuperAdmin);
 // GET /admin/stats - System-wide statistics
 router.get('/stats', async (req: AuthRequest, res: Response) => {
     try {
+
         const [
-            totalOrganizations,
-            activeOrganizations,
-            totalUsers,
-            totalForms,
-            totalSubmissions
+            orgsResult,
+            activeOrgsResult,
+            usersResult,
+            formsResult,
+            submissionsResult
         ] = await Promise.all([
-            AppDataSource.manager.count(Organization),
-            AppDataSource.manager.count(Organization, { where: { isActive: true } }),
-            AppDataSource.manager.count(User),
-            AppDataSource.manager.count(Form),
-            AppDataSource.manager.count(Submission)
+            db.select({ count: count() }).from(organizations),
+            db.select({ count: count() }).from(organizations).where(eq(organizations.isActive, true)),
+            db.select({ count: count() }).from(users),
+            db.select({ count: count() }).from(forms),
+            db.select({ count: count() }).from(submissions)
         ]);
+
+        const totalOrganizations = orgsResult[0].count;
+        const activeOrganizations = activeOrgsResult[0].count;
+        const totalUsers = usersResult[0].count;
+        const totalForms = formsResult[0].count;
+        const totalSubmissions = submissionsResult[0].count;
 
         // Get submissions in last 30 days
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const recentSubmissions = await AppDataSource.manager
-            .createQueryBuilder(Submission, 'submission')
-            .where('submission.createdAt >= :date', { date: thirtyDaysAgo })
-            .getCount();
+        const recentSubmissionsResult = await db.select({ count: count() })
+            .from(submissions)
+            .where(gte(submissions.createdAt, thirtyDaysAgo));
+
+        const recentSubmissions = recentSubmissionsResult[0].count;
 
         res.json({
             organizations: {
@@ -69,14 +78,18 @@ router.get('/organizations', async (req: AuthRequest, res: Response) => {
         const limit = parseInt(req.query.limit as string) || 20;
         const skip = (page - 1) * limit;
 
-        const [organizations, total] = await AppDataSource.manager.findAndCount(Organization, {
-            order: { createdAt: 'DESC' },
-            skip,
-            take: limit
+        const organizationsList = await db.query.organizations.findMany({
+            orderBy: desc(organizations.createdAt),
+            limit,
+            offset: skip
         });
 
+        const totalResult = await db.select({ count: count() }).from(organizations);
+        const total = totalResult[0].count;
+
         res.json({
-            data: organizations,
+
+            data: organizationsList,
             pagination: {
                 page,
                 limit,
@@ -107,18 +120,16 @@ router.post('/organizations', async (req: AuthRequest, res: Response) => {
         }
 
         // Check if slug already exists
-        const existingOrg = await AppDataSource.manager.findOne(Organization, { where: { slug } });
+        const existingOrg = await db.query.organizations.findFirst({ where: eq(organizations.slug, slug) });
         if (existingOrg) {
             return res.status(400).json({ error: 'Organization with this slug already exists' });
         }
 
-        const organization = AppDataSource.manager.create(Organization, {
+        const [organization] = await db.insert(organizations).values({
             name,
             slug,
             isActive: true
-        });
-
-        await AppDataSource.manager.save(organization);
+        }).returning();
 
         res.status(201).json(organization);
     } catch (error: any) {
@@ -131,11 +142,12 @@ router.post('/organizations', async (req: AuthRequest, res: Response) => {
 router.get('/organizations/:id', async (req: AuthRequest, res: Response) => {
     let orgId;
     try {
+
         orgId = parseInt(req.params.id);
 
-        const organization = await AppDataSource.manager.findOne(Organization, {
-            where: { id: orgId },
-            relations: ['users', 'forms', 'whitelistedDomains']
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, orgId),
+            with: { users: true, forms: true, whitelistedDomains: true }
         });
 
         if (!organization) {
@@ -143,18 +155,20 @@ router.get('/organizations/:id', async (req: AuthRequest, res: Response) => {
         }
 
         // Get submission count for this org
-        const submissionCount = await AppDataSource.manager
-            .createQueryBuilder(Submission, 'submission')
-            .innerJoin('submission.form', 'form')
-            .where('form.organizationId = :orgId', { orgId })
-            .getCount();
+        // Drizzle doesn't support complex inner join counts easily in query builder without sql
+        const submissionCountResult = await db.select({ count: count() })
+            .from(submissions)
+            .innerJoin(forms, eq(submissions.formId, forms.id))
+            .where(eq(forms.organizationId, orgId));
+
+        const submissionCount = submissionCountResult[0].count;
 
         res.json({
             ...organization,
             stats: {
-                userCount: organization.users?.length || 0,
-                formCount: organization.forms?.length || 0,
-                domainCount: organization.whitelistedDomains?.length || 0,
+                userCount: organization.users.length,
+                formCount: organization.forms.length,
+                domainCount: organization.whitelistedDomains.length,
                 submissionCount
             }
         });
@@ -171,8 +185,8 @@ router.put('/organizations/:id', async (req: AuthRequest, res: Response) => {
         orgId = parseInt(req.params.id);
         const { name, slug, isActive } = req.body;
 
-        const organization = await AppDataSource.manager.findOne(Organization, {
-            where: { id: orgId }
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, orgId)
         });
 
         if (!organization) {
@@ -186,19 +200,23 @@ router.put('/organizations/:id', async (req: AuthRequest, res: Response) => {
                 return res.status(400).json({ error: 'Slug must be lowercase alphanumeric with hyphens only' });
             }
 
-            const existingOrg = await AppDataSource.manager.findOne(Organization, { where: { slug } });
+            const existingOrg = await db.query.organizations.findFirst({ where: eq(organizations.slug, slug) });
             if (existingOrg) {
                 return res.status(400).json({ error: 'Organization with this slug already exists' });
             }
-            organization.slug = slug;
         }
 
-        if (name !== undefined) organization.name = name;
-        if (isActive !== undefined) organization.isActive = isActive;
+        await db.update(organizations)
+            .set({
+                name: name ?? organization.name,
+                slug: slug ?? organization.slug,
+                isActive: isActive ?? organization.isActive,
+                updatedAt: new Date()
+            })
+            .where(eq(organizations.id, orgId));
 
-        await AppDataSource.manager.save(organization);
-
-        res.json(organization);
+        const updatedOrg = await db.query.organizations.findFirst({ where: eq(organizations.id, orgId) });
+        res.json(updatedOrg);
     } catch (error: any) {
         logger.error('Error updating organization', { error: error.message, stack: error.stack, orgId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update organization' });
@@ -211,16 +229,17 @@ router.delete('/organizations/:id', async (req: AuthRequest, res: Response) => {
     try {
         orgId = parseInt(req.params.id);
 
-        const organization = await AppDataSource.manager.findOne(Organization, {
-            where: { id: orgId }
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, orgId)
         });
 
         if (!organization) {
             return res.status(404).json({ error: 'Organization not found' });
         }
 
-        organization.isActive = false;
-        await AppDataSource.manager.save(organization);
+        await db.update(organizations)
+            .set({ isActive: false, updatedAt: new Date() })
+            .where(eq(organizations.id, orgId));
 
         res.json({ message: 'Organization deactivated successfully' });
     } catch (error: any) {
@@ -235,12 +254,19 @@ router.get('/organizations/:id/users', async (req: AuthRequest, res: Response) =
     try {
         orgId = parseInt(req.params.id);
 
-        const users = await AppDataSource.manager.find(User, {
-            where: { organizationId: orgId },
-            select: ['id', 'email', 'name', 'role', 'isSuperAdmin', 'createdAt']
+        const usersList = await db.query.users.findMany({
+            where: eq(users.organizationId, orgId),
+            columns: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                isSuperAdmin: true,
+                createdAt: true
+            }
         });
 
-        res.json(users);
+        res.json(usersList);
     } catch (error: any) {
         logger.error('Error fetching organization users', { error: error.message, stack: error.stack, orgId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch users' });
@@ -259,27 +285,29 @@ router.post('/organizations/:id/users', async (req: AuthRequest, res: Response) 
             return res.status(400).json({ error: 'userId is required' });
         }
 
-        const organization = await AppDataSource.manager.findOne(Organization, {
-            where: { id: orgId }
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, orgId)
         });
 
         if (!organization) {
             return res.status(404).json({ error: 'Organization not found' });
         }
 
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: userId }
+        const user = await db.query.users.findFirst({
+            where: eq(users.id, userId)
         });
 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        user.organizationId = orgId;
-        user.role = role || 'member';
-        await AppDataSource.manager.save(user);
+        await db.update(users)
+            .set({ organizationId: orgId, role: role || 'member' })
+            .where(eq(users.id, userId));
 
-        res.json({ message: 'User added to organization', user: { id: user.id, email: user.email, role: user.role } });
+        const updatedUser = await db.query.users.findFirst({ where: eq(users.id, userId) });
+
+        res.json({ message: 'User added to organization', user: { id: updatedUser!.id, email: updatedUser!.email, role: updatedUser!.role } });
     } catch (error: any) {
         logger.error('Error adding user to organization', { error: error.message, stack: error.stack, orgId, userId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to add user to organization' });
@@ -293,16 +321,18 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
         const limit = parseInt(req.query.limit as string) || 20;
         const skip = (page - 1) * limit;
 
-        const [users, total] = await AppDataSource.manager.findAndCount(User, {
-            select: ['id', 'email', 'name', 'organizationId', 'role', 'isSuperAdmin', 'createdAt'],
-            relations: ['organization'],
-            order: { createdAt: 'DESC' },
-            skip,
-            take: limit
+        const usersList = await db.query.users.findMany({
+            with: { organization: true },
+            orderBy: desc(users.createdAt),
+            limit,
+            offset: skip
         });
 
+        const totalResult = await db.select({ count: count() }).from(users);
+        const total = totalResult[0].count;
+
         res.json({
-            data: users,
+            data: usersList,
             pagination: {
                 page,
                 limit,
@@ -323,18 +353,19 @@ router.put('/users/:id/super-admin', async (req: AuthRequest, res: Response) => 
         userId = parseInt(req.params.id);
         const { isSuperAdmin } = req.body;
 
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: userId }
+        const user = await db.query.users.findFirst({
+            where: eq(users.id, userId)
         });
 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        user.isSuperAdmin = isSuperAdmin;
-        await AppDataSource.manager.save(user);
+        await db.update(users)
+            .set({ isSuperAdmin, updatedAt: new Date() })
+            .where(eq(users.id, userId));
 
-        res.json({ message: 'Super admin status updated', isSuperAdmin: user.isSuperAdmin });
+        res.json({ message: 'Super admin status updated', isSuperAdmin });
     } catch (error: any) {
         logger.error('Error updating super admin status', { error: error.message, stack: error.stack, userId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update super admin status' });
@@ -362,14 +393,14 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
         }
 
         // Check if user already exists
-        const existingUser = await AppDataSource.manager.findOne(User, { where: { email } });
+        const existingUser = await db.query.users.findFirst({ where: eq(users.email, email) });
         if (existingUser) {
             return res.status(400).json({ error: 'User with this email already exists' });
         }
 
         // Verify organization exists and is active
-        const organization = await AppDataSource.manager.findOne(Organization, {
-            where: { id: organizationId }
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, organizationId)
         });
         if (!organization) {
             return res.status(404).json({ error: 'Organization not found' });
@@ -382,16 +413,15 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
         const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
         // Create user
-        const user = AppDataSource.manager.create(User, {
+        const [user] = await db.insert(users).values({
             email,
             passwordHash,
             name: name || null,
             organizationId,
             role: role || 'member',
-            isSuperAdmin: false
-        });
-
-        await AppDataSource.manager.save(user);
+            isSuperAdmin: false,
+            isActive: true
+        }).returning();
 
         // Return user without password hash
         res.status(201).json({
@@ -425,15 +455,16 @@ router.put('/users/:id/suspend', async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'You cannot suspend yourself' });
         }
 
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        user.isActive = isActive;
-        await AppDataSource.manager.save(user);
+        await db.update(users)
+            .set({ isActive, updatedAt: new Date() })
+            .where(eq(users.id, userId));
 
-        res.json({ message: 'User status updated', isActive: user.isActive });
+        res.json({ message: 'User status updated', isActive });
     } catch (error: any) {
         logger.error('Error updating user status', { error: error.message, stack: error.stack, userId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update user status' });
@@ -451,12 +482,12 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'You cannot delete yourself' });
         }
 
-        const user = await AppDataSource.manager.findOne(User, { where: { id: userId } });
+        const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        await AppDataSource.manager.remove(user);
+        await db.delete(users).where(eq(users.id, userId));
 
         res.json({ message: 'User deleted successfully' });
     } catch (error: any) {
@@ -471,12 +502,15 @@ router.get('/forms', async (req: AuthRequest, res: Response) => {
         const limit = parseInt(req.query.limit as string) || 20;
         const skip = (page - 1) * limit;
 
-        const [forms, total] = await AppDataSource.manager.findAndCount(Form, {
-            relations: ['organization'],
-            order: { createdAt: 'DESC' },
-            skip,
-            take: limit
+        const formsList = await db.query.forms.findMany({
+            with: { organization: true },
+            orderBy: desc(forms.createdAt),
+            limit,
+            offset: skip
         });
+
+        const totalResult = await db.select({ count: count() }).from(forms);
+        const total = totalResult[0].count;
 
         res.json({
             data: forms,
@@ -503,26 +537,60 @@ router.get('/submissions', async (req: AuthRequest, res: Response) => {
         const orgId = req.query.orgId ? parseInt(req.query.orgId as string) : undefined;
         const formId = req.query.formId ? parseInt(req.query.formId as string) : undefined;
 
-        let queryBuilder = AppDataSource.manager
-            .createQueryBuilder(Submission, 'submission')
-            .leftJoinAndSelect('submission.form', 'form')
-            .leftJoinAndSelect('form.organization', 'organization')
-            .orderBy('submission.createdAt', 'DESC')
-            .skip(skip)
-            .take(limit);
-
+        const whereConditions = [];
         if (orgId) {
-            queryBuilder = queryBuilder.andWhere('form.organizationId = :orgId', { orgId });
+            // We need to join to filter by orgId on form, which Drizzle query builder does via `with` filtering or separate logic.
+            // But for standard filtering efficiency, we might need a raw query or clearer two-step.
+            // However, `findMany` filters on relations are tricky.
+            // Let's use `db.select().from(submissions)...` join approach for this complex query.
+            whereConditions.push(eq(forms.organizationId, orgId));
         }
-
         if (formId) {
-            queryBuilder = queryBuilder.andWhere('submission.formId = :formId', { formId });
+            whereConditions.push(eq(submissions.formId, formId));
         }
 
-        const [submissions, total] = await queryBuilder.getManyAndCount();
+        const baseQuery = db.select({
+            submission: submissions,
+            form: forms,
+            organization: organizations
+        })
+            .from(submissions)
+            .leftJoin(forms, eq(submissions.formId, forms.id))
+            .leftJoin(organizations, eq(forms.organizationId, organizations.id));
+
+        if (whereConditions.length > 0) {
+            baseQuery.where(and(...whereConditions));
+        }
+
+        const submissionsWithRelations = await baseQuery
+            .limit(limit)
+            .offset(skip)
+            .orderBy(desc(submissions.createdAt));
+
+        // Remap to match previous structure roughly, or just return flattened
+        // The frontend expects { data: [ { ...submission, form: { ...form, organization: ... } } ] }
+        const data = submissionsWithRelations.map(row => ({
+            ...row.submission,
+            form: {
+                ...row.form,
+                organization: row.organization
+            }
+        }));
+
+        // Count query
+        const countQuery = db.select({ count: count() })
+            .from(submissions)
+            .leftJoin(forms, eq(submissions.formId, forms.id));
+
+        if (whereConditions.length > 0) {
+            countQuery.where(and(...whereConditions));
+        }
+
+        const totalResult = await countQuery;
+        const total = totalResult[0].count;
 
         res.json({
-            data: submissions,
+            data,
             pagination: {
                 page,
                 limit,

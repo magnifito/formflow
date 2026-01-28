@@ -1,7 +1,8 @@
 import { Router, Response } from "express";
-import { AppDataSource } from "../data-source";
+import { db } from "../db";
 import logger from "@formflow/shared/logger";
-import { Form, Organization, WhitelistedDomain, Submission, generateSubmitHash } from "@formflow/shared/entities";
+import { organizations, forms, submissions, whitelistedDomains, generateSubmitHash } from "@formflow/shared/drizzle";
+import { eq, desc, count, and, gte, isNull } from "drizzle-orm";
 import { verifyToken } from "../middleware/auth";
 import { injectOrgContext, verifyOrgAdmin, OrgContextRequest } from "../middleware/orgContext";
 
@@ -46,22 +47,33 @@ router.get('/stats', async (req: OrgContextRequest, res: Response) => {
         const organizationId = getEffectiveOrgId(req);
 
         // Get form count
-        const formCount = await AppDataSource.manager.count(Form, {
-            where: { organizationId }
-        });
+        const formCountCondition = organizationId !== null
+            ? eq(forms.organizationId, organizationId)
+            : isNull(forms.organizationId);
+
+        const formCountResult = await db
+            .select({ count: count() })
+            .from(forms)
+            .where(formCountCondition);
+        const formCount = formCountResult[0].count;
 
         // Get submissions this month
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        const submissionsThisMonth = await AppDataSource.manager
-            .createQueryBuilder(Submission, 'submission')
-            .innerJoin('submission.form', 'form')
-            .where('form.organizationId ' + (organizationId === null ? 'IS NULL' : '= :orgId'),
-                organizationId === null ? {} : { orgId: organizationId })
-            .andWhere('submission.createdAt >= :startOfMonth', { startOfMonth })
-            .getCount();
+        const submissionsQuery = db.select({ count: count() })
+            .from(submissions)
+            .innerJoin(forms, eq(submissions.formId, forms.id))
+            .where(
+                and(
+                    organizationId !== null ? eq(forms.organizationId, organizationId) : isNull(forms.organizationId),
+                    gte(submissions.createdAt, startOfMonth)
+                )
+            );
+
+        const submissionsResult = await submissionsQuery;
+        const submissionsThisMonth = submissionsResult[0].count;
 
         res.json({
             formCount,
@@ -80,12 +92,16 @@ router.get('/forms', async (req: OrgContextRequest, res: Response) => {
     try {
         const organizationId = getEffectiveOrgId(req);
 
-        const forms = await AppDataSource.manager.find(Form, {
-            where: { organizationId },
-            order: { createdAt: 'DESC' }
+        // TypeScript check for organizationId being null is tricky with Drizzle unless we handle it explicitly
+        // If it can be null (super admin contextless), we query for null orgId
+        const whereClause = organizationId !== null ? eq(forms.organizationId, organizationId) : isNull(forms.organizationId);
+
+        const formsList = await db.query.forms.findMany({
+            where: whereClause,
+            orderBy: desc(forms.createdAt)
         });
 
-        res.json(forms);
+        res.json(formsList);
     } catch (error: any) {
         logger.error('Error fetching forms', { error: error.message, stack: error.stack, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to fetch forms' });
@@ -99,12 +115,16 @@ router.get('/forms/all', async (req: OrgContextRequest, res: Response) => {
             return res.status(403).json({ error: 'Super admin access required' });
         }
 
-        const orgs = await AppDataSource.manager.find(Organization, { where: {}, order: { id: 'ASC' } });
-        const forms = await AppDataSource.manager.find(Form, { order: { organizationId: 'ASC', name: 'ASC' } });
+        const orgs = await db.query.organizations.findMany({
+            orderBy: (organizations, { asc }) => [asc(organizations.id)]
+        });
+        const allForms = await db.query.forms.findMany({
+            orderBy: (forms, { asc }) => [asc(forms.organizationId), asc(forms.name)]
+        });
 
         const grouped = orgs.map(org => ({
             organization: org,
-            forms: forms.filter(f => f.organizationId === org.id)
+            forms: allForms.filter(f => f.organizationId === org.id)
         }));
 
         res.json(grouped);
@@ -151,7 +171,7 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
                 return res.status(400).json({ error: 'Slug must be lowercase alphanumeric with hyphens only' });
             }
 
-            const existingForm = await AppDataSource.manager.findOne(Form, { where: { slug } });
+            const existingForm = await db.query.forms.findFirst({ where: eq(forms.slug, slug) });
             if (existingForm) {
                 return res.status(400).json({ error: 'Form with this slug already exists' });
             }
@@ -163,20 +183,19 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
         }
 
         // Get organization for default security settings
-        const organization = organizationId ? await AppDataSource.manager.findOne(Organization, {
-            where: { id: organizationId }
+        const organization = organizationId ? await db.query.organizations.findFirst({
+            where: eq(organizations.id, organizationId)
         }) : null;
 
-        const form = AppDataSource.manager.create(Form, {
+        const [form] = await db.insert(forms).values({
             organizationId,
             name,
             slug,
             description: description || null,
             submitHash: generateSubmitHash(),
             isActive: true,
-            useOrgIntegrations: useOrgIntegrations !== false, // default to true
-            useOrgSecuritySettings: true, // default to using org settings
-            // Form-specific defaults (only used if useOrgSecuritySettings = false)
+            useOrgIntegrations: useOrgIntegrations !== false,
+            useOrgSecuritySettings: true,
             rateLimitEnabled: organization?.defaultRateLimitEnabled ?? true,
             rateLimitMaxRequests: organization?.defaultRateLimitMaxRequests ?? 10,
             rateLimitWindowSeconds: organization?.defaultRateLimitWindowSeconds ?? 60,
@@ -185,9 +204,7 @@ router.post('/forms', verifyOrgAdmin, async (req: OrgContextRequest, res: Respon
             minTimeBetweenSubmissionsSeconds: organization?.defaultMinTimeBetweenSubmissionsSeconds ?? 10,
             maxRequestSizeBytes: organization?.defaultMaxRequestSizeBytes ?? 100000,
             refererFallbackEnabled: organization?.defaultRefererFallbackEnabled ?? true
-        });
-
-        await AppDataSource.manager.save(form);
+        }).returning();
 
         res.status(201).json(form);
     } catch (error: any) {
@@ -203,8 +220,8 @@ router.get('/forms/:id', async (req: OrgContextRequest, res: Response) => {
         formId = parseInt(req.params.id);
         const organizationId = getEffectiveOrgId(req);
 
-        const form = await AppDataSource.manager.findOne(Form, {
-            where: { id: formId, organizationId }
+        const form = await db.query.forms.findFirst({
+            where: and(eq(forms.id, formId), organizationId ? eq(forms.organizationId, organizationId) : undefined)
         });
 
         if (!form) {
@@ -212,9 +229,11 @@ router.get('/forms/:id', async (req: OrgContextRequest, res: Response) => {
         }
 
         // Get submission count
-        const submissionCount = await AppDataSource.manager.count(Submission, {
-            where: { formId }
-        });
+        const submissionCountResult = await db.select({ count: count() })
+            .from(submissions)
+            .where(eq(submissions.formId, formId));
+
+        const submissionCount = submissionCountResult[0].count;
 
         res.json({
             ...form,
@@ -241,50 +260,49 @@ router.put('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: Res
         } = req.body;
         const organizationId = getEffectiveOrgId(req);
 
-        const form = await AppDataSource.manager.findOne(Form, {
-            where: { id: formId, organizationId }
+        const form = await db.query.forms.findFirst({
+            where: and(eq(forms.id, formId), organizationId ? eq(forms.organizationId, organizationId) : undefined)
         });
 
         if (!form) {
             return res.status(404).json({ error: 'Form not found' });
         }
 
-        // Basic form fields
-        if (name !== undefined) form.name = name;
-        if (description !== undefined) form.description = description;
-        if (isActive !== undefined) form.isActive = isActive;
-        if (useOrgIntegrations !== undefined) form.useOrgIntegrations = useOrgIntegrations;
-
+        // Slug Uniqueness Check
         if (slug !== undefined && slug !== form.slug) {
             const slugRegex = /^[a-z0-9-]+$/;
             if (!slugRegex.test(slug)) {
                 return res.status(400).json({ error: 'Slug must be lowercase alphanumeric with hyphens only' });
             }
 
-            const existingForm = await AppDataSource.manager.findOne(Form, { where: { slug } });
+            const existingForm = await db.query.forms.findFirst({ where: eq(forms.slug, slug) });
             if (existingForm) {
                 return res.status(400).json({ error: 'Form with this slug already exists' });
             }
-            form.slug = slug;
         }
 
-        if (captchaEnabled !== undefined) form.captchaEnabled = captchaEnabled;
-        if (csrfEnabled !== undefined) form.csrfEnabled = csrfEnabled;
+        await db.update(forms).set({
+            name: name ?? form.name,
+            description: description ?? form.description,
+            isActive: isActive ?? form.isActive,
+            useOrgIntegrations: useOrgIntegrations ?? form.useOrgIntegrations,
+            slug: slug ?? form.slug,
+            captchaEnabled: captchaEnabled ?? form.captchaEnabled,
+            csrfEnabled: csrfEnabled ?? form.csrfEnabled,
+            useOrgSecuritySettings: useOrgSecuritySettings ?? form.useOrgSecuritySettings,
+            rateLimitEnabled: rateLimitEnabled ?? form.rateLimitEnabled,
+            rateLimitMaxRequests: rateLimitMaxRequests ?? form.rateLimitMaxRequests,
+            rateLimitWindowSeconds: rateLimitWindowSeconds ?? form.rateLimitWindowSeconds,
+            rateLimitMaxRequestsPerHour: rateLimitMaxRequestsPerHour ?? form.rateLimitMaxRequestsPerHour,
+            minTimeBetweenSubmissionsEnabled: minTimeBetweenSubmissionsEnabled ?? form.minTimeBetweenSubmissionsEnabled,
+            minTimeBetweenSubmissionsSeconds: minTimeBetweenSubmissionsSeconds ?? form.minTimeBetweenSubmissionsSeconds,
+            maxRequestSizeBytes: maxRequestSizeBytes ?? form.maxRequestSizeBytes,
+            refererFallbackEnabled: refererFallbackEnabled ?? form.refererFallbackEnabled,
+            updatedAt: new Date()
+        }).where(eq(forms.id, formId));
 
-        // Security settings
-        if (useOrgSecuritySettings !== undefined) form.useOrgSecuritySettings = useOrgSecuritySettings;
-        if (rateLimitEnabled !== undefined) form.rateLimitEnabled = rateLimitEnabled;
-        if (rateLimitMaxRequests !== undefined) form.rateLimitMaxRequests = rateLimitMaxRequests;
-        if (rateLimitWindowSeconds !== undefined) form.rateLimitWindowSeconds = rateLimitWindowSeconds;
-        if (rateLimitMaxRequestsPerHour !== undefined) form.rateLimitMaxRequestsPerHour = rateLimitMaxRequestsPerHour;
-        if (minTimeBetweenSubmissionsEnabled !== undefined) form.minTimeBetweenSubmissionsEnabled = minTimeBetweenSubmissionsEnabled;
-        if (minTimeBetweenSubmissionsSeconds !== undefined) form.minTimeBetweenSubmissionsSeconds = minTimeBetweenSubmissionsSeconds;
-        if (maxRequestSizeBytes !== undefined) form.maxRequestSizeBytes = maxRequestSizeBytes;
-        if (refererFallbackEnabled !== undefined) form.refererFallbackEnabled = refererFallbackEnabled;
-
-        await AppDataSource.manager.save(form);
-
-        res.json(form);
+        const updatedForm = await db.query.forms.findFirst({ where: eq(forms.id, formId) });
+        res.json(updatedForm);
     } catch (error: any) {
         logger.error('Error updating form', { error: error.message, stack: error.stack, formId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to update form' });
@@ -298,8 +316,8 @@ router.delete('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: 
         formId = parseInt(req.params.id);
         const organizationId = getEffectiveOrgId(req);
 
-        const form = await AppDataSource.manager.findOne(Form, {
-            where: { id: formId, organizationId }
+        const form = await db.query.forms.findFirst({
+            where: and(eq(forms.id, formId), organizationId ? eq(forms.organizationId, organizationId) : undefined)
         });
 
         if (!form) {
@@ -307,8 +325,8 @@ router.delete('/forms/:id', verifyOrgAdmin, async (req: OrgContextRequest, res: 
         }
 
         // Delete related submissions first
-        await AppDataSource.manager.delete(Submission, { formId });
-        await AppDataSource.manager.delete(Form, { id: formId });
+        await db.delete(submissions).where(eq(submissions.formId, formId));
+        await db.delete(forms).where(eq(forms.id, formId));
 
         res.json({ message: 'Form deleted successfully' });
     } catch (error: any) {
@@ -324,18 +342,20 @@ router.post('/forms/:id/regenerate-hash', verifyOrgAdmin, async (req: OrgContext
         formId = parseInt(req.params.id);
         const organizationId = getEffectiveOrgId(req);
 
-        const form = await AppDataSource.manager.findOne(Form, {
-            where: { id: formId, organizationId }
+        const form = await db.query.forms.findFirst({
+            where: and(eq(forms.id, formId), organizationId ? eq(forms.organizationId, organizationId) : undefined)
         });
 
         if (!form) {
             return res.status(404).json({ error: 'Form not found' });
         }
 
-        form.submitHash = generateSubmitHash();
-        await AppDataSource.manager.save(form);
+        const newHash = generateSubmitHash();
+        await db.update(forms)
+            .set({ submitHash: newHash, updatedAt: new Date() })
+            .where(eq(forms.id, formId));
 
-        res.json({ submitHash: form.submitHash });
+        res.json({ submitHash: newHash });
     } catch (error: any) {
         logger.error('Error regenerating hash', { error: error.message, stack: error.stack, formId, correlationId: req.correlationId });
         res.status(500).json({ error: 'Failed to regenerate hash' });
@@ -347,9 +367,9 @@ router.post('/forms/:id/regenerate-hash', verifyOrgAdmin, async (req: OrgContext
 // GET /org/domains - List whitelisted domains
 router.get('/domains', async (req: OrgContextRequest, res: Response) => {
     try {
-        const domains = await AppDataSource.manager.find(WhitelistedDomain, {
-            where: { organizationId: req.organization!.id },
-            order: { createdAt: 'DESC' }
+        const domains = await db.query.whitelistedDomains.findMany({
+            where: eq(whitelistedDomains.organizationId, req.organization!.id),
+            orderBy: desc(whitelistedDomains.createdAt)
         });
 
         res.json(domains);
@@ -370,8 +390,12 @@ router.post('/domains', verifyOrgAdmin, async (req: OrgContextRequest, res: Resp
         }
 
         // Check for duplicate
-        const existing = await AppDataSource.manager.findOne(WhitelistedDomain, {
-            where: { organizationId: req.organization!.id, domain }
+        // Check for duplicate
+        const existing = await db.query.whitelistedDomains.findFirst({
+            where: and(
+                eq(whitelistedDomains.organizationId, req.organization!.id),
+                eq(whitelistedDomains.domain, domain)
+            )
         });
 
         if (existing) {
@@ -379,20 +403,20 @@ router.post('/domains', verifyOrgAdmin, async (req: OrgContextRequest, res: Resp
         }
 
         // Limit to 50 domains
-        const domainCount = await AppDataSource.manager.count(WhitelistedDomain, {
-            where: { organizationId: req.organization!.id }
-        });
+        const domainCountResult = await db.select({ count: count() })
+            .from(whitelistedDomains)
+            .where(eq(whitelistedDomains.organizationId, req.organization!.id));
+
+        const domainCount = domainCountResult[0].count;
 
         if (domainCount >= 50) {
             return res.status(400).json({ error: 'Maximum of 50 domains allowed' });
         }
 
-        const whitelistedDomain = AppDataSource.manager.create(WhitelistedDomain, {
+        const [whitelistedDomain] = await db.insert(whitelistedDomains).values({
             organizationId: req.organization!.id,
             domain
-        });
-
-        await AppDataSource.manager.save(whitelistedDomain);
+        }).returning();
 
         res.status(201).json(whitelistedDomain);
     } catch (error: any) {
@@ -407,15 +431,18 @@ router.delete('/domains/:id', verifyOrgAdmin, async (req: OrgContextRequest, res
     try {
         domainId = parseInt(req.params.id);
 
-        const domain = await AppDataSource.manager.findOne(WhitelistedDomain, {
-            where: { id: domainId, organizationId: req.organization!.id }
+        const domain = await db.query.whitelistedDomains.findFirst({
+            where: and(
+                eq(whitelistedDomains.id, domainId),
+                eq(whitelistedDomains.organizationId, req.organization!.id)
+            )
         });
 
         if (!domain) {
             return res.status(404).json({ error: 'Domain not found' });
         }
 
-        await AppDataSource.manager.delete(WhitelistedDomain, { id: domainId });
+        await db.delete(whitelistedDomains).where(eq(whitelistedDomains.id, domainId));
 
         res.json({ message: 'Domain removed successfully' });
     } catch (error: any) {
@@ -429,8 +456,8 @@ router.delete('/domains/:id', verifyOrgAdmin, async (req: OrgContextRequest, res
 // GET /org/security-settings - Get organization default security settings
 router.get('/security-settings', async (req: OrgContextRequest, res: Response) => {
     try {
-        const organization = await AppDataSource.manager.findOne(Organization, {
-            where: { id: req.organization!.id }
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, req.organization!.id)
         });
 
         if (!organization) {
@@ -456,8 +483,8 @@ router.get('/security-settings', async (req: OrgContextRequest, res: Response) =
 // PUT /org/security-settings - Update organization default security settings (org admin only)
 router.put('/security-settings', verifyOrgAdmin, async (req: OrgContextRequest, res: Response) => {
     try {
-        const organization = await AppDataSource.manager.findOne(Organization, {
-            where: { id: req.organization!.id }
+        const organization = await db.query.organizations.findFirst({
+            where: eq(organizations.id, req.organization!.id)
         });
 
         if (!organization) {
@@ -475,26 +502,33 @@ router.put('/security-settings', verifyOrgAdmin, async (req: OrgContextRequest, 
             defaultRefererFallbackEnabled
         } = req.body;
 
-        if (defaultRateLimitEnabled !== undefined) organization.defaultRateLimitEnabled = defaultRateLimitEnabled;
-        if (defaultRateLimitMaxRequests !== undefined) organization.defaultRateLimitMaxRequests = defaultRateLimitMaxRequests;
-        if (defaultRateLimitWindowSeconds !== undefined) organization.defaultRateLimitWindowSeconds = defaultRateLimitWindowSeconds;
-        if (defaultRateLimitMaxRequestsPerHour !== undefined) organization.defaultRateLimitMaxRequestsPerHour = defaultRateLimitMaxRequestsPerHour;
-        if (defaultMinTimeBetweenSubmissionsEnabled !== undefined) organization.defaultMinTimeBetweenSubmissionsEnabled = defaultMinTimeBetweenSubmissionsEnabled;
-        if (defaultMinTimeBetweenSubmissionsSeconds !== undefined) organization.defaultMinTimeBetweenSubmissionsSeconds = defaultMinTimeBetweenSubmissionsSeconds;
-        if (defaultMaxRequestSizeBytes !== undefined) organization.defaultMaxRequestSizeBytes = defaultMaxRequestSizeBytes;
-        if (defaultRefererFallbackEnabled !== undefined) organization.defaultRefererFallbackEnabled = defaultRefererFallbackEnabled;
+        const updates: any = {};
+        if (defaultRateLimitEnabled !== undefined) updates.defaultRateLimitEnabled = defaultRateLimitEnabled;
+        if (defaultRateLimitMaxRequests !== undefined) updates.defaultRateLimitMaxRequests = defaultRateLimitMaxRequests;
+        if (defaultRateLimitWindowSeconds !== undefined) updates.defaultRateLimitWindowSeconds = defaultRateLimitWindowSeconds;
+        if (defaultRateLimitMaxRequestsPerHour !== undefined) updates.defaultRateLimitMaxRequestsPerHour = defaultRateLimitMaxRequestsPerHour;
+        if (defaultMinTimeBetweenSubmissionsEnabled !== undefined) updates.defaultMinTimeBetweenSubmissionsEnabled = defaultMinTimeBetweenSubmissionsEnabled;
+        if (defaultMinTimeBetweenSubmissionsSeconds !== undefined) updates.defaultMinTimeBetweenSubmissionsSeconds = defaultMinTimeBetweenSubmissionsSeconds;
+        if (defaultMaxRequestSizeBytes !== undefined) updates.defaultMaxRequestSizeBytes = defaultMaxRequestSizeBytes;
+        if (defaultRefererFallbackEnabled !== undefined) updates.defaultRefererFallbackEnabled = defaultRefererFallbackEnabled;
 
-        await AppDataSource.manager.save(organization);
+        if (Object.keys(updates).length > 0) {
+            updates.updatedAt = new Date();
+            await db.update(organizations).set(updates).where(eq(organizations.id, organization.id));
+        }
+
+        // Re-fetch to confirm current state
+        const updatedOrg = await db.query.organizations.findFirst({ where: eq(organizations.id, organization.id) });
 
         res.json({
-            defaultRateLimitEnabled: organization.defaultRateLimitEnabled,
-            defaultRateLimitMaxRequests: organization.defaultRateLimitMaxRequests,
-            defaultRateLimitWindowSeconds: organization.defaultRateLimitWindowSeconds,
-            defaultRateLimitMaxRequestsPerHour: organization.defaultRateLimitMaxRequestsPerHour,
-            defaultMinTimeBetweenSubmissionsEnabled: organization.defaultMinTimeBetweenSubmissionsEnabled,
-            defaultMinTimeBetweenSubmissionsSeconds: organization.defaultMinTimeBetweenSubmissionsSeconds,
-            defaultMaxRequestSizeBytes: organization.defaultMaxRequestSizeBytes,
-            defaultRefererFallbackEnabled: organization.defaultRefererFallbackEnabled
+            defaultRateLimitEnabled: updatedOrg!.defaultRateLimitEnabled,
+            defaultRateLimitMaxRequests: updatedOrg!.defaultRateLimitMaxRequests,
+            defaultRateLimitWindowSeconds: updatedOrg!.defaultRateLimitWindowSeconds,
+            defaultRateLimitMaxRequestsPerHour: updatedOrg!.defaultRateLimitMaxRequestsPerHour,
+            defaultMinTimeBetweenSubmissionsEnabled: updatedOrg!.defaultMinTimeBetweenSubmissionsEnabled,
+            defaultMinTimeBetweenSubmissionsSeconds: updatedOrg!.defaultMinTimeBetweenSubmissionsSeconds,
+            defaultMaxRequestSizeBytes: updatedOrg!.defaultMaxRequestSizeBytes,
+            defaultRefererFallbackEnabled: updatedOrg!.defaultRefererFallbackEnabled
         });
     } catch (error: any) {
         logger.error('Error updating security settings', { error: error.message, stack: error.stack, correlationId: req.correlationId });
@@ -513,23 +547,54 @@ router.get('/submissions', async (req: OrgContextRequest, res: Response) => {
         const skip = (page - 1) * limit;
         const formId = req.query.formId ? parseInt(req.query.formId as string) : undefined;
 
-        let queryBuilder = AppDataSource.manager
-            .createQueryBuilder(Submission, 'submission')
-            .innerJoinAndSelect('submission.form', 'form')
-            .where('form.organizationId ' + (organizationId === null ? 'IS NULL' : '= :orgId'),
-                organizationId === null ? {} : { orgId: organizationId })
-            .orderBy('submission.createdAt', 'DESC')
-            .skip(skip)
-            .take(limit);
-
-        if (formId) {
-            queryBuilder = queryBuilder.andWhere('submission.formId = :formId', { formId });
+        const whereConditions = [];
+        if (organizationId !== null) {
+            whereConditions.push(eq(forms.organizationId, organizationId));
+        } else {
+            // If null (super admin contextless), we might want to see orphaned forms or ALL forms?
+            // Original code: 'form.organizationId ' + (organizationId === null ? 'IS NULL' : '= :orgId')
+            // This implies if orgId is null, we look for forms with NULL orgId.
+            whereConditions.push(isNull(forms.organizationId));
         }
 
-        const [submissions, total] = await queryBuilder.getManyAndCount();
+        if (formId) {
+            whereConditions.push(eq(submissions.formId, formId));
+        }
+
+        const baseQuery = db.select({
+            submission: submissions,
+            form: forms
+        })
+            .from(submissions)
+            .innerJoin(forms, eq(submissions.formId, forms.id));
+
+        if (whereConditions.length > 0) {
+            baseQuery.where(and(...whereConditions));
+        }
+
+        const results = await baseQuery
+            .orderBy(desc(submissions.createdAt))
+            .limit(limit)
+            .offset(skip);
+
+        const data = results.map(row => ({
+            ...row.submission,
+            form: row.form
+        }));
+
+        const countQuery = db.select({ count: count() })
+            .from(submissions)
+            .innerJoin(forms, eq(submissions.formId, forms.id));
+
+        if (whereConditions.length > 0) {
+            countQuery.where(and(...whereConditions));
+        }
+
+        const totalResult = await countQuery;
+        const total = totalResult[0].count;
 
         res.json({
-            data: submissions,
+            data,
             pagination: {
                 page,
                 limit,

@@ -4,8 +4,12 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { AppDataSource } from "./data-source";
-import { User, Organization } from "@formflow/shared/entities";
+import { sql, eq, count, and, asc } from "drizzle-orm";
+
+// import { AppDataSource } from "./data-source"; // Removed TypeORM DataSource
+import { db } from "./db";
+import { users, organizations, forms } from "@formflow/shared/drizzle";
+// import { User, Organization } from "@formflow/shared/entities"; // Removed TypeORM entities
 import { getEnv, loadEnv } from "@formflow/shared/env";
 import { verifyToken, AuthRequest } from "./middleware/auth";
 import { requestLogger } from "./middleware/requestLogger";
@@ -31,11 +35,9 @@ const DASHBOARD_API_PORT = getEnv("DASHBOARD_API_PORT") || 4000;
 async function createApp() {
     const app = express();
 
-    // Initialize database connection if not already initialized
-    if (!AppDataSource.isInitialized) {
-        await AppDataSource.initialize();
-    }
+    // Drizzle does not require explicit initialization like TypeORM source
 
+    // ... CORS setup (unchanged) ...
     const allowedOrigins = [redirectUrl, 'http://localhost:4100', 'http://localhost:4200', 'http://127.0.0.1:4100', 'http://127.0.0.1:4200'];
     const strictCorsOptions = {
         origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -69,7 +71,7 @@ async function createApp() {
     app.get('/health/ready', async (req, res) => {
         try {
             // Check database connectivity
-            await AppDataSource.manager.query('SELECT 1');
+            await db.execute(sql`SELECT 1`);
             res.status(200).json({
                 status: 'ready',
                 timestamp: new Date().toISOString(),
@@ -98,9 +100,8 @@ async function createApp() {
     // GET /setup - Check if setup is needed
     app.get('/setup', async (_req: Request, res: Response) => {
         try {
-            const superAdminCount = await AppDataSource.manager.count(User, {
-                where: { isSuperAdmin: true }
-            });
+            const result = await db.select({ count: count() }).from(users).where(eq(users.isSuperAdmin, true));
+            const superAdminCount = result[0].count;
 
             res.json({
                 setupNeeded: superAdminCount === 0
@@ -126,8 +127,8 @@ async function createApp() {
             }
 
             // Check if setup has already been completed
-            const existingSuperAdmin = await AppDataSource.manager.findOne(User, {
-                where: { isSuperAdmin: true }
+            const existingSuperAdmin = await db.query.users.findFirst({
+                where: eq(users.isSuperAdmin, true)
             });
 
             if (existingSuperAdmin) {
@@ -135,8 +136,8 @@ async function createApp() {
             }
 
             // Check if email already exists
-            const existingUser = await AppDataSource.manager.findOne(User, {
-                where: { email }
+            const existingUser = await db.query.users.findFirst({
+                where: eq(users.email, email)
             });
 
             if (existingUser) {
@@ -144,8 +145,8 @@ async function createApp() {
             }
 
             // Check if organization slug is already taken
-            const existingOrg = await AppDataSource.manager.findOne(Organization, {
-                where: { slug: organizationSlug }
+            const existingOrg = await db.query.organizations.findFirst({
+                where: eq(organizations.slug, organizationSlug)
             });
 
             if (existingOrg) {
@@ -153,13 +154,12 @@ async function createApp() {
             }
 
             // Create organization first
-            const organization = AppDataSource.manager.create(Organization, {
+            const [savedOrganization] = await db.insert(organizations).values({
                 name: organizationName,
                 slug: organizationSlug,
                 isActive: true
-            });
+            }).returning();
 
-            const savedOrganization = await AppDataSource.manager.save(organization);
             logger.info('Initial organization created during setup', {
                 organizationId: savedOrganization.id,
                 organizationName: savedOrganization.name,
@@ -169,7 +169,7 @@ async function createApp() {
             // Create super admin user
             const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-            const superAdmin = AppDataSource.manager.create(User, {
+            const [savedUser] = await db.insert(users).values({
                 email,
                 passwordHash,
                 name: name || null,
@@ -177,9 +177,8 @@ async function createApp() {
                 role: 'org_admin',
                 isSuperAdmin: true,
                 isActive: true
-            });
+            }).returning();
 
-            const savedUser = await AppDataSource.manager.save(superAdmin);
             logger.info('Initial super admin created during setup', {
                 userId: savedUser.id,
                 email: savedUser.email,
@@ -232,7 +231,7 @@ async function createApp() {
         }
 
         try {
-            const user = await AppDataSource.manager.findOne(User, { where: { email } });
+            const user = await db.query.users.findFirst({ where: eq(users.email, email) });
             if (!user) {
                 return res.status(401).json({ error: 'Invalid email or password' });
             }
@@ -265,9 +264,9 @@ async function createApp() {
     // POST /auth/lab-login - Automatic login for Test Lab (local testing only)
     app.post('/auth/lab-login', cors(strictCorsOptions), async (req: Request, res: Response) => {
         try {
-            const superAdmin = await AppDataSource.manager.findOne(User, {
-                where: { isSuperAdmin: true, isActive: true },
-                order: { id: 'ASC' }
+            const superAdmin = await db.query.users.findFirst({
+                where: and(eq(users.isSuperAdmin, true), eq(users.isActive, true)),
+                orderBy: asc(users.id)
             });
 
             if (!superAdmin) {
@@ -302,9 +301,9 @@ async function createApp() {
     // GET /auth/me - Get current authenticated user
     app.get('/auth/me', cors(strictCorsOptions), verifyToken, async (req: AuthRequest, res: Response) => {
         try {
-            const user = await AppDataSource.manager.findOne(User, {
-                where: { id: req.user!.userId },
-                relations: ['organization']
+            const user = await db.query.users.findFirst({
+                where: eq(users.id, req.user!.userId),
+                with: { organization: true }
             });
 
             if (!user) {
@@ -350,7 +349,7 @@ async function createApp() {
             return res.status(400).json('Invalid user ID');
         }
 
-        AppDataSource.manager.findOne(User, { where: { id: userId }, relations: ['organization'] })
+        db.query.users.findFirst({ where: eq(users.id, userId), with: { organization: true } })
             .then(user => {
                 if (!user) {
                     logger.warn('User not found', { userId, correlationId: req.correlationId });

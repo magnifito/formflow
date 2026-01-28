@@ -2,6 +2,8 @@
 import { Router, Request, Response } from "express";
 import { getBoss, QUEUE_NAMES, IntegrationType } from "@formflow/shared/queue";
 import logger, { LogOperation } from "@formflow/shared/logger";
+import { db } from "../db";
+import { sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -11,21 +13,22 @@ const queues = Object.values(QUEUE_NAMES);
 // GET /queue/stats - Get stats for all queues
 router.get('/stats', async (req: Request, res: Response) => {
     try {
+
         const stats: Record<string, any> = {};
-        const { AppDataSource } = await import("../data-source");
 
         // Query job table for stats
-        const statsQuery = `
+        const statsQuery = sql`
             SELECT name, state, COUNT(*) as count
             FROM pgboss.job
             GROUP BY name, state
         `;
 
-        const rows = await AppDataSource.manager.query(statsQuery);
+        const result = await db.execute(statsQuery);
+        const rows = result.rows;
 
         // Aggregate results
         for (const row of rows) {
-            const { name, state, count } = row;
+            const { name, state, count } = row as any;
             if (!stats[name]) {
                 stats[name] = { active: 0, completed: 0, failed: 0, retry: 0, created: 0 };
             }
@@ -52,10 +55,9 @@ router.get('/stats', async (req: Request, res: Response) => {
 router.get('/jobs', async (req: Request, res: Response) => {
     try {
         const { queue, state, limit = '20', offset = '0' } = req.query;
-        const { AppDataSource } = await import("../data-source");
 
-        // pg-boss v9+ uses snake_case column names
-        let query = `
+        // Compose query using Drizzle sql chunks
+        const baseSelect = sql`
             SELECT
                 id, name, data, state, output,
                 created_on as createdon,
@@ -65,41 +67,23 @@ router.get('/jobs', async (req: Request, res: Response) => {
             FROM pgboss.job
             WHERE 1=1
         `;
-        const params: any[] = [];
-        let paramIdx = 1;
 
-        if (queue) {
-            query += ` AND name = $${paramIdx++}`;
-            params.push(queue);
-        }
+        const conditions = [];
+        if (queue) conditions.push(sql`AND name = ${queue}`);
+        if (state) conditions.push(sql`AND state = ${state}`);
 
-        if (state) {
-            query += ` AND state = $${paramIdx++}`;
-            params.push(state);
-        }
+        const sortAndLimit = sql`ORDER BY created_on DESC LIMIT ${parseInt(limit as string)} OFFSET ${parseInt(offset as string)}`;
 
-        query += ` ORDER BY created_on DESC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
-        params.push(parseInt(limit as string), parseInt(offset as string));
+        const finalQuery = sql`${baseSelect} ${sql.join(conditions, sql` `)} ${sortAndLimit}`;
+        const result = await db.execute(finalQuery);
+        const jobs = result.rows;
 
-        const jobs = await AppDataSource.manager.query(query, params);
+        // Get total count
+        const countSelect = sql`SELECT COUNT(*) as total FROM pgboss.job WHERE 1=1`;
+        const countQuery = sql`${countSelect} ${sql.join(conditions, sql` `)}`;
 
-        // Get total count for pagination
-        let countQuery = `SELECT COUNT(*) as total FROM pgboss.job WHERE 1=1`;
-        const countParams: any[] = [];
-        let countParamIdx = 1;
-
-        if (queue) {
-            countQuery += ` AND name = $${countParamIdx++}`;
-            countParams.push(queue);
-        }
-
-        if (state) {
-            countQuery += ` AND state = $${countParamIdx++}`;
-            countParams.push(state);
-        }
-
-        const countResult = await AppDataSource.manager.query(countQuery, countParams);
-        const total = parseInt(countResult[0].total);
+        const countResult = await db.execute(countQuery);
+        const total = parseInt((countResult.rows[0] as any).total);
 
         res.json({
             jobs,
@@ -124,18 +108,14 @@ router.get('/jobs', async (req: Request, res: Response) => {
 router.post('/jobs/:id/retry', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { AppDataSource } = await import("../data-source");
 
-        const jobResult = await AppDataSource.manager.query(
-            `SELECT * FROM pgboss.job WHERE id = $1`,
-            [id]
-        );
+        const result = await db.execute(sql`SELECT * FROM pgboss.job WHERE id = ${id}`);
 
-        if (jobResult.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Job not found' });
         }
 
-        const job = jobResult[0];
+        const job = result.rows[0] as any;
 
         // Submit new job with same data
         const boss = await getBoss();
@@ -157,10 +137,9 @@ router.post('/jobs/:id/retry', async (req: Request, res: Response) => {
 router.get('/submission/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { AppDataSource } = await import("../data-source");
 
         // pg-boss v9+ uses snake_case column names
-        const query = `
+        const query = sql`
             SELECT
                 id, name, data, state, output,
                 created_on as createdon,
@@ -168,12 +147,12 @@ router.get('/submission/:id', async (req: Request, res: Response) => {
                 completed_on as completedon,
                 retry_count as retrycount
             FROM pgboss.job
-            WHERE data->>'submissionId' = $1
+            WHERE data->>'submissionId' = ${id}
             ORDER BY created_on DESC
         `;
 
-        const jobs = await AppDataSource.manager.query(query, [id]);
-        res.json(jobs);
+        const result = await db.execute(query);
+        res.json(result.rows);
     } catch (error: any) {
         logger.error('Failed to get jobs for submission', {
             operation: LogOperation.DASHBOARD_QUEUE_JOBS,

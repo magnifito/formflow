@@ -2,20 +2,36 @@
 import request from 'supertest';
 import express from 'express';
 import bodyParser from 'body-parser';
-import { AppDataSource } from '../data-source';
 import SubmissionController from './SubmissionController';
-import { getBoss } from '@formflow/shared/queue';
+import { db } from '../db';
 
-// Mock dependencies
-jest.mock('../data-source', () => ({
-    AppDataSource: {
-        manager: {
-            findOne: jest.fn(),
-            find: jest.fn(),
-            create: jest.fn(),
-            save: jest.fn(),
+// Mock the db module (Drizzle)
+jest.mock('../db', () => ({
+    db: {
+        query: {
+            forms: {
+                findFirst: jest.fn(),
+            },
+            whitelistedDomains: {
+                findMany: jest.fn(),
+            },
+            integrations: {
+                findMany: jest.fn(),
+            },
         },
+        insert: jest.fn().mockReturnValue({
+            values: jest.fn().mockReturnValue({
+                returning: jest.fn(),
+            }),
+        }),
     },
+}));
+
+jest.mock('@formflow/shared/drizzle', () => ({
+    forms: { submitHash: 'submitHash', slug: 'slug', organizationId: 'organizationId', isActive: 'isActive', id: 'id' },
+    whitelistedDomains: { organizationId: 'organizationId' },
+    submissions: {},
+    integrations: { organizationId: 'organizationId', scope: 'scope', isActive: 'isActive', formId: 'formId' },
 }));
 
 jest.mock('@formflow/shared/logger', () => ({
@@ -47,10 +63,6 @@ jest.mock('@formflow/shared/env', () => ({
     }),
 }));
 
-jest.mock('@formflow/shared/telegram', () => ({
-    getTelegramService: jest.fn(),
-}));
-
 jest.mock('@formflow/shared/queue', () => ({
     getBoss: jest.fn(),
     QUEUE_NAMES: { DISCORD: 'discord-queue' },
@@ -62,6 +74,9 @@ jest.mock('@formflow/shared/queue', () => ({
 jest.mock('@formflow/shared/integrations', () => ({
     resolveIntegrationStack: jest.fn().mockReturnValue([]),
 }));
+
+// Get the mocked db after jest.mock is set up
+const mockedDb = db as jest.Mocked<typeof db>;
 
 const app = express();
 app.use(bodyParser.json());
@@ -82,8 +97,8 @@ describe('SubmissionController', () => {
                 organization: { isActive: true },
                 csrfEnabled: true
             };
-            (AppDataSource.manager.findOne as jest.Mock).mockResolvedValue(mockForm);
-            (AppDataSource.manager.find as jest.Mock).mockResolvedValue([]); // No whitelisted domains
+            (mockedDb.query.forms.findFirst as jest.Mock).mockResolvedValue(mockForm);
+            (mockedDb.query.whitelistedDomains.findMany as jest.Mock).mockResolvedValue([]); // No whitelisted domains
 
             const res = await request(app)
                 .get('/s/hash123/csrf')
@@ -94,7 +109,7 @@ describe('SubmissionController', () => {
         });
 
         it('should return 404 if form not found', async () => {
-            (AppDataSource.manager.findOne as jest.Mock).mockResolvedValue(null);
+            (mockedDb.query.forms.findFirst as jest.Mock).mockResolvedValue(null);
 
             const res = await request(app)
                 .get('/s/unknown/csrf')
@@ -115,10 +130,14 @@ describe('SubmissionController', () => {
                 csrfEnabled: false, // Disable for simpler test
                 rateLimitEnabled: false
             };
-            (AppDataSource.manager.findOne as jest.Mock).mockResolvedValue(mockForm);
-            (AppDataSource.manager.create as jest.Mock).mockReturnValue({ id: 1 });
-            (AppDataSource.manager.save as jest.Mock).mockResolvedValue({ id: 1 });
-            (AppDataSource.manager.find as jest.Mock).mockResolvedValue([]); // No integrations
+            (mockedDb.query.forms.findFirst as jest.Mock).mockResolvedValue(mockForm);
+            (mockedDb.query.whitelistedDomains.findMany as jest.Mock).mockResolvedValue([]); // No whitelisted domains
+            (mockedDb.query.integrations.findMany as jest.Mock).mockResolvedValue([]); // No integrations
+
+            // Mock insert chain
+            const mockReturning = jest.fn().mockResolvedValue([{ id: 1 }]);
+            const mockValues = jest.fn().mockReturnValue({ returning: mockReturning });
+            (mockedDb.insert as jest.Mock).mockReturnValue({ values: mockValues });
 
             const res = await request(app)
                 .post('/s/hash123')
@@ -133,9 +152,10 @@ describe('SubmissionController', () => {
             const mockForm = {
                 id: 1,
                 submitHash: 'hash123',
-                isActive: false
+                isActive: false,
+                organization: { isActive: true }
             };
-            (AppDataSource.manager.findOne as jest.Mock).mockResolvedValue(mockForm);
+            (mockedDb.query.forms.findFirst as jest.Mock).mockResolvedValue(mockForm);
 
             const res = await request(app)
                 .post('/s/hash123')

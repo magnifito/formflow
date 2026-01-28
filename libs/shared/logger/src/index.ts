@@ -230,7 +230,6 @@ export default logger;
 // Export utilities
 export { maskSensitiveData, maskHeaders, maskUrl } from './maskSensitiveData';
 export { serializeError } from './errorSerializer';
-export { WinstonTypeORMLogger } from './typeormLogger';
 export {
   LogOperation,
   LogOutcome,

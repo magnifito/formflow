@@ -1,7 +1,7 @@
 {
    "name": "formflow-dashboard-api",
    "version": "0.0.1",
-   "description": "FormFlow Dashboard API - Dashboard and admin backend with TypeORM.",
+   "description": "FormFlow Dashboard API - Dashboard and admin backend with Drizzle ORM.",
    "type": "commonjs",
    "devDependencies": {
       "@jest/types": "^30.2.0",
@@ -29,8 +29,8 @@
       "jsonwebtoken": "^9.0.3",
       "nodemailer": "^7.0.12",
       "pg": "^8.17.2",
-      "reflect-metadata": "^0.2.2",
-      "typeorm": "0.3.28",
+      "drizzle-orm": "^0.30.10",
+      "postgres": "^3.4.4",
       "uuid": "^13.0.0",
       "winston": "^3.19.0",
       "winston-daily-rotate-file": "^5.0.0"
@@ -38,11 +38,6 @@
    "scripts": {
       "dev": "tsx watch src/index.ts",
       "start": "ts-node src/index.ts",
-      "typeorm": "ts-node ../../node_modules/typeorm/cli.js",
-      "migration:generate": "ts-node --project tsconfig.json -r tsconfig-paths/register ../../node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
-      "migration:run": "ts-node --project tsconfig.json -r tsconfig-paths/register ../../node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
-      "migration:revert": "ts-node --project tsconfig.json -r tsconfig-paths/register ../../node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
-      "migration:show": "ts-node --project tsconfig.json -r tsconfig-paths/register ../../node_modules/typeorm/cli.js migration:show -d src/data-source.ts",
       "test": "jest",
       "test:watch": "jest --watch",
       "test:coverage": "jest --coverage",

@@ -1,8 +1,12 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./auth";
-import { AppDataSource } from "../data-source";
-import { User, Organization } from "@formflow/shared/entities";
+import { db } from "../db";
+import { users, organizations } from "@formflow/shared/drizzle";
+import { eq, asc, InferSelectModel } from "drizzle-orm";
 import logger from "@formflow/shared/logger";
+
+type User = InferSelectModel<typeof users>;
+type Organization = InferSelectModel<typeof organizations>;
 
 export type OrgContextRequest = AuthRequest & {
     organization?: Organization;
@@ -24,9 +28,9 @@ export const injectOrgContext = async (req: OrgContextRequest, res: Response, ne
             return res.status(401).json({ error: 'Authentication required' });
         }
 
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: req.user.userId },
-            relations: ['organization']
+        const user = await db.query.users.findFirst({
+            where: eq(users.id, req.user.userId),
+            with: { organization: true }
         });
 
         if (!user) {
@@ -44,8 +48,8 @@ export const injectOrgContext = async (req: OrgContextRequest, res: Response, ne
                 const contextOrgId = parseInt(orgContextHeader as string, 10);
                 if (!isNaN(contextOrgId)) {
                     // Load the requested organization
-                    const contextOrg = await AppDataSource.manager.findOne(Organization, {
-                        where: { id: contextOrgId }
+                    const contextOrg = await db.query.organizations.findFirst({
+                        where: eq(organizations.id, contextOrgId)
                     });
 
                     if (contextOrg) {
@@ -60,9 +64,9 @@ export const injectOrgContext = async (req: OrgContextRequest, res: Response, ne
                 req.organization = user.organization;
             } else {
                 // For super admins without an assigned org, default to the first active org to enable UI flows (e.g., Lab)
-                const firstOrg = await AppDataSource.manager.findOne(Organization, {
-                    where: { isActive: true },
-                    order: { id: 'ASC' }
+                const firstOrg = await db.query.organizations.findFirst({
+                    where: eq(organizations.isActive, true),
+                    orderBy: asc(organizations.id)
                 });
                 req.organization = firstOrg ?? undefined;
             }

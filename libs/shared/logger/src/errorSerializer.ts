@@ -58,15 +58,7 @@ export function serializeError(error: any, depth = 0, maxDepth = 5, seen = new W
       serialized.cause = serializeError((error as any).cause, depth + 1, maxDepth, seen) as SerializedError;
     }
 
-    // Handle TypeORM errors
-    if (error.name === 'QueryFailedError' || error.name === 'EntityNotFoundError') {
-      if ((error as any).query) {
-        serialized.query = (error as any).query;
-      }
-      if ((error as any).parameters) {
-        serialized.parameters = '[Query Parameters]'; // Don't log actual parameters (may contain sensitive data)
-      }
-    }
+
 
     // Include any additional properties
     const additionalProps = Object.getOwnPropertyNames(error).filter(

@@ -1,8 +1,11 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "./auth";
-import { AppDataSource } from "../data-source";
-import { User } from "@formflow/shared/entities";
+import { db } from "../db";
+import { users } from "@formflow/shared/drizzle";
+import { eq, InferSelectModel } from "drizzle-orm";
 import logger from "@formflow/shared/logger";
+
+type User = InferSelectModel<typeof users>;
 
 /**
  * Middleware to verify that the authenticated user is a Super Admin.
@@ -15,8 +18,8 @@ export const verifySuperAdmin = async (req: AuthRequest, res: Response, next: Ne
             return res.status(401).json({ error: 'Authentication required' });
         }
 
-        const user = await AppDataSource.manager.findOne(User, {
-            where: { id: req.user.userId }
+        const user = await db.query.users.findFirst({
+            where: eq(users.id, req.user.userId)
         });
 
         if (!user) {

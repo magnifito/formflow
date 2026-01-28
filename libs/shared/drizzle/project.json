@@ -1,0 +1,27 @@
+{
+  "name": "drizzle",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/drizzle/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:shared"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/shared/drizzle",
+        "main": "libs/shared/drizzle/src/index.ts",
+        "tsConfig": "libs/shared/drizzle/tsconfig.lib.json",
+        "assets": ["libs/shared/drizzle/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"]
+    }
+  }
+}

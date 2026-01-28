@@ -1,17 +1,19 @@
 
 import request from 'supertest';
 import { createApp } from '../src/index';
-import { AppDataSource } from '../src/data-source';
+import { db } from '../src/db';
 
-// Mock Data Source
-jest.mock('../src/data-source', () => ({
-    AppDataSource: {
-        isInitialized: false,
-        initialize: jest.fn().mockResolvedValue(true),
-        manager: {
-            query: jest.fn(),
-        },
+// Mock the db module (Drizzle)
+jest.mock('../src/db', () => ({
+    db: {
+        execute: jest.fn(),
     },
+}));
+
+jest.mock('@formflow/shared/drizzle', () => ({
+    users: { id: 'id', email: 'email', isSuperAdmin: 'isSuperAdmin' },
+    organizations: { id: 'id', slug: 'slug' },
+    forms: {},
 }));
 
 jest.mock('@formflow/shared/logger', () => ({
@@ -35,6 +37,8 @@ jest.mock('@formflow/shared/logger', () => ({
     }),
 }));
 
+const mockedDb = db as jest.Mocked<typeof db>;
+
 describe('Health Checks (E2E)', () => {
     let app: any;
 
@@ -54,7 +58,7 @@ describe('Health Checks (E2E)', () => {
     });
 
     it('GET /health/ready should return 200 when DB is connected', async () => {
-        (AppDataSource.manager.query as jest.Mock).mockResolvedValueOnce([]);
+        (mockedDb.execute as jest.Mock).mockResolvedValueOnce([{ '?column?': 1 }]);
 
         const res = await request(app).get('/health/ready');
         expect(res.status).toBe(200);
@@ -63,7 +67,7 @@ describe('Health Checks (E2E)', () => {
     });
 
     it('GET /health/ready should return 503 when DB is disconnected', async () => {
-        (AppDataSource.manager.query as jest.Mock).mockRejectedValueOnce(new Error('DB Error'));
+        (mockedDb.execute as jest.Mock).mockRejectedValueOnce(new Error('DB Error'));
 
         const res = await request(app).get('/health/ready');
         expect(res.status).toBe(503);

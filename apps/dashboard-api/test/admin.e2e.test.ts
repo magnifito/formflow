@@ -1,21 +1,46 @@
 
 import request from 'supertest';
 import { createApp } from '../src/index';
-import { AppDataSource } from '../src/data-source';
+import { db } from '../src/db';
 import jwt from 'jsonwebtoken';
 
-// Mock Data Source
-jest.mock('../src/data-source', () => ({
-    AppDataSource: {
-        isInitialized: false,
-        initialize: jest.fn().mockResolvedValue(true),
-        manager: {
-            findOne: jest.fn(),
-            findAndCount: jest.fn(),
-            count: jest.fn(),
-            createQueryBuilder: jest.fn(),
+// Mock the db module (Drizzle)
+jest.mock('../src/db', () => ({
+    db: {
+        query: {
+            users: {
+                findFirst: jest.fn(),
+                findMany: jest.fn(),
+            },
+            organizations: {
+                findFirst: jest.fn(),
+                findMany: jest.fn(),
+            },
         },
+        select: jest.fn().mockReturnValue({
+            from: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnValue({
+                    limit: jest.fn().mockReturnValue({
+                        offset: jest.fn().mockResolvedValue([]),
+                    }),
+                }),
+                leftJoin: jest.fn().mockReturnValue({
+                    where: jest.fn().mockResolvedValue([{ count: 0 }]),
+                }),
+                innerJoin: jest.fn().mockReturnValue({
+                    where: jest.fn().mockResolvedValue([{ count: 0 }]),
+                }),
+            }),
+        }),
+        execute: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
     },
+}));
+
+jest.mock('@formflow/shared/drizzle', () => ({
+    users: { id: 'id', email: 'email', isSuperAdmin: 'isSuperAdmin', isActive: 'isActive', organizationId: 'organizationId' },
+    organizations: { id: 'id', slug: 'slug', isActive: 'isActive' },
+    forms: { id: 'id', organizationId: 'organizationId' },
+    submissions: { id: 'id', formId: 'formId', createdAt: 'createdAt' },
 }));
 
 jest.mock('@formflow/shared/logger', () => ({
@@ -43,6 +68,8 @@ jest.mock('jsonwebtoken', () => ({
     verify: jest.fn(),
 }));
 
+const mockedDb = db as jest.Mocked<typeof db>;
+
 describe('Admin Endpoints (E2E)', () => {
     let app: any;
 
@@ -54,29 +81,30 @@ describe('Admin Endpoints (E2E)', () => {
         jest.clearAllMocks();
         // Setup default auth mocks for Super Admin
         (jwt.verify as jest.Mock).mockReturnValue({ userId: 1 });
-        // First findOne call is usually verifySuperAdmin middleware checking the user
-        // We'll use mockImplementation to return specific values based on the query or order
     });
 
     it('GET /admin/stats should return stats for super admin', async () => {
         // Mock User for verifySuperAdmin
-        (AppDataSource.manager.findOne as jest.Mock).mockResolvedValueOnce({
+        (mockedDb.query.users.findFirst as jest.Mock).mockResolvedValueOnce({
             id: 1, isSuperAdmin: true, isActive: true
         });
 
-        // Mock stats counts
-        (AppDataSource.manager.count as jest.Mock)
-            .mockResolvedValueOnce(5)  // orgs
-            .mockResolvedValueOnce(4)  // active orgs
-            .mockResolvedValueOnce(10) // users
-            .mockResolvedValueOnce(20) // forms
-            .mockResolvedValueOnce(100); // submissions
-
-        const mockQueryBuilder = {
-            where: jest.fn().mockReturnThis(),
-            getCount: jest.fn().mockResolvedValue(30),
+        // Create a thenable query builder mock that supports chaining
+        const createThenableQueryBuilder = (resolveValue: any) => {
+            const builder: any = {
+                where: jest.fn().mockReturnThis(),
+                innerJoin: jest.fn().mockReturnThis(),
+                leftJoin: jest.fn().mockReturnThis(),
+                then: (resolve: any) => resolve(resolveValue),
+            };
+            return builder;
         };
-        (AppDataSource.manager.createQueryBuilder as jest.Mock).mockReturnValue(mockQueryBuilder);
+
+        // The stats endpoint makes multiple queries
+        const mockSelectChain = {
+            from: jest.fn().mockReturnValue(createThenableQueryBuilder([{ count: 5 }])),
+        };
+        (mockedDb.select as jest.Mock).mockReturnValue(mockSelectChain);
 
         const res = await request(app)
             .get('/admin/stats')
@@ -88,12 +116,18 @@ describe('Admin Endpoints (E2E)', () => {
 
     it('GET /admin/organizations should return list', async () => {
         // Mock User for verifySuperAdmin
-        (AppDataSource.manager.findOne as jest.Mock).mockResolvedValueOnce({
+        (mockedDb.query.users.findFirst as jest.Mock).mockResolvedValueOnce({
             id: 1, isSuperAdmin: true, isActive: true
         });
 
         const mockOrgs = [{ id: 1, name: 'Org 1' }];
-        (AppDataSource.manager.findAndCount as jest.Mock).mockResolvedValue([mockOrgs, 1]);
+        (mockedDb.query.organizations.findMany as jest.Mock).mockResolvedValue(mockOrgs);
+
+        // Mock count for pagination
+        const mockSelectChain = {
+            from: jest.fn().mockResolvedValue([{ count: 1 }]),
+        };
+        (mockedDb.select as jest.Mock).mockReturnValue(mockSelectChain);
 
         const res = await request(app)
             .get('/admin/organizations')
@@ -105,7 +139,7 @@ describe('Admin Endpoints (E2E)', () => {
 
     it('should deny access if not super admin', async () => {
         // Mock User for verifySuperAdmin (regular user)
-        (AppDataSource.manager.findOne as jest.Mock).mockResolvedValueOnce({
+        (mockedDb.query.users.findFirst as jest.Mock).mockResolvedValueOnce({
             id: 2, isSuperAdmin: false, isActive: true
         });
 
