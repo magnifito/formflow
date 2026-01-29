@@ -69,8 +69,9 @@ export class TelegramService {
                 success: true,
                 messageId: response.data?.result?.message_id,
             };
-        } catch (err: any) {
-            const errorMessage = err.response?.data?.description || err.message;
+        } catch (err: unknown) {
+            const axiosError = err as { response?: { data?: { description?: string } }; message?: string };
+            const errorMessage = axiosError.response?.data?.description || axiosError.message || 'Unknown error';
 
             if (logContext) {
                 logger.error(LogMessages.integrationSendFailed('Telegram'), {

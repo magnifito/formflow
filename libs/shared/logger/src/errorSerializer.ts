@@ -9,13 +9,20 @@ interface SerializedError {
   stack?: string;
   code?: string | number;
   cause?: SerializedError;
-  [key: string]: any;
+  [key: string]: unknown;
 }
+
+interface ErrorWithCode extends Error {
+  code?: string | number;
+  cause?: unknown;
+}
+
+type SerializedValue = string | number | boolean | null | undefined | SerializedError | SerializedValue[] | { [key: string]: SerializedValue };
 
 /**
  * Serialize an error object for logging
  */
-export function serializeError(error: any, depth = 0, maxDepth = 5, seen = new WeakSet()): any {
+export function serializeError(error: unknown, depth = 0, maxDepth = 5, seen = new WeakSet<object>()): SerializedValue {
   // Prevent infinite recursion
   if (depth > maxDepth) {
     return '[Max Depth Reached]';
@@ -49,16 +56,15 @@ export function serializeError(error: any, depth = 0, maxDepth = 5, seen = new W
     }
 
     // Handle error code
-    if ((error as any).code !== undefined) {
-      serialized.code = (error as any).code;
+    const errorWithCode = error as ErrorWithCode;
+    if (errorWithCode.code !== undefined) {
+      serialized.code = errorWithCode.code;
     }
 
     // Handle error.cause (Error cause chains)
-    if ((error as any).cause) {
-      serialized.cause = serializeError((error as any).cause, depth + 1, maxDepth, seen) as SerializedError;
+    if (errorWithCode.cause) {
+      serialized.cause = serializeError(errorWithCode.cause, depth + 1, maxDepth, seen) as SerializedError;
     }
-
-
 
     // Include any additional properties
     const additionalProps = Object.getOwnPropertyNames(error).filter(
@@ -67,7 +73,7 @@ export function serializeError(error: any, depth = 0, maxDepth = 5, seen = new W
 
     for (const prop of additionalProps) {
       try {
-        const value = (error as any)[prop];
+        const value = (error as Record<string, unknown>)[prop];
         if (value !== undefined && typeof value !== 'function') {
           serialized[prop] = serializeValue(value, depth + 1, maxDepth, seen);
         }
@@ -85,7 +91,7 @@ export function serializeError(error: any, depth = 0, maxDepth = 5, seen = new W
   }
 
   // Handle plain objects
-  const serialized: any = {};
+  const serialized: Record<string, SerializedValue> = {};
   for (const [key, value] of Object.entries(error)) {
     try {
       serialized[key] = serializeValue(value, depth + 1, maxDepth, seen);
@@ -100,7 +106,7 @@ export function serializeError(error: any, depth = 0, maxDepth = 5, seen = new W
 /**
  * Serialize a value (handles circular references and complex types)
  */
-function serializeValue(value: any, depth: number, maxDepth: number, seen: WeakSet<any>): any {
+function serializeValue(value: unknown, depth: number, maxDepth: number, seen: WeakSet<object>): SerializedValue {
   if (depth > maxDepth) {
     return '[Max Depth]';
   }
@@ -113,8 +119,12 @@ function serializeValue(value: any, depth: number, maxDepth: number, seen: WeakS
     return '[Function]';
   }
 
-  if (typeof value !== 'object') {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
     return value;
+  }
+
+  if (typeof value !== 'object') {
+    return String(value);
   }
 
   if (seen.has(value)) {
@@ -122,7 +132,7 @@ function serializeValue(value: any, depth: number, maxDepth: number, seen: WeakS
   }
 
   if (value instanceof Error) {
-    return serializeError(value, depth, maxDepth, seen);
+    return serializeError(value, depth, maxDepth, seen) as SerializedError;
   }
 
   if (Array.isArray(value)) {
@@ -130,7 +140,7 @@ function serializeValue(value: any, depth: number, maxDepth: number, seen: WeakS
   }
 
   // Plain object
-  const result: any = {};
+  const result: Record<string, SerializedValue> = {};
   seen.add(value);
   for (const [key, val] of Object.entries(value)) {
     try {

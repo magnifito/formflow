@@ -20,10 +20,12 @@ const SENSITIVE_FIELDS = [
 
 const MASK = '***REDACTED***';
 
+type MaskedValue = string | number | boolean | null | undefined | MaskedValue[] | { [key: string]: MaskedValue };
+
 /**
  * Recursively mask sensitive fields in an object
  */
-export function maskSensitiveData(obj: any, depth = 0, maxDepth = 10): any {
+export function maskSensitiveData(obj: unknown, depth = 0, maxDepth = 10): MaskedValue {
   if (depth > maxDepth) {
     return '[Max Depth Reached]';
   }
@@ -33,14 +35,17 @@ export function maskSensitiveData(obj: any, depth = 0, maxDepth = 10): any {
   }
 
   if (typeof obj !== 'object') {
-    return obj;
+    if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
+      return obj;
+    }
+    return String(obj);
   }
 
   if (Array.isArray(obj)) {
     return obj.map(item => maskSensitiveData(item, depth + 1, maxDepth));
   }
 
-  const masked: any = {};
+  const masked: Record<string, MaskedValue> = {};
 
   for (const [key, value] of Object.entries(obj)) {
     const lowerKey = key.toLowerCase();
@@ -52,8 +57,10 @@ export function maskSensitiveData(obj: any, depth = 0, maxDepth = 10): any {
       masked[key] = MASK;
     } else if (typeof value === 'object' && value !== null) {
       masked[key] = maskSensitiveData(value, depth + 1, maxDepth);
-    } else {
+    } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value === null || value === undefined) {
       masked[key] = value;
+    } else {
+      masked[key] = String(value);
     }
   }
 
@@ -63,20 +70,25 @@ export function maskSensitiveData(obj: any, depth = 0, maxDepth = 10): any {
 /**
  * Mask sensitive data in headers
  */
-export function maskHeaders(headers: any): any {
+export function maskHeaders(headers: unknown): MaskedValue {
   if (!headers || typeof headers !== 'object') {
-    return headers;
+    if (headers === null || headers === undefined) {
+      return headers;
+    }
+    return String(headers);
   }
 
-  const masked: any = {};
+  const masked: Record<string, MaskedValue> = {};
   const sensitiveHeaders = ['authorization', 'x-csrf-token', 'cookie'];
 
   for (const [key, value] of Object.entries(headers)) {
     const lowerKey = key.toLowerCase();
     if (sensitiveHeaders.some(h => lowerKey.includes(h.toLowerCase()))) {
       masked[key] = MASK;
-    } else {
+    } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value === null || value === undefined) {
       masked[key] = value;
+    } else {
+      masked[key] = String(value);
     }
   }
 

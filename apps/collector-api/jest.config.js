@@ -22,6 +22,14 @@ module.exports = {
         '!src/migrations/**/*',
         '!src/data-source.ts',
     ],
+    coverageThreshold: {
+        global: {
+            branches: 60,
+            functions: 60,
+            lines: 60,
+            statements: 60,
+        },
+    },
     testMatch: [
         '<rootDir>/src/**/__tests__/**/*.[jt]s?(x)',
         '<rootDir>/src/**/*(*.)@(spec|test).[jt]s?(x)', // Matches unit tests: *.spec.ts, *.test.ts

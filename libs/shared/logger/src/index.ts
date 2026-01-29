@@ -122,7 +122,7 @@ const consoleFormat = winston.format.combine(
     if (error && typeof error === 'string') {
       log += ` - ${error}`;
     } else if (error && typeof error === 'object' && 'message' in error) {
-      log += ` - ${(error as any).message}`;
+      log += ` - ${(error as { message: string }).message}`;
     }
 
     // Add any additional metadata (filtered and cleaned for console readability)
@@ -214,18 +214,18 @@ const logger = winston.createLogger({
     ...(NODE_ENV === 'test' ? [testTransport] : [consoleTransport]),
     fileTransport,
     errorFileTransport,
-    new SystemMailTransport() as any,
+    new SystemMailTransport() as winston.transport,
   ],
   // Don't exit on handled exceptions
   exitOnError: false,
 });
 
 // Add stream for Morgan HTTP request logger compatibility
-logger.stream = {
+(logger as unknown as { stream: { write: (message: string) => void } }).stream = {
   write: (message: string) => {
     logger.info(message.trim());
   },
-} as any;
+};
 
 export default logger;
 

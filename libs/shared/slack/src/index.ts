@@ -108,8 +108,9 @@ export class SlackService {
                 ts: response.data.ts,
                 channel: response.data.channel,
             };
-        } catch (err: any) {
-            const errorMessage = err.response?.data?.error || err.message;
+        } catch (err: unknown) {
+            const axiosError = err as { response?: { data?: { error?: string } }; message?: string };
+            const errorMessage = axiosError.response?.data?.error || axiosError.message || 'Unknown error';
 
             if (logContext) {
                 logger.error(LogMessages.integrationSendFailed('Slack'), {

@@ -6,7 +6,17 @@ export interface SystemMailTransportOptions {
   from?: string;
 }
 
-export class SystemMailTransport extends (winston as any).Transport {
+interface LogInfo {
+  level: string;
+  message: string;
+  timestamp?: string;
+  service?: string;
+  stack?: string;
+  [key: string]: unknown;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+export class SystemMailTransport extends winston.Transport {
   private transporter: nodemailer.Transporter | null = null;
   private to: string;
   private from: string;
@@ -36,7 +46,7 @@ export class SystemMailTransport extends (winston as any).Transport {
     }
   }
 
-  log(info: any, callback: () => void) {
+  log(info: LogInfo, callback: () => void): void {
     setImmediate(() => {
       this.emit('logged', info);
     });

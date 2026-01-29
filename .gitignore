@@ -6,6 +6,12 @@
 /out-tsc
 *.js.map
 
+# Generated JS output in lib source directories (from accidental tsc runs)
+libs/**/src/**/*.js
+libs/**/src/**/*.js.map
+libs/**/src/**/*.d.ts
+libs/**/src/**/*.d.ts.map
+
 # Node
 /node_modules
 npm-debug.log
