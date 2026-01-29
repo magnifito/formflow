@@ -7,7 +7,7 @@ The Dashboard API is the backend service for the FormFlow dashboard. It handles 
 - User authentication and session management (JWT)
 - Organization and multi-tenant support
 - Form creation and management
-- Integration configuration (Email, Telegram, Webhooks, n8n, Make.com, Discord)
+- Integration configuration (Email, Telegram, Discord, Slack, Webhooks)
 - Super admin functionality
 - Whitelisted domain management
 - Submission viewing and analytics

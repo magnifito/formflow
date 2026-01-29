@@ -15,13 +15,15 @@ All three options suck.
 FormFlow is a form backend you can deploy in 10 minutes and own forever. No monthly fees. No data mining. No vendor lock-in.
 
 **What it does:**
+
 - Receives form submissions from your website
-- Sends them wherever you want (Email, Telegram, Discord, Webhooks, n8n, Make.com)
+- Sends them wherever you want (Email, Telegram, Discord, Slack, Webhooks)
 - Blocks spam with Proof of Work CAPTCHA
 - Stores submissions in YOUR database
 - Handles auto-reply emails
 
 **What it costs:**
+
 - Self-hosted: $0/month (just server costs you already pay)
 
 ## Why This Exists
@@ -105,6 +107,7 @@ pnpm seed
 **📖 [Complete Testing Guide](context/TESTING.md)** - Full walkthrough with screenshots
 
 This creates:
+
 - 3 organizations with different integrations
 - 16-18 ready-to-test forms
 - Webhook logger showing real-time deliveries
@@ -138,6 +141,7 @@ Type in your email credentials. Hit deploy. You're live in 2 minutes.
 Do whatever you want. It's Node.js and PostgreSQL. Deploy it anywhere you deploy normal apps.
 
 Environment variables you need:
+
 - Database credentials (`DB_*`)
 - Email settings (SMTP)
 - JWT secret
@@ -155,12 +159,11 @@ Built-in Proof of Work CAPTCHA. Bots can't solve it. Users don't even notice it.
 
 ### Send Anywhere
 
-- **Email** - SMTP, obviously
+- **Email** - SMTP or transactional APIs
 - **Telegram** - Instant notifications
 - **Discord** - Team channels
-- **Webhooks** - Your custom endpoint
-- **n8n** - Workflow automation
-- **Make.com** - No-code automation
+- **Slack** - Workspace notifications
+- **Webhooks** - Any custom endpoint
 
 Configure once. Forget about it.
 
@@ -259,8 +262,8 @@ npm run lint             # Lint everything
 
 ```html
 <form action="https://your-api.com/submit/YOUR_FORM_HASH" method="POST">
-  <input type="text" name="name" required>
-  <input type="email" name="email" required>
+  <input type="text" name="name" required />
+  <input type="email" name="email" required />
   <textarea name="message" required></textarea>
   <button type="submit">Send</button>
 </form>
@@ -279,6 +282,7 @@ Want a feature? Build it and submit a PR.
 I review PRs. Good ones get merged. Bad ones don't.
 
 Standard flow:
+
 1. Fork the repo
 2. Create a branch (`git checkout -b your-feature`)
 3. Make changes
@@ -295,6 +299,7 @@ When you contribute, add your name below.
 Built by [Kiril Kirov](https://github.com/k2kirov).
 
 Contributors:
+
 - (Your name here when you contribute)
 
 ---

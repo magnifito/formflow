@@ -45,12 +45,6 @@ export enum LogOperation {
   INTEGRATION_DISCORD_SEND = 'integration.discord.send',
   INTEGRATION_DISCORD_TOGGLE = 'integration.discord.toggle',
   INTEGRATION_DISCORD_WEBHOOK = 'integration.discord.webhook',
-  INTEGRATION_MAKE_SEND = 'integration.make.send',
-  INTEGRATION_MAKE_TOGGLE = 'integration.make.toggle',
-  INTEGRATION_MAKE_WEBHOOK = 'integration.make.webhook',
-  INTEGRATION_N8N_SEND = 'integration.n8n.send',
-  INTEGRATION_N8N_TOGGLE = 'integration.n8n.toggle',
-  INTEGRATION_N8N_WEBHOOK = 'integration.n8n.webhook',
   INTEGRATION_WEBHOOK_SEND = 'integration.webhook.send',
   INTEGRATION_WEBHOOK_TOGGLE = 'integration.webhook.toggle',
   INTEGRATION_WEBHOOK_UPDATE = 'integration.webhook.update',
@@ -116,7 +110,7 @@ export interface LogContext {
  */
 export function createLogContext(
   operation: LogOperation | string,
-  data: Omit<LogContext, 'operation'> = {}
+  data: Omit<LogContext, 'operation'> = {},
 ): LogContext {
   return {
     operation,
@@ -129,7 +123,7 @@ export function createLogContext(
  */
 export function successContext(
   operation: LogOperation | string,
-  data: Omit<LogContext, 'operation' | 'outcome'> = {}
+  data: Omit<LogContext, 'operation' | 'outcome'> = {},
 ): LogContext {
   return createLogContext(operation, { ...data, outcome: LogOutcome.SUCCESS });
 }
@@ -139,7 +133,7 @@ export function successContext(
  */
 export function failureContext(
   operation: LogOperation | string,
-  data: Omit<LogContext, 'operation' | 'outcome'> = {}
+  data: Omit<LogContext, 'operation' | 'outcome'> = {},
 ): LogContext {
   return createLogContext(operation, { ...data, outcome: LogOutcome.FAILURE });
 }
@@ -166,7 +160,8 @@ export function extractRequestContext(req: {
  */
 export const LogMessages = {
   // HTTP messages
-  httpRequestReceived: (method: string, path: string) => `HTTP request received: ${method} ${path}`,
+  httpRequestReceived: (method: string, path: string) =>
+    `HTTP request received: ${method} ${path}`,
   httpResponseSent: (method: string, path: string, statusCode: number) =>
     `HTTP response sent: ${method} ${path} ${statusCode}`,
   httpRequestFailed: (method: string, path: string, statusCode: number) =>
@@ -207,7 +202,8 @@ export const LogMessages = {
   // System messages
   systemUncaughtException: 'Uncaught exception',
   systemUnhandledRejection: 'Unhandled promise rejection',
-  systemShutdownSignal: (signal: string) => `Shutdown signal received: ${signal}`,
+  systemShutdownSignal: (signal: string) =>
+    `Shutdown signal received: ${signal}`,
 
   // User messages
   userNotFound: 'User not found',

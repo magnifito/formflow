@@ -12,10 +12,9 @@ The Collector API is the public-facing backend service that handles form submiss
 - Integration triggers:
   - Email notifications
   - Telegram messages
-  - Webhooks
-  - n8n workflows
-  - Make.com scenarios
   - Discord webhooks
+  - Slack messages
+  - Webhooks
 - Automatic return emails
 - Submission storage and tracking
 
@@ -98,6 +97,7 @@ Content-Type: application/json
 Submit a form using its unique submit hash. Always uses JSON format.
 
 **Request Body:**
+
 ```json
 {
   "name": "John Doe",
@@ -162,8 +162,9 @@ apps/collector-api/
 5. **Trigger Integrations**
    - Email notifications
    - Telegram messages
+   - Discord webhooks
+   - Slack messages
    - Webhooks
-   - Third-party integrations (n8n, Make.com, Discord)
 
 6. **Send Return Email** (if configured)
    - Send automatic reply to submitter
@@ -205,6 +206,7 @@ Forms can restrict submissions to specific domains:
 ### Email
 
 Configure in dashboard with SMTP credentials. Supports:
+
 - HTML templates
 - Attachments
 - Custom from/reply-to addresses
@@ -212,6 +214,7 @@ Configure in dashboard with SMTP credentials. Supports:
 ### Telegram
 
 Send submissions to Telegram chats:
+
 - Configure bot token and chat ID
 - Supports formatted messages
 - Instant notifications
@@ -219,27 +222,15 @@ Send submissions to Telegram chats:
 ### Webhooks
 
 POST submission data to custom URLs:
+
 - JSON payload
 - Custom headers
 - Retry logic
 
-### n8n
-
-Trigger n8n workflows:
-- Webhook integration
-- Full submission data
-- Workflow automation
-
-### Make.com
-
-Send data to Make scenarios:
-- Webhook endpoint
-- Scenario automation
-- Data transformation
-
 ### Discord
 
 Post to Discord channels:
+
 - Webhook integration
 - Embed formatting
 - Channel notifications

@@ -6,12 +6,12 @@ FormFlow uses Docker for both development and production deployments. All applic
 
 ### Applications
 
-| App | Description | Port | Location |
-|-----|-------------|------|----------|
-| **dashboard-api** | Dashboard and admin API backend with Drizzle ORM/PostgreSQL | 3000 | `apps/dashboard-api/` |
-| **collector-api** | Public form submission API backend | 3001 | `apps/collector-api/` |
-| **dashboard-ui** | React frontend (built, served via nginx/CDN) | 4200 dev | `apps/dashboard-ui/` |
-| **test-lab** | Lab UI + webhook sink for manual testing | 4200 dev | `apps/test-lab/` |
+| App               | Description                                                 | Port     | Location              |
+| ----------------- | ----------------------------------------------------------- | -------- | --------------------- |
+| **dashboard-api** | Dashboard and admin API backend with Drizzle ORM/PostgreSQL | 3000     | `apps/dashboard-api/` |
+| **collector-api** | Public form submission API backend                          | 3001     | `apps/collector-api/` |
+| **dashboard-ui**  | React frontend (built, served via nginx/CDN)                | 4200 dev | `apps/dashboard-ui/`  |
+| **test-lab**      | Lab UI + webhook sink for manual testing                    | 4200 dev | `apps/test-lab/`      |
 
 ---
 
@@ -26,6 +26,7 @@ pnpm dev
 ```
 
 This starts:
+
 - PostgreSQL (container) exposed on 5433
 - Dashboard API on 3000
 - Collector API on 3001
@@ -56,6 +57,7 @@ Use these files depending on what you are running:
 ### docker-compose.dev.yml (db + mailpit)
 
 Database + Mailpit only for local development:
+
 - PostgreSQL with a development volume (exposed on 5433)
 - Mailpit SMTP/UI
 - Health checks for readiness
@@ -63,6 +65,7 @@ Database + Mailpit only for local development:
 ### docker-compose.yml (Production)
 
 Production configuration with:
+
 - PostgreSQL with persistent volume
 - Health checks on all services
 - Resource limits
@@ -71,6 +74,7 @@ Production configuration with:
 ### docker-compose.stage.yml (Full dev/stage stack)
 
 Development/stage stack with:
+
 - PostgreSQL for local development
 - Dashboard API + Collector API with volume mounts for hot reload
 - Dashboard UI (served by Vite/nginx inside container)
@@ -118,6 +122,7 @@ docker build -t formflow-collector-api .
 The main authentication and admin API backend:
 
 ### Features
+
 - Drizzle ORM/PostgreSQL database
 - Telegram OAuth authentication
 - Organization management
@@ -126,6 +131,7 @@ The main authentication and admin API backend:
 - Integration management
 
 ### Dockerfile Features
+
 - Multi-stage build for smaller image
 - Non-root user for security
 - Health check endpoint at `/health`
@@ -134,6 +140,7 @@ The main authentication and admin API backend:
 ### Environment Variables
 
 See `.env.development.example` / `.env.production.example` for full list. Key variables:
+
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 - `JWT_SECRET`
 
@@ -148,14 +155,16 @@ See `.env.development.example` / `.env.production.example` for full list. Key va
 Public form submission service:
 
 ### Features
+
 - Form submission endpoint
 - Proof of Work CAPTCHA (Alcha)
 - CSRF protection
 - Domain whitelisting
-- Integration webhooks (n8n, Zapier, Telegram, Discord, Email)
+- Integration webhooks (Telegram, Discord, Slack, Email)
 - Encrypted field support
 
 ### Dockerfile Features
+
 - Multi-stage build
 - Non-root user
 - Health check at `/health`
@@ -190,9 +199,9 @@ LOG_LEVEL=info
 
 All services expose health endpoints:
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Basic health status |
+| Endpoint            | Description                             |
+| ------------------- | --------------------------------------- |
+| `GET /health`       | Basic health status                     |
 | `GET /health/ready` | Readiness check (includes dependencies) |
 
 ### Example Response
@@ -212,15 +221,15 @@ All services expose health endpoints:
 
 ### Default Ports
 
-| Service | Internal | External (dev) | External (prod) |
-|---------|----------|----------------|-----------------|
-| PostgreSQL | 5432 | 5433 | - |
-| Dashboard API | 3000 | 3000 | 3000 |
-| Collector API | 3001 | 3001 | 3001 |
-| Dashboard UI | 4200 | 4200 | - |
-| Test Lab | 4200 | 4200 | - |
-| Mailpit SMTP | 1025 | 1025 | - |
-| Mailpit UI | 8025 | 8025 | - |
+| Service       | Internal | External (dev) | External (prod) |
+| ------------- | -------- | -------------- | --------------- |
+| PostgreSQL    | 5432     | 5433           | -               |
+| Dashboard API | 3000     | 3000           | 3000            |
+| Collector API | 3001     | 3001           | 3001            |
+| Dashboard UI  | 4200     | 4200           | -               |
+| Test Lab      | 4200     | 4200           | -               |
+| Mailpit SMTP  | 1025     | 1025           | -               |
+| Mailpit UI    | 8025     | 8025           | -               |
 
 ### Docker Networks
 
@@ -280,6 +289,7 @@ pnpm clean:docker
 ### Port already in use
 
 If you see "port already allocated" errors:
+
 1. Check what's using the port: `lsof -i :3000`
 2. Stop conflicting services
 3. Or change the port in docker-compose files

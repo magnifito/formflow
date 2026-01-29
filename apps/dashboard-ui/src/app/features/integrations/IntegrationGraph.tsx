@@ -1,462 +1,424 @@
-import { useMemo } from 'react';
-import ReactFlow, {
-    Background,
-    Controls,
-    Edge,
-    Node,
-    NodeProps,
-    Position,
-    ReactFlowProvider,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+import { useMemo, useState } from 'react';
 import {
-    Mail,
-    Hash,
-    MessageSquare,
-    Send,
-    Globe,
-    Layers,
-    ArrowDown
+  Mail,
+  Hash,
+  MessageSquare,
+  Send,
+  Globe,
+  Layers,
+  ArrowDown,
 } from 'lucide-react';
 import { IntegrationHierarchy } from '../../hooks/useOrganization';
 
 const colors = {
-    org: 'var(--chart-2)',
-    override: 'var(--chart-4)',
-    inherit: 'var(--chart-5)',
-    placeholder: 'var(--muted)'
-};
-
-const edgeColors = {
-    org: 'var(--chart-2)',
-    override: 'var(--chart-4)',
-    inherit: 'var(--chart-5)',
-    placeholder: 'var(--border-strong, #CBD5E1)'
+  org: 'bg-emerald-500',
+  override: 'bg-orange-500',
+  inherit: 'bg-amber-500',
+  placeholder: 'bg-transparent',
 };
 
 const iconForType = (type?: string) => {
-    switch (type) {
-        case 'email-smtp':
-        case 'email-api':
-            return <Mail className="h-4 w-4" />;
-        case 'slack':
-            return <Hash className="h-4 w-4" />;
-        case 'discord':
-            return <MessageSquare className="h-4 w-4" />;
-        case 'telegram':
-            return <Send className="h-4 w-4" />;
-        default:
-            return <Globe className="h-4 w-4" />;
-    }
+  switch (type) {
+    case 'email-smtp':
+    case 'email-api':
+      return <Mail className="h-4 w-4" />;
+    case 'slack':
+      return <Hash className="h-4 w-4" />;
+    case 'discord':
+      return <MessageSquare className="h-4 w-4" />;
+    case 'telegram':
+      return <Send className="h-4 w-4" />;
+    default:
+      return <Globe className="h-4 w-4" />;
+  }
 };
 
 const labelForType = (type?: string) => {
-    switch (type) {
-        case 'email-smtp': return 'Email';
-        case 'email-api': return 'Email';
-        case 'slack': return 'Slack';
-        case 'discord': return 'Discord';
-        case 'telegram': return 'Telegram';
-        case 'webhook': return 'Webhook';
-        default: return 'Webhook';
-    }
+  switch (type) {
+    case 'email-smtp':
+      return 'Email';
+    case 'email-api':
+      return 'Email';
+    case 'slack':
+      return 'Slack';
+    case 'discord':
+      return 'Discord';
+    case 'telegram':
+      return 'Telegram';
+    case 'webhook':
+      return 'Webhook';
+    default:
+      return 'Webhook';
+  }
 };
 
-// Normalize integration types for grouping (e.g., email-smtp and email-api are both "email")
 const normalizeType = (type?: string): string => {
-    if (type === 'email-smtp' || type === 'email-api') return 'email';
-    return type || 'webhook';
+  if (type === 'email-smtp' || type === 'email-api') return 'email';
+  return type || 'webhook';
 };
 
-type PillData = {
-    label: string;
-    sublabel?: string;
-    color: string;
-    icon: JSX.Element;
-    isPlaceholder?: boolean;
-    isInherited?: boolean;
-    // Metadata for click handling
-    integrationId?: number;
-    formId?: number | null;
-    scope?: 'organization' | 'form';
-    metaType?: string; // normalized type
+export type CellData = {
+  label: string;
+  sublabel?: string;
+  colorClass: string;
+  icon: React.ReactNode;
+  isPlaceholder?: boolean;
+  isInherited?: boolean;
+  integrationId?: number;
+  formId?: number | null;
+  formName?: string;
+  scope?: 'organization' | 'form';
+  metaType?: string;
+  isActive?: boolean;
 };
 
-const PillNode = ({ data, selected }: NodeProps<PillData>) => {
-    const baseClasses = data.isPlaceholder
-        ? 'border-dashed border-2 border-border text-muted-foreground bg-transparent'
-        : data.isInherited
-            ? 'border border-white/20 text-white'
-            : 'border border-white/20 text-white';
+interface CellProps {
+  data: CellData;
+  onClick?: () => void;
+  onHover?: (data: CellData | null, rect: DOMRect | null) => void;
+}
 
-    const selectedClasses = selected ? 'ring-2 ring-offset-2 ring-primary' : '';
+function Cell({ data, onClick, onHover }: CellProps) {
+  const baseClasses = data.isPlaceholder
+    ? 'border-dashed border-2 border-muted-foreground/30 text-muted-foreground bg-transparent'
+    : 'border border-white/20 text-white';
 
-    return (
-        <div
-            className={`flex w-[170px] items-start gap-2 rounded-lg px-3 py-2 text-xs font-medium shadow-sm cursor-pointer transition-all hover:scale-105 ${baseClasses} ${selectedClasses}`}
-            style={data.isPlaceholder ? {} : { backgroundColor: data.color }}
-            title={data.sublabel ? `${data.label} - ${data.sublabel}` : data.label}
-        >
-            <span className="mt-0.5 shrink-0">{data.icon}</span>
-            <div className="min-w-0 flex-1">
-                <div className="truncate font-semibold">{data.label}</div>
-                {data.sublabel && (
-                    <div className="truncate text-[10px] opacity-80">{data.sublabel}</div>
-                )}
+  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    onHover?.(data, rect);
+  };
+
+  const handleMouseLeave = () => {
+    onHover?.(null, null);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className={`flex h-12 w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium shadow-sm cursor-pointer transition-all hover:scale-[1.03] hover:shadow-lg ${baseClasses} ${data.isPlaceholder ? '' : data.colorClass}`}
+      title={data.label}
+    >
+      <span className="shrink-0">{data.icon}</span>
+      <div className="min-w-0 flex-1 text-left">
+        <div className="truncate font-semibold">{data.label}</div>
+        {data.sublabel && (
+          <div className="truncate text-[10px] opacity-80">{data.sublabel}</div>
+        )}
+      </div>
+      {data.isInherited && (
+        <ArrowDown className="h-3 w-3 shrink-0 opacity-60" />
+      )}
+    </button>
+  );
+}
+
+interface PopoverProps {
+  data: CellData | null;
+  rect: DOMRect | null;
+}
+
+function HoverPopover({ data, rect }: PopoverProps) {
+  if (!data || !rect) return null;
+
+  const top = rect.bottom + 8;
+  const left = rect.left + rect.width / 2;
+
+  return (
+    <div
+      className="fixed z-50 w-64 rounded-lg border bg-popover p-3 shadow-xl animate-in fade-in zoom-in-95 duration-150"
+      style={{
+        top: `${top}px`,
+        left: `${left}px`,
+        transform: 'translateX(-50%)',
+      }}
+    >
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div
+            className={`p-1.5 rounded ${data.isPlaceholder ? 'bg-muted' : data.colorClass}`}
+          >
+            {data.icon}
+          </div>
+          <div>
+            <div className="font-semibold text-sm">{data.label}</div>
+            <div className="text-xs text-muted-foreground">
+              {data.scope === 'organization'
+                ? 'Organization default'
+                : data.formName || 'Form override'}
+            </div>
+          </div>
+        </div>
+
+        {!data.isPlaceholder && (
+          <div className="pt-2 border-t space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Status</span>
+              <span
+                className={
+                  data.isActive ? 'text-emerald-500' : 'text-muted-foreground'
+                }
+              >
+                {data.isActive ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Type</span>
+              <span>{labelForType(data.metaType)}</span>
             </div>
             {data.isInherited && (
-                <ArrowDown className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />
+              <div className="text-amber-500 text-[10px] mt-1">
+                Inherited from organization
+              </div>
             )}
-        </div>
-    );
-};
+          </div>
+        )}
 
-type HeaderData = { label: string; count?: number; icon: JSX.Element };
-
-const HeaderNode = ({ data }: NodeProps<HeaderData>) => {
-    return (
-        <div className="flex w-[170px] flex-col items-center gap-1 rounded-lg bg-muted/50 px-3 py-2">
-            <div className="flex items-center gap-2 text-muted-foreground">
-                {data.icon}
-                <span className="text-xs font-semibold">{data.label}</span>
-            </div>
-            {data.count !== undefined && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                    {data.count} {data.count === 1 ? 'integration' : 'integrations'}
-                </span>
-            )}
-        </div>
-    );
-};
-
-type RowLabelData = { label: string; description?: string };
-
-const RowLabelNode = ({ data }: NodeProps<RowLabelData>) => {
-    return (
-        <div className="flex w-[90px] flex-col items-end pr-2 text-right">
-            <span className="text-xs font-semibold text-foreground">{data.label}</span>
-            {data.description && (
-                <span className="text-[10px] text-muted-foreground">{data.description}</span>
-            )}
-        </div>
-    );
-};
-
-const nodeTypes = { pill: PillNode, header: HeaderNode, rowLabel: RowLabelNode };
-
-interface GraphInnerProps {
-    hierarchy?: IntegrationHierarchy | null;
-    onNodeClick?: (data: PillData) => void;
+        {data.isPlaceholder && (
+          <div className="text-xs text-muted-foreground pt-1">
+            Click to configure
+          </div>
+        )}
+      </div>
+      <div className="absolute -top-2 left-1/2 -translate-x-1/2 border-8 border-transparent border-b-popover" />
+    </div>
+  );
 }
 
-function GraphInner({ hierarchy, onNodeClick }: GraphInnerProps) {
-    const { nodes, edges, totalRows } = useMemo(() => {
-        const ns: Node<PillData | HeaderData | RowLabelData>[] = [];
-        const es: Edge[] = [];
-
-        const colWidth = 190;
-        const rowHeight = 60;
-        const labelColWidth = 110;
-        const startX = labelColWidth;
-        const headerY = 0;
-        const orgRowY = rowHeight + 10;
-
-        const edgeStyle = (color: string, isPlaceholder?: boolean) => ({
-            stroke: color,
-            strokeWidth: 2,
-            strokeDasharray: isPlaceholder ? '6 6' : undefined,
-            opacity: isPlaceholder ? 0.55 : 0.9
-        });
-
-        const forms = hierarchy?.forms || [];
-        const orgIntegrations = hierarchy?.organizationIntegrations || [];
-
-        // Collect all unique integration types (normalized)
-        const allTypes = new Set<string>();
-        orgIntegrations.forEach(i => allTypes.add(normalizeType(i.type)));
-        forms.forEach(f => {
-            f.integrations?.forEach(i => allTypes.add(normalizeType(i.type)));
-        });
-
-        // Sort types for consistent column ordering
-        const typeOrder = ['email', 'slack', 'discord', 'telegram', 'webhook'];
-        const sortedTypes = Array.from(allTypes).sort((a, b) => {
-            const aIdx = typeOrder.indexOf(a);
-            const bIdx = typeOrder.indexOf(b);
-            if (aIdx === -1 && bIdx === -1) return a.localeCompare(b);
-            if (aIdx === -1) return 1;
-            if (bIdx === -1) return -1;
-            return aIdx - bIdx;
-        });
-
-        // If no types, show a placeholder column
-        const columns = sortedTypes.length > 0 ? sortedTypes : ['none'];
-
-        // Group org integrations by type
-        const orgByType = new Map<string, typeof orgIntegrations>();
-        orgIntegrations.forEach(i => {
-            const t = normalizeType(i.type);
-            const existing = orgByType.get(t) || [];
-            existing.push(i);
-            orgByType.set(t, existing);
-        });
-
-        // Build form overrides map: formId -> type -> integration
-        const formOverridesMap = new Map<number, Map<string, any>>();
-        forms.forEach(form => {
-            const typeMap = new Map<string, any>();
-            (form.integrations || []).forEach(integration => {
-                const t = normalizeType(integration.type);
-                typeMap.set(t, integration);
-            });
-            formOverridesMap.set(form.id, typeMap);
-        });
-
-        // Add column headers with icons
-        columns.forEach((type, colIdx) => {
-            const x = startX + colIdx * colWidth;
-            ns.push({
-                id: `header-${type}`,
-                type: 'header',
-                position: { x, y: headerY },
-                data: {
-                    label: type === 'none' ? 'No Integrations' : labelForType(type === 'email' ? 'email-smtp' : type),
-                    icon: type === 'none' ? <Layers className="h-4 w-4" /> : iconForType(type === 'email' ? 'email-smtp' : type)
-                },
-                draggable: false,
-                selectable: false
-            });
-        });
-
-        // Add row label for Organization
-        ns.push({
-            id: 'row-label-org',
-            type: 'rowLabel',
-            position: { x: 0, y: orgRowY + 10 },
-            data: { label: 'Organization', description: 'defaults' },
-            draggable: false,
-            selectable: false
-        });
-
-        // Add org integration nodes (one per column)
-        columns.forEach((type, colIdx) => {
-            const x = startX + colIdx * colWidth;
-            const y = orgRowY;
-            const integrations = orgByType.get(type) || [];
-
-            if (integrations.length > 0) {
-                const integration = integrations[0];
-                const nodeId = `org-${type}`;
-                const extraCount = integrations.length > 1 ? ` (+${integrations.length - 1})` : '';
-                ns.push({
-                    id: nodeId,
-                    type: 'pill',
-                    position: { x, y },
-                    data: {
-                        label: (integration.name || labelForType(integration.type)) + extraCount,
-                        sublabel: integration.isActive ? 'Active' : 'Inactive',
-                        color: colors.org,
-                        icon: iconForType(integration.type),
-                        integrationId: integration.id,
-                        scope: 'organization',
-                        metaType: type
-                    },
-                    draggable: false,
-                    selectable: true,
-                    sourcePosition: Position.Bottom,
-                    targetPosition: Position.Top
-                });
-            } else {
-                const nodeId = `org-empty-${type}`;
-                ns.push({
-                    id: nodeId,
-                    type: 'pill',
-                    position: { x, y },
-                    data: {
-                        label: type === 'none' ? 'None configured' : 'Not configured',
-                        color: colors.placeholder,
-                        icon: <Layers className="h-4 w-4 opacity-50" />,
-                        isPlaceholder: true,
-                        scope: 'organization',
-                        metaType: type
-                    },
-                    draggable: false,
-                    selectable: true,
-                    sourcePosition: Position.Bottom,
-                    targetPosition: Position.Top
-                });
-            }
-        });
-
-        // Add a row for each form
-        const formStartY = orgRowY + rowHeight + 20;
-        forms.forEach((form, formIdx) => {
-            const formY = formStartY + formIdx * rowHeight;
-            const formOverrides = formOverridesMap.get(form.id) || new Map();
-            const disabledOrgDefaults = form.useOrgIntegrations === false;
-
-            // Row label for this form
-            ns.push({
-                id: `row-label-form-${form.id}`,
-                type: 'rowLabel',
-                position: { x: 0, y: formY + 10 },
-                data: {
-                    label: form.name,
-                    description: disabledOrgDefaults ? 'overrides only' : undefined
-                },
-                draggable: false,
-                selectable: false
-            });
-
-            // Add a node for each column in this form's row
-            columns.forEach((type, colIdx) => {
-                const x = startX + colIdx * colWidth;
-                const orgHasIntegration = (orgByType.get(type) || []).length > 0;
-                const orgNodeId = orgHasIntegration ? `org-${type}` : `org-empty-${type}`;
-                const override = formOverrides.get(type);
-
-                if (override) {
-                    // Form has an override for this type
-                    const nodeId = `form-${form.id}-${type}`;
-                    ns.push({
-                        id: nodeId,
-                        type: 'pill',
-                        position: { x, y: formY },
-                        data: {
-                            label: override.name || labelForType(override.type),
-                            sublabel: 'Override',
-                            color: colors.override,
-                            icon: iconForType(override.type),
-                            integrationId: override.id,
-                            formId: form.id,
-                            scope: 'form',
-                            metaType: type
-                        },
-                        draggable: false,
-                        selectable: true,
-                        targetPosition: Position.Top
-                    });
-
-                    // Edge from org to form
-                    es.push({
-                        id: `e-${orgNodeId}-${nodeId}`,
-                        source: orgNodeId,
-                        target: nodeId,
-                        type: 'smoothstep',
-                        animated: false,
-                        style: edgeStyle(edgeColors.override)
-                    });
-                } else if (orgHasIntegration && !disabledOrgDefaults) {
-                    // Form inherits from org
-                    const nodeId = `form-${form.id}-${type}-inherit`;
-                    // Find parent integration for ID reference
-                    const parentInt = orgByType.get(type)?.[0];
-
-                    ns.push({
-                        id: nodeId,
-                        type: 'pill',
-                        position: { x, y: formY },
-                        data: {
-                            label: 'Inherited',
-                            color: colors.inherit,
-                            icon: <ArrowDown className="h-4 w-4" />,
-                            isInherited: true,
-                            integrationId: parentInt?.id, // Point to parent for details
-                            formId: form.id,
-                            scope: 'form', // It's in form row but logic is organization
-                            metaType: type
-                        },
-                        draggable: false,
-                        selectable: true,
-                        targetPosition: Position.Top
-                    });
-
-                    es.push({
-                        id: `e-${orgNodeId}-${nodeId}`,
-                        source: orgNodeId,
-                        target: nodeId,
-                        type: 'smoothstep',
-                        animated: false,
-                        style: edgeStyle(edgeColors.inherit)
-                    });
-                } else {
-                    // No integration for this type in this form
-                    const nodeId = `form-${form.id}-${type}-empty`;
-                    ns.push({
-                        id: nodeId,
-                        type: 'pill',
-                        position: { x, y: formY },
-                        data: {
-                            label: disabledOrgDefaults ? 'Disabled' : 'None',
-                            color: colors.placeholder,
-                            icon: <Layers className="h-4 w-4 opacity-50" />,
-                            isPlaceholder: true,
-                            formId: form.id,
-                            scope: 'form',
-                            metaType: type
-                        },
-                        draggable: false,
-                        selectable: true,
-                        targetPosition: Position.Top
-                    });
-
-                    es.push({
-                        id: `e-${orgNodeId}-${nodeId}`,
-                        source: orgNodeId,
-                        target: nodeId,
-                        type: 'smoothstep',
-                        animated: false,
-                        style: edgeStyle(edgeColors.placeholder, true)
-                    });
-                }
-            });
-        });
-
-        // Total rows = header + org + forms
-        const numRows = 2 + forms.length;
-        return { nodes: ns, edges: es, totalRows: numRows };
-    }, [hierarchy]);
-
-    const graphHeight = Math.max(800, 80 + totalRows * 60 + 40);
-
-    return (
-        <div className="overflow-hidden rounded-b-xl" style={{ height: `${graphHeight}px` }}>
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                nodesDraggable={false}
-                nodesConnectable={false}
-                elementsSelectable={true}
-                onNodeClick={(_, node) => {
-                    if (node.type === 'pill' && onNodeClick) {
-                        onNodeClick(node.data as PillData);
-                    }
-                }}
-                zoomOnScroll={false}
-                zoomOnPinch={false}
-                panOnScroll
-                defaultEdgeOptions={{ animated: false, style: { strokeWidth: 2, stroke: 'var(--border-strong, #CBD5E1)' } }}
-                defaultViewport={{ x: 20, y: 20, zoom: 1 }}
-                minZoom={0.5}
-                maxZoom={1.5}
-                className="h-full w-full bg-linear-to-b from-card to-muted/30"
-            >
-                <Background gap={24} size={1} color="var(--border)" />
-                <Controls
-                    showInteractive={false}
-                    position="bottom-right"
-                    className="rounded-lg border border-border/70 bg-card/80 shadow-sm backdrop-blur"
-                />
-            </ReactFlow>
-        </div>
-    );
+interface IntegrationTableProps {
+  hierarchy?: IntegrationHierarchy | null;
+  onCellClick?: (data: CellData) => void;
+  organizationName?: string;
 }
 
-export function IntegrationGraph({ hierarchy, onNodeClick }: GraphInnerProps) {
-    return (
-        <ReactFlowProvider>
-            <GraphInner hierarchy={hierarchy} onNodeClick={onNodeClick} />
-        </ReactFlowProvider>
-    );
+export function IntegrationTable({
+  hierarchy,
+  onCellClick,
+  organizationName,
+}: IntegrationTableProps) {
+  const [hoverData, setHoverData] = useState<{
+    data: CellData | null;
+    rect: DOMRect | null;
+  }>({
+    data: null,
+    rect: null,
+  });
+
+  const { integrationTypes, orgRow, formRows } = useMemo(() => {
+    const forms = hierarchy?.forms || [];
+    const orgIntegrations = hierarchy?.organizationIntegrations || [];
+
+    // Collect all unique integration types
+    const allTypes = new Set<string>();
+    orgIntegrations.forEach((i) => allTypes.add(normalizeType(i.type)));
+    forms.forEach((f) => {
+      f.integrations?.forEach((i) => allTypes.add(normalizeType(i.type)));
+    });
+
+    const typeOrder = ['email', 'slack', 'discord', 'telegram', 'webhook'];
+    const sortedTypes = Array.from(allTypes).sort((a, b) => {
+      const aIdx = typeOrder.indexOf(a);
+      const bIdx = typeOrder.indexOf(b);
+      if (aIdx === -1 && bIdx === -1) return a.localeCompare(b);
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+
+    const types = sortedTypes.length > 0 ? sortedTypes : ['webhook'];
+
+    // Group org integrations by type
+    const orgByType = new Map<string, typeof orgIntegrations>();
+    orgIntegrations.forEach((i) => {
+      const t = normalizeType(i.type);
+      const existing = orgByType.get(t) || [];
+      existing.push(i);
+      orgByType.set(t, existing);
+    });
+
+    // Build org row cells (one per integration type column)
+    const orgCells: CellData[] = types.map((type) => {
+      const integrations = orgByType.get(type) || [];
+      if (integrations.length > 0) {
+        const integration = integrations[0];
+        return {
+          label: integration.name || labelForType(integration.type),
+          sublabel: integration.isActive ? 'Active' : 'Inactive',
+          colorClass: colors.org,
+          icon: iconForType(integration.type),
+          integrationId: integration.id,
+          scope: 'organization' as const,
+          metaType: type,
+          isActive: integration.isActive,
+        };
+      }
+      return {
+        label: 'Not configured',
+        colorClass: colors.placeholder,
+        icon: <Layers className="h-4 w-4 opacity-50" />,
+        isPlaceholder: true,
+        scope: 'organization' as const,
+        metaType: type,
+      };
+    });
+
+    // Build form rows (one row per form, one cell per integration type column)
+    const formRowsData = forms.map((form) => {
+      const formOverrides = new Map<
+        string,
+        (typeof form.integrations)[number]
+      >();
+      (form.integrations || []).forEach((integration) => {
+        const t = normalizeType(integration.type);
+        formOverrides.set(t, integration);
+      });
+
+      const disabledOrgDefaults = form.useOrgIntegrations === false;
+
+      const cells: CellData[] = types.map((type) => {
+        const orgHasIntegration = (orgByType.get(type) || []).length > 0;
+        const override = formOverrides.get(type);
+
+        if (override) {
+          return {
+            label: override.name || labelForType(override.type),
+            sublabel: 'Override',
+            colorClass: colors.override,
+            icon: iconForType(override.type),
+            integrationId: override.id,
+            formId: form.id,
+            formName: form.name,
+            scope: 'form' as const,
+            metaType: type,
+            isActive: override.isActive,
+          };
+        } else if (orgHasIntegration && !disabledOrgDefaults) {
+          const parentInt = orgByType.get(type)?.[0];
+          return {
+            label: 'Inherited',
+            colorClass: colors.inherit,
+            icon: <ArrowDown className="h-4 w-4" />,
+            isInherited: true,
+            integrationId: parentInt?.id,
+            formId: form.id,
+            formName: form.name,
+            scope: 'form' as const,
+            metaType: type,
+            isActive: parentInt?.isActive,
+          };
+        }
+        return {
+          label: disabledOrgDefaults ? 'Disabled' : 'None',
+          colorClass: colors.placeholder,
+          icon: <Layers className="h-4 w-4 opacity-50" />,
+          isPlaceholder: true,
+          formId: form.id,
+          formName: form.name,
+          scope: 'form' as const,
+          metaType: type,
+        };
+      });
+
+      return {
+        form,
+        cells,
+        disabledOrgDefaults,
+      };
+    });
+
+    return {
+      integrationTypes: types,
+      orgRow: orgCells,
+      formRows: formRowsData,
+    };
+  }, [hierarchy]);
+
+  const handleHover = (data: CellData | null, rect: DOMRect | null) => {
+    setHoverData({ data, rect });
+  };
+
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full border-separate border-spacing-2">
+          <thead>
+            <tr>
+              {/* Row label column header */}
+              <th className="w-36 p-2" />
+              {/* Integration type columns */}
+              {integrationTypes.map((type) => (
+                <th key={type} className="p-2 min-w-[160px]">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+                    {iconForType(type === 'email' ? 'email-smtp' : type)}
+                    <span className="text-xs font-semibold">
+                      {labelForType(type === 'email' ? 'email-smtp' : type)}
+                    </span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Organization row */}
+            <tr>
+              <td className="p-2 text-right">
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-semibold text-foreground">
+                    {organizationName || 'Organization'}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    defaults
+                  </span>
+                </div>
+              </td>
+              {orgRow.map((cell, idx) => (
+                <td key={idx} className="p-1">
+                  <Cell
+                    data={cell}
+                    onClick={() => onCellClick?.(cell)}
+                    onHover={handleHover}
+                  />
+                </td>
+              ))}
+            </tr>
+
+            {/* Form rows */}
+            {formRows.map(({ form, cells, disabledOrgDefaults }) => (
+              <tr key={form.id}>
+                <td className="p-2 text-right">
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs font-semibold text-foreground">
+                      {form.name}
+                    </span>
+                    {disabledOrgDefaults && (
+                      <span className="text-[10px] text-muted-foreground">
+                        overrides only
+                      </span>
+                    )}
+                  </div>
+                </td>
+                {cells.map((cell, idx) => (
+                  <td key={idx} className="p-1">
+                    <Cell
+                      data={cell}
+                      onClick={() => onCellClick?.(cell)}
+                      onHover={handleHover}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <HoverPopover data={hoverData.data} rect={hoverData.rect} />
+    </>
+  );
 }
+
+// Keep old export name for compatibility
+export { IntegrationTable as IntegrationGraph };
+export type { CellData as PillData };

@@ -182,27 +182,8 @@ export async function handleWebhookJob(job: IntegrationJobData): Promise<void> {
     throw new PermanentError('No webhook URL configured');
   }
 
-  const sourceName =
-    config.webhookSource === 'make'
-      ? 'Make.com'
-      : config.webhookSource === 'n8n'
-        ? 'n8n'
-        : config.webhookSource === 'zapier'
-          ? 'Zapier'
-          : 'Webhook';
-
-  // Map source to LogOperation
-  let logOpSuccess: LogOperation;
-  switch (config.webhookSource) {
-    case 'make':
-      logOpSuccess = LogOperation.INTEGRATION_MAKE_SEND;
-      break;
-    case 'n8n':
-      logOpSuccess = LogOperation.INTEGRATION_N8N_SEND;
-      break;
-    default:
-      logOpSuccess = LogOperation.INTEGRATION_WEBHOOK_SEND;
-  }
+  const sourceName = 'Webhook';
+  const logOpSuccess = LogOperation.INTEGRATION_WEBHOOK_SEND;
 
   // Build request context
   const context = { formData, submissionId, formId, formName };

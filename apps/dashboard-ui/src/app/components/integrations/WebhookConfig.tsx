@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import {
@@ -10,6 +10,7 @@ import {
   Plus,
   Trash2,
   ChevronsRight,
+  Settings2,
 } from 'lucide-react';
 
 interface WebhookConfigProps {
@@ -17,8 +18,6 @@ interface WebhookConfigProps {
   onUpdate: (key: string, value: any) => void;
   formFields?: string[];
 }
-
-type TabMode = 'simple' | 'advanced';
 
 interface KeyValuePair {
   key: string;
@@ -121,8 +120,8 @@ export function WebhookConfig({
   onUpdate,
   formFields = [],
 }: WebhookConfigProps) {
-  const [mode, setMode] = useState<TabMode>('simple');
   const [showHelp, setShowHelp] = useState(false);
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
 
   // Parse stored JSON arrays or initialize empty
   const parseStoredPairs = (key: string): KeyValuePair[] => {
@@ -140,6 +139,21 @@ export function WebhookConfig({
   const urlParams = parseStoredPairs('urlParams');
   const headers = parseStoredPairs('headers');
   const cookies = parseStoredPairs('cookies');
+
+  // Check if any advanced fields are configured
+  const hasAdvancedConfig =
+    bodyParams.length > 0 ||
+    urlParams.length > 0 ||
+    headers.length > 0 ||
+    cookies.length > 0 ||
+    (config?.httpMethod && config.httpMethod !== 'POST');
+
+  // Auto-expand if advanced config exists
+  useEffect(() => {
+    if (hasAdvancedConfig) {
+      setAdvancedExpanded(true);
+    }
+  }, [hasAdvancedConfig]);
 
   return (
     <div className="space-y-4">
@@ -167,195 +181,135 @@ export function WebhookConfig({
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-4 space-y-3">
           <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
             <HelpCircle className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              Webhook setup by platform
-            </span>
+            <span className="text-sm font-medium">About webhooks</span>
           </div>
 
-          <div className="space-y-3 text-xs text-amber-600 dark:text-amber-300">
-            <div>
-              <strong className="text-amber-700 dark:text-amber-400">
-                Make.com:
-              </strong>
-              <ol className="mt-1 ml-4 list-decimal space-y-1">
-                <li>Create a new scenario</li>
-                <li>
-                  Add a <strong>Webhooks → Custom Webhook</strong> module
-                </li>
-                <li>
-                  Click <em>Add</em> to create a webhook and copy the URL
-                </li>
-              </ol>
-            </div>
-
-            <div>
-              <strong className="text-amber-700 dark:text-amber-400">
-                n8n:
-              </strong>
-              <ol className="mt-1 ml-4 list-decimal space-y-1">
-                <li>
-                  Add a <strong>Webhook</strong> node as trigger
-                </li>
-                <li>
-                  Set HTTP Method to{' '}
-                  <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">
-                    POST
-                  </code>
-                </li>
-                <li>
-                  Copy the <em>Production URL</em> from the node
-                </li>
-              </ol>
-            </div>
-
-            <div>
-              <strong className="text-amber-700 dark:text-amber-400">
-                Zapier:
-              </strong>
-              <ol className="mt-1 ml-4 list-decimal space-y-1">
-                <li>
-                  Create a new Zap with <strong>Webhooks by Zapier</strong>{' '}
-                  trigger
-                </li>
-                <li>
-                  Choose <em>Catch Hook</em>
-                </li>
-                <li>Copy the webhook URL provided</li>
-              </ol>
-            </div>
+          <div className="text-xs text-amber-600 dark:text-amber-300 space-y-2">
+            <p>
+              A webhook URL is an endpoint that receives form submission data
+              via HTTP POST request.
+            </p>
+            <p>
+              You can use webhooks to connect FormFlow to any service that
+              accepts incoming HTTP requests, such as automation platforms,
+              custom APIs, or serverless functions.
+            </p>
+            <p>The submission data is sent as JSON in the request body.</p>
           </div>
         </div>
       )}
 
-      {/* Tab switcher */}
+      {/* Main config */}
       <div className="rounded-lg border bg-card p-4 space-y-4">
-        <div className="flex justify-center">
-          <div className="inline-flex rounded-md border bg-muted p-1">
-            <button
+        {/* URL field - always visible */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Webhook URL</label>
+          <p className="text-xs text-muted-foreground">
+            The endpoint form responses will be sent to
+          </p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://www.example.com/"
+              value={config?.webhook || ''}
+              onChange={(e) => onUpdate('webhook', e.target.value)}
+              className="flex-1"
+            />
+            <Button
               type="button"
-              onClick={() => setMode('simple')}
-              className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
-                mode === 'simple'
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              disabled={!config?.webhook}
             >
-              Simple
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('advanced')}
-              className={`px-4 py-1.5 text-sm font-medium rounded transition-colors ${
-                mode === 'advanced'
-                  ? 'bg-background shadow-sm text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Advanced
-            </button>
+              <Play className="h-3 w-3 mr-1.5 text-primary" />
+              Test
+            </Button>
           </div>
         </div>
 
-        {/* Simple mode */}
-        {mode === 'simple' && (
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Webhook URL</label>
-              <p className="text-xs text-muted-foreground">
-                The endpoint form responses will be sent to
-              </p>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://www.example.com/"
-                  value={config?.webhook || ''}
-                  onChange={(e) => onUpdate('webhook', e.target.value)}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  disabled={!config?.webhook}
-                >
-                  <Play className="h-3 w-3 mr-1.5 text-primary" />
-                  Test
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Advanced Settings - Collapsible */}
+        <div className="border-t pt-4">
+          <button
+            type="button"
+            onClick={() => setAdvancedExpanded(!advancedExpanded)}
+            className="flex items-center justify-between w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4" />
+              Advanced Settings
+              {hasAdvancedConfig && (
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  Configured
+                </span>
+              )}
+            </span>
+            {advancedExpanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
 
-        {/* Advanced mode */}
-        {mode === 'advanced' && (
-          <div className="space-y-5">
-            {/* URL */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">URL</label>
-              <Input
-                placeholder="https://api.example.com/webhook"
-                value={config?.webhook || ''}
-                onChange={(e) => onUpdate('webhook', e.target.value)}
+          {advancedExpanded && (
+            <div className="mt-4 space-y-5">
+              {/* HTTP Method */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">HTTP method</label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={config?.httpMethod || 'POST'}
+                  onChange={(e) => onUpdate('httpMethod', e.target.value)}
+                >
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+              </div>
+
+              {/* Body */}
+              <KeyValueBuilder
+                label="Body"
+                keyPlaceholder="Key"
+                pairs={bodyParams}
+                onChange={(pairs) => onUpdate('bodyParams', pairs)}
+                formFields={formFields}
+                showFieldSelector={true}
+              />
+
+              {/* URL Parameters */}
+              <KeyValueBuilder
+                label="URL Parameters"
+                keyPlaceholder="URL parameter"
+                pairs={urlParams}
+                onChange={(pairs) => onUpdate('urlParams', pairs)}
+                formFields={formFields}
+                showFieldSelector={true}
+              />
+
+              {/* Headers */}
+              <KeyValueBuilder
+                label="Headers"
+                keyPlaceholder="Header key"
+                pairs={headers}
+                onChange={(pairs) => onUpdate('headers', pairs)}
+                formFields={formFields}
+                showFieldSelector={false}
+              />
+
+              {/* Cookies */}
+              <KeyValueBuilder
+                label="Cookies"
+                keyPlaceholder="Cookie"
+                pairs={cookies}
+                onChange={(pairs) => onUpdate('cookies', pairs)}
+                formFields={formFields}
+                showFieldSelector={false}
               />
             </div>
-
-            {/* HTTP Method */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">HTTP method</label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={config?.httpMethod || 'POST'}
-                onChange={(e) => onUpdate('httpMethod', e.target.value)}
-              >
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-                <option value="PUT">PUT</option>
-                <option value="PATCH">PATCH</option>
-                <option value="DELETE">DELETE</option>
-              </select>
-            </div>
-
-            {/* Body */}
-            <KeyValueBuilder
-              label="Body"
-              keyPlaceholder="Key"
-              pairs={bodyParams}
-              onChange={(pairs) => onUpdate('bodyParams', pairs)}
-              formFields={formFields}
-              showFieldSelector={true}
-            />
-
-            {/* URL Parameters */}
-            <KeyValueBuilder
-              label="URL Parameters"
-              keyPlaceholder="URL parameter"
-              pairs={urlParams}
-              onChange={(pairs) => onUpdate('urlParams', pairs)}
-              formFields={formFields}
-              showFieldSelector={true}
-            />
-
-            {/* Headers */}
-            <KeyValueBuilder
-              label="Headers"
-              keyPlaceholder="Header key"
-              pairs={headers}
-              onChange={(pairs) => onUpdate('headers', pairs)}
-              formFields={formFields}
-              showFieldSelector={false}
-            />
-
-            {/* Cookies */}
-            <KeyValueBuilder
-              label="Cookies"
-              keyPlaceholder="Cookie"
-              pairs={cookies}
-              onChange={(pairs) => onUpdate('cookies', pairs)}
-              formFields={formFields}
-              showFieldSelector={false}
-            />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <p className="text-xs text-muted-foreground text-center">

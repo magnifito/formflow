@@ -4,7 +4,7 @@ export enum IntegrationType {
   TELEGRAM = 'telegram',
   DISCORD = 'discord',
   SLACK = 'slack',
-  WEBHOOK = 'webhook', // Handles generic webhook, Make.com, and n8n
+  WEBHOOK = 'webhook',
 }
 
 // Queue names follow pattern: integration-{type}
@@ -75,9 +75,9 @@ export interface IntegrationJobData {
     channelId?: string;
     accessToken?: string; // Injected from organization settings
 
-    // Webhook (generic, Make.com, n8n - all use same handler)
+    // Webhook
     webhook?: string;
-    webhookSource?: 'generic' | 'make' | 'n8n' | 'zapier'; // For logging/metrics only
+    webhookSource?: 'generic'; // For logging/metrics only
     httpMethod?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     bodyParams?: Array<{ key: string; value: string }>;
     urlParams?: Array<{ key: string; value: string }>;
