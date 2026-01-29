@@ -4,28 +4,18 @@
   "compilerOptions": {
     "baseUrl": "../../",
     "paths": {
-      "@formflow/shared/env": [
-        "libs/shared/env/src/index.ts"
-      ],
-      "@formflow/shared/logger": [
-        "libs/shared/logger/src/index.ts"
-      ],
-      "@formflow/shared/telegram": [
-        "libs/shared/telegram/src/index.ts"
-      ],
-      "@formflow/shared/queue": [
-        "libs/shared/queue/src/index.ts"
-      ],
+      "@formflow/shared/env": ["libs/shared/env/src/index.ts"],
+      "@formflow/shared/logger": ["libs/shared/logger/src/index.ts"],
+      "@formflow/shared/telegram": ["libs/shared/telegram/src/index.ts"],
+      "@formflow/shared/slack": ["libs/shared/slack/src/index.ts"],
+      "@formflow/shared/discord": ["libs/shared/discord/src/index.ts"],
+      "@formflow/shared/queue": ["libs/shared/queue/src/index.ts"],
       "@formflow/shared/integrations": [
         "libs/shared/integrations/src/index.ts"
       ],
-      "@formflow/shared/db": [
-        "libs/shared/db/src/index.ts"
-      ]
+      "@formflow/shared/db": ["libs/shared/db/src/index.ts"]
     },
-    "lib": [
-      "ES2022"
-    ],
+    "lib": ["ES2022"],
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node",
@@ -42,11 +32,6 @@
     "strict": false,
     "isolatedModules": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "build"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "build"]
 }
