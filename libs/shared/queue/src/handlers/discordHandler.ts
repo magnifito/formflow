@@ -1,41 +1,34 @@
-
 import { IntegrationJobData } from '../types';
-import axios from 'axios';
-import logger, { LogOperation, LogMessages } from '@formflow/shared/logger';
+import { DiscordService } from '@formflow/shared/discord';
 import { PermanentError } from './index';
 
 export async function handleDiscordJob(job: IntegrationJobData): Promise<void> {
-    const { submissionId, formId, formattedMessage, config, correlationId } = job;
+    const { submissionId, formId, formData, formName, config, correlationId } = job;
 
     if (!config.webhookUrl) {
         throw new PermanentError('No Discord webhook URL configured');
     }
 
-    const discordMessage = `\`\`\`${formattedMessage}\`\`\``;
+    const discordService = new DiscordService(config.webhookUrl as string);
 
-    try {
-        await axios.post(config.webhookUrl, { content: discordMessage });
+    const result = await discordService.sendSubmissionNotification(
+        formName,
+        formData,
+        { formId, submissionId, correlationId }
+    );
 
-        logger.info(LogMessages.integrationSendSuccess('Discord'), {
-            operation: LogOperation.INTEGRATION_DISCORD_SEND,
-            formId,
-            submissionId,
-            correlationId,
-        });
-    } catch (error: any) {
-        const status = error.response?.status;
-        if (status === 404 || status === 401 || status === 403) {
-            throw new PermanentError(`Discord API error ${status}: ${error.message}`);
+    if (!result.success) {
+        const errorMsg = result.error || 'Unknown Discord error';
+
+        // Check if this is a permanent error (bad webhook URL, unauthorized, etc.)
+        if (
+            errorMsg.includes('[404]') ||
+            errorMsg.includes('[401]') ||
+            errorMsg.includes('[403]')
+        ) {
+            throw new PermanentError(`Discord error: ${errorMsg}`);
         }
 
-        logger.error(LogMessages.integrationSendFailed('Discord'), {
-            operation: LogOperation.INTEGRATION_DISCORD_SEND,
-            error: error.message,
-            formId,
-            submissionId,
-            correlationId,
-        });
-
-        throw error;
+        throw new Error(`Discord error: ${errorMsg}`);
     }
 }

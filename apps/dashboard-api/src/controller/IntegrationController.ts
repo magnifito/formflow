@@ -8,6 +8,7 @@ import { verifyToken, AuthRequest } from "../middleware/auth";
 import logger, { LogOperation } from "@formflow/shared/logger";
 import { IntegrationType } from "@formflow/shared/queue";
 import { TelegramService } from "@formflow/shared/telegram";
+import { DiscordService } from "@formflow/shared/discord";
 import { resolveIntegrationStack } from "@formflow/shared/integrations";
 import axios from "axios";
 import nodemailer from "nodemailer";
@@ -481,7 +482,9 @@ router.post('/:id/test', cors(strictCorsOptions), verifyToken, async (req: AuthR
                 case IntegrationType.DISCORD: {
                     const webhookUrl = config.webhookUrl;
                     if (!webhookUrl) throw new Error('No Webhook URL configured');
-                    await axios.post(webhookUrl, { content: `**${testMessage}**` });
+                    const discordService = new DiscordService(webhookUrl as string);
+                    const discordResult = await discordService.sendTextMessage(`**${testMessage}**`);
+                    if (!discordResult.success) throw new Error(discordResult.error || 'Discord error');
                     break;
                 }
                 case IntegrationType.SLACK: {

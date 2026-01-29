@@ -39,8 +39,10 @@ module.exports = {
     setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
     moduleNameMapper: {
         '^@formflow/shared/env$': '<rootDir>/../../libs/shared/env/src/index.ts',
-
         '^@formflow/shared/logger$': '<rootDir>/../../libs/shared/logger/src/index.ts',
+        '^@formflow/shared/discord$': '<rootDir>/../../libs/shared/discord/src/index.ts',
+        '^@formflow/shared/telegram$': '<rootDir>/../../libs/shared/telegram/src/index.ts',
+        '^@formflow/shared/slack$': '<rootDir>/../../libs/shared/slack/src/index.ts',
         '^pg-boss$': '<rootDir>/test/mocks/pg-boss.mock.ts',
         '^uuid$': '<rootDir>/../dashboard-api/test/mocks/uuid.mock.ts',
     },

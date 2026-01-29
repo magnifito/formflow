@@ -1,0 +1,23 @@
+{
+  "name": "shared-discord",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/discord/src",
+  "projectType": "library",
+  "tags": ["type:lib", "scope:shared"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/shared/discord",
+        "main": "libs/shared/discord/src/index.ts",
+        "tsConfig": "libs/shared/discord/tsconfig.json",
+        "assets": ["libs/shared/discord/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    }
+  }
+}

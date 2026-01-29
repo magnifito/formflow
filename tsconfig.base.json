@@ -50,6 +50,9 @@
       "@formflow/shared/slack": [
         "libs/shared/slack/src/index.ts"
       ],
+      "@formflow/shared/discord": [
+        "libs/shared/discord/src/index.ts"
+      ],
       "@formflow/shared/queue": [
         "libs/shared/queue/src/index.ts"
       ],
