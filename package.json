@@ -19,6 +19,7 @@
     "test-lab": "node apps/test-lab/server.js",
     "// --- Database Seeding ---": "",
     "seed:integrations": "dotenvx run -f .env.seed -- pnpm exec tsx --tsconfig tsconfig.base.json scripts/seed-integrations.ts",
+    "seed:demo-forms": "dotenvx run -f .env.seed -- pnpm exec tsx --tsconfig tsconfig.base.json scripts/seed-demo-forms.ts",
     "// --- Environment ---": "",
     "test:env": "pnpm exec tsx scripts/test-env-config.ts",
     "// --- Build ---": "",
@@ -96,7 +97,6 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.52.0",
     "@eslint/js": "^9.39.2",
     "@nx/cypress": "22.4.2",
     "@nx/eslint": "^22.4.2",
@@ -154,6 +154,7 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "dependencies": {
+    "@dotenvx/dotenvx": "^1.52.0",
     "@types/nodemailer": "^7.0.9",
     "axios": "^1.13.4",
     "bs58": "^6.0.0",

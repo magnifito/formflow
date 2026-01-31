@@ -1,6 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import logger, { LogMessages, LogOperation, LogOutcome, maskHeaders, maskSensitiveData } from '@formflow/shared/logger';
+import logger, {
+  LogMessages,
+  LogOperation,
+  LogOutcome,
+  maskHeaders,
+  maskSensitiveData,
+} from '@formflow/shared/logger';
 
 // Extend Request type to include correlation ID
 declare global {
@@ -34,7 +40,11 @@ function getCorrelationId(req: Request): string {
     if (typeof headerValue === 'string' && headerValue.trim().length > 0) {
       return headerValue;
     }
-    if (Array.isArray(headerValue) && headerValue.length > 0 && headerValue[0]) {
+    if (
+      Array.isArray(headerValue) &&
+      headerValue.length > 0 &&
+      headerValue[0]
+    ) {
       return headerValue[0];
     }
   }
@@ -60,15 +70,17 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   // Log sampling configuration
   const logSampleRate = parseFloat(process.env.LOG_SAMPLE_RATE || '1.0');
   const shouldSample = logSampleRate >= 1.0 || Math.random() < logSampleRate;
-  
+
   // Skip logging if not sampled (for high-traffic endpoints)
   if (!shouldSample) {
     return next();
   }
 
   // Request body logging configuration
-  const shouldLogBody = process.env.LOG_REQUEST_BODY === 'true' || 
-                        (process.env.NODE_ENV === 'development' && process.env.LOG_REQUEST_BODY !== 'false');
+  const shouldLogBody =
+    process.env.LOG_REQUEST_BODY === 'true' ||
+    (process.env.NODE_ENV === 'development' &&
+      process.env.LOG_REQUEST_BODY !== 'false');
   const bodyMethods = ['POST', 'PUT', 'PATCH'];
   const maxBodySize = 10 * 1024; // 10KB
   const contentType = req.headers['content-type'] || '';
@@ -88,10 +100,12 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   if (shouldLogBody && bodyMethods.includes(req.method) && req.body) {
     // Skip multipart/form-data (file uploads)
     if (!contentType.includes('multipart/form-data')) {
-      const bodyStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+      const bodyStr =
+        typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
       if (bodyStr.length <= maxBodySize) {
         try {
-          const bodyObj = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+          const bodyObj =
+            typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
           requestLog.body = maskSensitiveData(bodyObj);
         } catch {
           // If parsing fails, just log as string (truncated)
@@ -104,11 +118,16 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   }
 
   // Log incoming request
-  logger.info(LogMessages.httpRequestReceived(req.method, req.path), requestLog);
+  logger.info(
+    LogMessages.httpRequestReceived(req.method, req.path),
+    requestLog,
+  );
 
   // Response body logging (only in development or when explicitly enabled)
-  const shouldLogResponseBody = process.env.LOG_RESPONSE_BODY === 'true' || 
-                                 (process.env.NODE_ENV === 'development' && process.env.LOG_RESPONSE_BODY !== 'false');
+  const shouldLogResponseBody =
+    process.env.LOG_RESPONSE_BODY === 'true' ||
+    (process.env.NODE_ENV === 'development' &&
+      process.env.LOG_RESPONSE_BODY !== 'false');
   const maxResponseBodySize = 5 * 1024; // 5KB
   let responseBody: any = undefined;
 
@@ -117,12 +136,12 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
     const originalJson = res.json.bind(res);
     const originalSend = res.send.bind(res);
 
-    res.json = function(body: any) {
+    res.json = function (body: any) {
       responseBody = body;
       return originalJson(body);
     };
 
-    res.send = function(body: any) {
+    res.send = function (body: any) {
       // Only capture if it's JSON-like (not binary)
       if (typeof body === 'string' || typeof body === 'object') {
         responseBody = body;
@@ -134,11 +153,22 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   // Log response when finished
   res.on('finish', () => {
     const duration = req.startTime ? Date.now() - req.startTime : 0;
-    const slowRequestThreshold = parseInt(process.env.LOG_SLOW_REQUEST_THRESHOLD || '1000', 10);
+    const slowRequestThreshold = parseInt(
+      process.env.LOG_SLOW_REQUEST_THRESHOLD || '1000',
+      10,
+    );
 
-    // Determine log level based on status code
+    // Determine log level and outcome based on status code
     const statusCode = res.statusCode;
-    let logLevel = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
+    let logLevel: 'error' | 'warn' | 'info' =
+      statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
+    let outcome = statusCode >= 400 ? LogOutcome.FAILURE : LogOutcome.SUCCESS;
+
+    // Special treatment for 404s - downgrade to info and success to treat as normal access log
+    if (statusCode === 404) {
+      logLevel = 'info';
+      outcome = LogOutcome.SUCCESS;
+    }
 
     // Log slow requests as warnings
     if (duration > slowRequestThreshold && logLevel === 'info') {
@@ -147,7 +177,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
     const logData: any = {
       operation: LogOperation.HTTP_RESPONSE,
-      outcome: statusCode >= 400 ? LogOutcome.FAILURE : LogOutcome.SUCCESS,
+      outcome,
       correlationId,
       method: req.method,
       path: req.path,
@@ -162,20 +192,32 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
     // Add response body if enabled and available
     if (shouldLogResponseBody && responseBody !== undefined) {
-      const responseBodyStr = typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody);
+      const responseBodyStr =
+        typeof responseBody === 'string'
+          ? responseBody
+          : JSON.stringify(responseBody);
       if (responseBodyStr.length <= maxResponseBodySize) {
         try {
-          const responseBodyObj = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
+          const responseBodyObj =
+            typeof responseBody === 'string'
+              ? JSON.parse(responseBody)
+              : responseBody;
           logData.responseBody = maskSensitiveData(responseBodyObj);
         } catch {
-          logData.responseBody = responseBodyStr.substring(0, maxResponseBodySize);
+          logData.responseBody = responseBodyStr.substring(
+            0,
+            maxResponseBodySize,
+          );
         }
       } else {
         logData.responseBody = `[Response body too large: ${responseBodyStr.length} bytes, max: ${maxResponseBodySize}]`;
       }
     }
 
-    logger[logLevel](LogMessages.httpResponseSent(req.method, req.path, statusCode), logData);
+    logger[logLevel](
+      LogMessages.httpResponseSent(req.method, req.path, statusCode),
+      logData,
+    );
   });
 
   next();

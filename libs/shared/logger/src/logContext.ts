@@ -53,6 +53,7 @@ export enum LogOperation {
   INTEGRATION_SLACK_LINK = 'integration.slack.link',
   INTEGRATION_SLACK_UNLINK = 'integration.slack.unlink',
   INTEGRATION_EMAIL_SEND = 'integration.email.send',
+  INTEGRATION_WHATSAPP_SEND = 'integration.whatsapp.send',
 
   // Domain Operations
   DOMAIN_ADD = 'domain.add',

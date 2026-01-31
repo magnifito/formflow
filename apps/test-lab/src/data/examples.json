@@ -1,0 +1,66 @@
+[
+  {
+    "id": "contact-form",
+    "name": "Contact Form with CAPTCHA",
+    "description": "A privacy-friendly contact form featuring ALTCHA proof-of-work protection. Perfect for portfolios and company websites.",
+    "filename": "contact-form-with-captcha.html",
+    "useCase": "General Contact",
+    "tags": ["CAPTCHA", "Privacy", "Simple"],
+    "formSubmitHash": "contact-demo-hash"
+  },
+  {
+    "id": "newsletter-signup",
+    "name": "Newsletter Signup",
+    "description": "High-conversion minimal design with gradient background and benefit checklist. deal for blog sidebars and exit modifications.",
+    "filename": "newsletter-signup.html",
+    "useCase": "Marketing",
+    "tags": ["Minimal", "Gradient", "Lead Gen"],
+    "formSubmitHash": "newsletter-demo-hash"
+  },
+  {
+    "id": "resource-download",
+    "name": "Resource Download",
+    "description": "Two-column layout designed for gated content like eBooks and whitepapers. Includes company info fields.",
+    "filename": "resource-download-form.html",
+    "useCase": "Lead Generation",
+    "tags": ["B2B", "Gated Content", "Two Col"],
+    "formSubmitHash": "resource-demo-hash",
+    "resourceDownloadUrl": "https://example.com/guide.pdf"
+  },
+  {
+    "id": "demo-request",
+    "name": "Demo Request",
+    "description": "Professional split-screen B2B layout with testimonials and use-case selection. Best for SaaS product pages.",
+    "filename": "demo-request.html",
+    "useCase": "Sales",
+    "tags": ["B2B", "SaaS", "Social Proof"],
+    "formSubmitHash": "demo-request-hash"
+  },
+  {
+    "id": "webinar-registration",
+    "name": "Webinar Registration",
+    "description": "Event-focused layout with speaker info, timezone selection, and calendar integration.",
+    "filename": "webinar-registration.html",
+    "useCase": "Events",
+    "tags": ["Event", "Registration", "Sidebar"],
+    "formSubmitHash": "webinar-demo-hash"
+  },
+  {
+    "id": "waitlist-signup",
+    "name": "Waitlist Signup",
+    "description": "Viral-loop ready waitlist form with animated background, position counter, and social sharing options.",
+    "filename": "waitlist-signup.html",
+    "useCase": "Product Launch",
+    "tags": ["Viral", "Animation", "Social"],
+    "formSubmitHash": "waitlist-demo-hash"
+  },
+  {
+    "id": "job-application",
+    "name": "Job Application",
+    "description": "Comprehensive application form with resume upload, nuanced fields, and GDPR consent.",
+    "filename": "job-application-form.html",
+    "useCase": "HR / Recruiting",
+    "tags": ["Complex", "File Upload", "GDPR"],
+    "formSubmitHash": "job-application-hash"
+  }
+]

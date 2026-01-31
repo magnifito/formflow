@@ -61,5 +61,22 @@ update_env "JWT_SECRET" "$JWT_SECRET"
 
 update_env "CSRF_SECRET" "$CSRF_SECRET"
 
+
+# -----------------------------------------------------------------------------
+# Copy encrypted variables from .env.extend if it exists
+# -----------------------------------------------------------------------------
+EXTEND_FILE=".env.extend"
+if [ -f "$EXTEND_FILE" ]; then
+  echo "Updating configuration from $EXTEND_FILE..."
+  while IFS='=' read -r key value || [ -n "$key" ]; do
+    # Skip comments
+    [[ $key =~ ^#.* ]] && continue
+    # Skip empty keys
+    [[ -z "$key" ]] && continue
+    
+    update_env "$key" "$value"
+  done < "$EXTEND_FILE"
+fi
+
 echo "✅ Production environment setup complete!"
 echo "Check $ENV_FILE to ensure all other variables are set correctly."

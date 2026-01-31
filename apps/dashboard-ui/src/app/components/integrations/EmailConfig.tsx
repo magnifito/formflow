@@ -102,60 +102,6 @@ export function EmailConfig({
         </div>
       </div>
 
-      {/* OAuth Section */}
-      <div className="rounded-lg border p-4 space-y-3 bg-muted/20">
-        <div className="text-sm font-medium">OAuth (Gmail, Outlook)</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Client ID</label>
-            <Input
-              placeholder="your-client-id"
-              value={config?.oauth?.clientId || ''}
-              onChange={(e) =>
-                onUpdateNested('oauth', 'clientId', e.target.value)
-              }
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">
-              Client Secret
-            </label>
-            <Input
-              type="password"
-              placeholder="••••••••"
-              value={config?.oauth?.clientSecret || ''}
-              onChange={(e) =>
-                onUpdateNested('oauth', 'clientSecret', e.target.value)
-              }
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">User Email</label>
-            <Input
-              placeholder="you@gmail.com"
-              value={config?.oauth?.user || ''}
-              onChange={(e) => onUpdateNested('oauth', 'user', e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">
-              Refresh Token
-            </label>
-            <Input
-              type="password"
-              placeholder="••••••••"
-              value={config?.oauth?.refreshToken || ''}
-              onChange={(e) =>
-                onUpdateNested('oauth', 'refreshToken', e.target.value)
-              }
-            />
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Use either SMTP or OAuth. OAuth is recommended for Gmail/Outlook.
-        </p>
-      </div>
-
       {/* Help Section */}
       <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 p-4 space-y-3">
         <div className="flex items-center gap-2 text-green-700 dark:text-green-400">

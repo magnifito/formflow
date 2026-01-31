@@ -1,7 +1,9 @@
 export enum IntegrationType {
   EMAIL_SMTP = 'email-smtp', // Traditional SMTP (Gmail, custom SMTP servers)
+  EMAIL_OAUTH = 'email-oauth', // Gmail/Outlook via OAuth
   EMAIL_API = 'email-api', // Transactional email APIs (Mailgun, SendGrid, Postmark, etc.)
   TELEGRAM = 'telegram',
+  WHATSAPP = 'whatsapp',
   DISCORD = 'discord',
   SLACK = 'slack',
   WEBHOOK = 'webhook',
@@ -10,8 +12,10 @@ export enum IntegrationType {
 // Queue names follow pattern: integration-{type}
 export const QUEUE_NAMES = {
   [IntegrationType.EMAIL_SMTP]: 'integration-email-smtp',
+  [IntegrationType.EMAIL_OAUTH]: 'integration-email-oauth',
   [IntegrationType.EMAIL_API]: 'integration-email-api',
   [IntegrationType.TELEGRAM]: 'integration-telegram',
+  [IntegrationType.WHATSAPP]: 'integration-whatsapp',
   [IntegrationType.DISCORD]: 'integration-discord',
   [IntegrationType.SLACK]: 'integration-slack',
   [IntegrationType.WEBHOOK]: 'integration-webhook',
@@ -68,6 +72,13 @@ export interface IntegrationJobData {
     chatId?: string;
     botToken?: string; // Injected from organization settings
 
+    // WhatsApp
+    whatsapp?: {
+      accessToken: string;
+      phoneNumberId: string;
+      recipientNumber: string;
+    };
+
     // Discord
     webhookUrl?: string;
 
@@ -104,6 +115,12 @@ export const JOB_OPTIONS: Record<IntegrationType, QueueJobOptions> = {
     retryBackoff: true, // Exponential: 10s, 20s, 40s, 80s, 160s
     expireInSeconds: 3600, // Expire after 1 hour
   },
+  [IntegrationType.EMAIL_OAUTH]: {
+    retryLimit: 5,
+    retryDelay: 10,
+    retryBackoff: true,
+    expireInSeconds: 3600,
+  },
   [IntegrationType.EMAIL_API]: {
     retryLimit: 5, // More retries for email
     retryDelay: 5, // API calls can retry faster
@@ -111,6 +128,12 @@ export const JOB_OPTIONS: Record<IntegrationType, QueueJobOptions> = {
     expireInSeconds: 3600,
   },
   [IntegrationType.TELEGRAM]: {
+    retryLimit: 3,
+    retryDelay: 5,
+    retryBackoff: true,
+    expireInSeconds: 1800,
+  },
+  [IntegrationType.WHATSAPP]: {
     retryLimit: 3,
     retryDelay: 5,
     retryBackoff: true,

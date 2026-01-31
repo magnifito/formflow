@@ -34,12 +34,11 @@ const requiredVars = [
   'DB_USER',
   'DB_PASSWORD',
   'JWT_SECRET',
-  'SYSTEM_MAIL_PROVIDER',
   'SYSTEM_MAIL_HOST',
   'SYSTEM_MAIL_SMTP_PORT',
   'SYSTEM_MAIL_USER',
   'SYSTEM_MAIL_PASSWORD',
-  'SYSTEM_MAIL_TO'
+  'SYSTEM_MAIL_TO',
 ];
 
 const optionalVars = [
@@ -48,7 +47,7 @@ const optionalVars = [
   'SUPER_ADMIN_EMAIL',
   'SUPER_ADMIN_PASSWORD',
   'SUPER_ADMIN_NAME',
-  'LOG_LEVEL'
+  'LOG_LEVEL',
 ];
 
 type EnvTarget = {
@@ -62,9 +61,14 @@ function log(message: string, color = colors.reset) {
   console.log(`${color}${message}${colors.reset}`);
 }
 
-function loadEnvFile(target: EnvTarget): { env: Record<string, string>; usedFile: string | null } {
+function loadEnvFile(target: EnvTarget): {
+  env: Record<string, string>;
+  usedFile: string | null;
+} {
   const primaryPath = path.join(__dirname, '..', target.file);
-  const fallbackPath = target.fallback ? path.join(__dirname, '..', target.fallback) : null;
+  const fallbackPath = target.fallback
+    ? path.join(__dirname, '..', target.fallback)
+    : null;
 
   const usePath = fs.existsSync(primaryPath)
     ? primaryPath
@@ -73,7 +77,10 @@ function loadEnvFile(target: EnvTarget): { env: Record<string, string>; usedFile
       : null;
 
   if (!usePath) {
-    log(`✗ Missing env file: ${target.file}${target.fallback ? ` (and fallback ${target.fallback})` : ''}`, colors.red);
+    log(
+      `✗ Missing env file: ${target.file}${target.fallback ? ` (and fallback ${target.fallback})` : ''}`,
+      colors.red,
+    );
     return { env: {}, usedFile: null };
   }
 
@@ -95,7 +102,9 @@ function checkVars(env: Record<string, string>, target: EnvTarget) {
   for (const key of requiredVars) {
     const value = env[key];
     if (value) {
-      const masked = ['PASSWORD', 'SECRET', 'KEY', 'TOKEN'].some((s) => key.includes(s))
+      const masked = ['PASSWORD', 'SECRET', 'KEY', 'TOKEN'].some((s) =>
+        key.includes(s),
+      )
         ? '***' + value.slice(-4)
         : value;
       log(`  ✓ ${key.padEnd(24)} = ${masked}`, colors.green);
@@ -109,7 +118,9 @@ function checkVars(env: Record<string, string>, target: EnvTarget) {
   for (const key of optionalVars) {
     const value = env[key];
     if (value) {
-      const masked = ['PASSWORD', 'SECRET', 'KEY', 'TOKEN', 'CLIENT'].some((s) => key.includes(s))
+      const masked = ['PASSWORD', 'SECRET', 'KEY', 'TOKEN', 'CLIENT'].some(
+        (s) => key.includes(s),
+      )
         ? '***' + value.slice(-4)
         : value;
       log(`  • ${key.padEnd(24)} = ${masked}`, colors.green);
@@ -119,7 +130,10 @@ function checkVars(env: Record<string, string>, target: EnvTarget) {
   }
 
   if (env.NODE_ENV !== target.expectedEnv) {
-    log(`\n✗ NODE_ENV mismatch: expected "${target.expectedEnv}", got "${env.NODE_ENV || 'unset'}"`, colors.red);
+    log(
+      `\n✗ NODE_ENV mismatch: expected "${target.expectedEnv}", got "${env.NODE_ENV || 'unset'}"`,
+      colors.red,
+    );
     allPassed = false;
   } else {
     log(`\n✓ NODE_ENV matches (${env.NODE_ENV})`, colors.green);
@@ -134,8 +148,18 @@ function main() {
   log('='.repeat(60) + '\n', colors.cyan);
 
   const targets: EnvTarget[] = [
-    { label: 'Development (.env.development)', file: '.env.development', fallback: '.env.development.example', expectedEnv: 'development' },
-    { label: 'Production Example (.env.production.example)', file: '.env.production', fallback: '.env.production.example', expectedEnv: 'production' },
+    {
+      label: 'Development (.env.development)',
+      file: '.env.development',
+      fallback: '.env.development.example',
+      expectedEnv: 'development',
+    },
+    {
+      label: 'Production Example (.env.production.example)',
+      file: '.env.production',
+      fallback: '.env.production.example',
+      expectedEnv: 'production',
+    },
   ];
 
   const results: Record<string, boolean> = {};
@@ -155,17 +179,29 @@ function main() {
 
   const allPassed = Object.values(results).every(Boolean);
   for (const [label, passed] of Object.entries(results)) {
-    log(`  ${passed ? '✓ PASS' : '✗ FAIL'} - ${label}`, passed ? colors.green : colors.red);
+    log(
+      `  ${passed ? '✓ PASS' : '✗ FAIL'} - ${label}`,
+      passed ? colors.green : colors.red,
+    );
   }
 
   log('='.repeat(60) + '\n', colors.cyan);
 
   if (allPassed) {
-    log('✅ All environment configuration tests passed!', colors.green + colors.bright);
+    log(
+      '✅ All environment configuration tests passed!',
+      colors.green + colors.bright,
+    );
     process.exit(0);
   } else {
-    log('❌ Some environment configuration tests failed', colors.red + colors.bright);
-    log('\nFix the missing variables above and re-run `pnpm test:env`.', colors.red);
+    log(
+      '❌ Some environment configuration tests failed',
+      colors.red + colors.bright,
+    );
+    log(
+      '\nFix the missing variables above and re-run `pnpm test:env`.',
+      colors.red,
+    );
     process.exit(1);
   }
 }

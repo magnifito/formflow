@@ -14,8 +14,10 @@ import {
   SlackConfig,
   DiscordConfig,
   TelegramConfig,
+  WhatsAppConfig,
   WebhookConfig,
   EmailConfig,
+  EmailOAuthConfig,
 } from './integrations';
 
 type IntegrationScope = 'organization' | 'form';
@@ -44,7 +46,9 @@ const DEFAULT_FORM_FIELDS = [
 ];
 
 const INTEGRATION_TYPES = [
-  { value: 'email-smtp', label: 'Email Notifications' },
+  { value: 'email-smtp', label: 'Email (SMTP)' },
+  { value: 'email-oauth', label: 'Email (OAuth)' },
+  { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'slack', label: 'Slack' },
   { value: 'discord', label: 'Discord' },
   { value: 'telegram', label: 'Telegram' },
@@ -168,7 +172,7 @@ export function IntegrationModal({
   };
 
   const updateNestedConfig = (
-    parent: 'smtp' | 'oauth' | 'emailApi',
+    parent: 'smtp' | 'oauth' | 'emailApi' | 'whatsapp',
     key: string,
     value: any,
   ) => {
@@ -413,6 +417,22 @@ export function IntegrationModal({
                   config={formData.config || {}}
                   onUpdate={updateConfig}
                   formFields={availableFormFields}
+                />
+              )}
+
+              {formData.type === 'email-oauth' && (
+                <EmailOAuthConfig
+                  config={formData.config || {}}
+                  onUpdate={updateConfig}
+                  onUpdateNested={updateNestedConfig}
+                />
+              )}
+
+              {formData.type === 'whatsapp' && (
+                <WhatsAppConfig
+                  config={formData.config || {}}
+                  onUpdate={updateConfig}
+                  onUpdateNested={updateNestedConfig}
                 />
               )}
             </div>

@@ -5,7 +5,16 @@ import { FormSelector } from './features/lab/FormSelector';
 import { TestPayloadForm } from './features/lab/TestPayloadForm';
 import { ResponseViewer } from './features/lab/ResponseViewer';
 import { Button } from './components/ui/button';
-import { LogOut, LayoutList, Beaker, MessageSquare, Terminal, ExternalLink } from 'lucide-react';
+import { ExamplesPreview } from './features/gallery/ExamplesPreview';
+import {
+  LogOut,
+  LayoutList,
+  Beaker,
+  MessageSquare,
+  Terminal,
+  ExternalLink,
+  GalleryHorizontalEnd,
+} from 'lucide-react';
 import { WebhookTester } from './features/lab/WebhookTester';
 
 interface ResponseState {
@@ -27,7 +36,9 @@ function App() {
   const [selectedForm, setSelectedForm] = useState<Form | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [lastResponse, setLastResponse] = useState<ResponseState | null>(null);
-  const [activeTab, setActiveTab] = useState<'tester' | 'webhooks'>('tester');
+  const [activeTab, setActiveTab] = useState<'tester' | 'webhooks' | 'gallery'>(
+    'tester',
+  );
 
   useEffect(() => {
     // Check for existing session
@@ -55,7 +66,7 @@ function App() {
           setAuthToken(loginData.token);
           setUser(loginData.user);
         } catch (e) {
-          console.error("Auto-login failed:", e);
+          console.error('Auto-login failed:', e);
         }
       }
       setLoading(false);
@@ -68,7 +79,10 @@ function App() {
     setUser(null);
   };
 
-  const handleSubmission = async (payload: Record<string, unknown>, options: { csrfToken?: string | 'auto' }) => {
+  const handleSubmission = async (
+    payload: Record<string, unknown>,
+    options: { csrfToken?: string | 'auto' },
+  ) => {
     if (!selectedForm) return;
     setSubmitting(true);
     setLastResponse(null);
@@ -77,25 +91,34 @@ function App() {
     try {
       let csrfToken = undefined;
       if (options.csrfToken === 'auto') {
-        const tokenData = await api.collector.getCsrfToken(selectedForm.submitHash);
+        const tokenData = await api.collector.getCsrfToken(
+          selectedForm.submitHash,
+        );
         csrfToken = tokenData.token;
       }
 
-      const response = await api.collector.submit(selectedForm.submitHash, payload, { csrfToken });
+      const response = await api.collector.submit(
+        selectedForm.submitHash,
+        payload,
+        { csrfToken },
+      );
 
       setLastResponse({
         data: response,
         status: 200,
         duration: Date.now() - startTime,
-        error: null
+        error: null,
       });
     } catch (error) {
-      const err = error as { response?: { data?: SubmissionResponse; status?: number }; message?: string };
+      const err = error as {
+        response?: { data?: SubmissionResponse; status?: number };
+        message?: string;
+      };
       setLastResponse({
         data: err.response?.data || null,
         status: err.response?.status || 500,
         duration: Date.now() - startTime,
-        error: err.message || 'Submission failed'
+        error: err.message || 'Submission failed',
       });
     } finally {
       setSubmitting(false);
@@ -103,7 +126,11 @@ function App() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-background text-foreground">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
+        Loading...
+      </div>
+    );
   }
 
   if (!user) {
@@ -114,26 +141,39 @@ function App() {
             <Beaker className="w-10 h-10" />
             Auto-Login Failed
           </h1>
-          <p className="mt-2 text-muted-foreground">Please ensure the dashboard-api is running and a super admin user exists.</p>
+          <p className="mt-2 text-muted-foreground">
+            Please ensure the dashboard-api is running and a super admin user
+            exists.
+          </p>
           <div className="mt-6">
             <Button
               variant="default"
               size="lg"
               onClick={async () => {
-                if (confirm('This will create a new Super Admin user (admin@formflow.fyi). Continue?')) {
+                if (
+                  confirm(
+                    'This will create a new Super Admin user (admin@formflow.fyi). Continue?',
+                  )
+                ) {
                   try {
                     const data = await api.auth.setup({
                       email: 'admin@formflow.fyi',
                       password: 'password123',
                       name: 'System Administrator',
                       organizationName: 'Default Organization',
-                      organizationSlug: 'default-org'
+                      organizationSlug: 'default-org',
                     });
                     setAuthToken(data.token);
                     setUser(data.user);
                   } catch (e) {
-                    const err = e as { response?: { data?: { error?: string } }; message?: string };
-                    alert('Failed to initialize admin: ' + (err.response?.data?.error || err.message));
+                    const err = e as {
+                      response?: { data?: { error?: string } };
+                      message?: string;
+                    };
+                    alert(
+                      'Failed to initialize admin: ' +
+                        (err.response?.data?.error || err.message),
+                    );
                   }
                 }
               }}
@@ -165,6 +205,13 @@ function App() {
                 Form Tester
               </button>
               <button
+                onClick={() => setActiveTab('gallery')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'gallery' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <GalleryHorizontalEnd className="w-4 h-4" />
+                Example Gallery
+              </button>
+              <button
                 onClick={() => setActiveTab('webhooks')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'webhooks' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               >
@@ -177,7 +224,10 @@ function App() {
           <div className="flex items-center gap-4 text-sm">
             <div className="hidden md:flex items-center gap-2 border-r pr-4">
               <a
-                href={import.meta.env.VITE_DASHBOARD_UI_URL || 'http://localhost:4100'}
+                href={
+                  import.meta.env.VITE_DASHBOARD_UI_URL ||
+                  'http://localhost:4100'
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
@@ -186,7 +236,9 @@ function App() {
                 <ExternalLink className="w-3 h-3" />
               </a>
               <a
-                href={import.meta.env.VITE_MAILPIT_UI_URL || 'http://localhost:8025'}
+                href={
+                  import.meta.env.VITE_MAILPIT_UI_URL || 'http://localhost:8025'
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-2 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
@@ -197,7 +249,9 @@ function App() {
             </div>
             <div className="flex flex-col items-end">
               <span className="font-medium">{user?.name || user?.email}</span>
-              <span className="text-xs text-muted-foreground">{user?.organization?.name || 'Personal'}</span>
+              <span className="text-xs text-muted-foreground">
+                {user?.organization?.name || 'Personal'}
+              </span>
             </div>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
@@ -211,7 +265,10 @@ function App() {
         {activeTab === 'tester' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full min-h-0">
             <div className="lg:col-span-1 space-y-6 h-full overflow-hidden flex flex-col">
-              <FormSelector onFormSelect={setSelectedForm} selectedFormId={selectedForm?.id || null} />
+              <FormSelector
+                onFormSelect={setSelectedForm}
+                selectedFormId={selectedForm?.id || null}
+              />
             </div>
 
             <div className="lg:col-span-2 space-y-6 h-full flex flex-col overflow-hidden">
@@ -242,6 +299,10 @@ function App() {
                 </div>
               )}
             </div>
+          </div>
+        ) : activeTab === 'gallery' ? (
+          <div className="h-full min-h-0">
+            <ExamplesPreview />
           </div>
         ) : (
           <div className="h-full min-h-0">

@@ -3,7 +3,7 @@ import * as nodemailer from 'nodemailer';
 import logger, { LogOperation, LogMessages } from '@formflow/shared/logger';
 import { PermanentError } from './index';
 
-export async function handleEmailSmtpJob(
+export async function handleEmailOAuthJob(
   job: IntegrationJobData,
 ): Promise<void> {
   const {
@@ -19,40 +19,26 @@ export async function handleEmailSmtpJob(
     throw new PermanentError('No email recipients configured');
   }
 
-  if (!config.smtp) {
-    throw new PermanentError('Email integration missing SMTP configuration');
-  }
-
   if (
-    !config.smtp.username ||
-    !config.smtp.password ||
-    !config.smtp.host ||
-    !config.smtp.port
+    !config.oauth?.clientId ||
+    !config.oauth?.clientSecret ||
+    !config.oauth?.user ||
+    !config.oauth.refreshToken ||
+    !config.oauth.accessToken
   ) {
-    throw new PermanentError('SMTP configuration incomplete');
+    throw new PermanentError('OAuth configuration incomplete');
   }
 
+  // Create transporter (Gmail/Outlook specific for now)
   const transporter = nodemailer.createTransport({
-    host: config.smtp.host,
-    port: config.smtp.port,
-    secure: config.smtp.secure ?? config.smtp.port === 465,
+    host: 'smtp.gmail.com', // TODO: Make this configurable if supporting Outlook or others
+    port: 465,
+    secure: true,
     auth: {
-      user: config.smtp.username,
-      pass: config.smtp.password,
+      type: 'OAuth2',
+      clientId: config.oauth.clientId,
+      clientSecret: config.oauth.clientSecret,
     },
-    tls: {
-      rejectUnauthorized: false,
-    },
-    debug: true,
-    logger: true,
-    connectionTimeout: 10000, // 10s
-    greetingTimeout: 10000, // 10s
-    socketTimeout: 10000, // 10s
-    // Disable STARTTLS for local Mailpit to avoid handshake issues on port 1025
-    ignoreTLS:
-      config.smtp.host === '127.0.0.1' ||
-      config.smtp.host === 'localhost' ||
-      config.smtp.port === 1025,
   });
 
   const mailOptions = {
@@ -62,12 +48,18 @@ export async function handleEmailSmtpJob(
     to: config.recipients,
     subject: config.subject || `New Form Submission: ${formName}`,
     text: formattedMessage,
+    auth: {
+      user: config.oauth.user,
+      refreshToken: config.oauth.refreshToken,
+      accessToken: config.oauth.accessToken,
+      expires: 1484314697598, // This seems to be a hardcoded future timestamp or something? Needs investigation but keeping as-is from legacy code.
+    },
   };
 
   try {
     await transporter.sendMail(mailOptions);
 
-    logger.info(LogMessages.integrationSendSuccess('Email'), {
+    logger.info(LogMessages.integrationSendSuccess('Email (OAuth)'), {
       operation: LogOperation.INTEGRATION_EMAIL_SEND,
       formId,
       submissionId,
@@ -75,18 +67,11 @@ export async function handleEmailSmtpJob(
       correlationId,
     });
   } catch (error: any) {
-    // Classify error
-    const fatal =
-      error.responseCode &&
-      error.responseCode >= 500 &&
-      error.responseCode < 600;
-
-    // For now, allow retry on almost everything EXCEPT auth failure or invalid recipients.
     if (error.code === 'EAUTH' || error.responseCode === 535) {
       throw new PermanentError(`Authentication failed: ${error.message}`);
     }
 
-    logger.error(LogMessages.integrationSendFailed('Email'), {
+    logger.error(LogMessages.integrationSendFailed('Email (OAuth)'), {
       operation: LogOperation.INTEGRATION_EMAIL_SEND,
       error: error.message,
       formId,
@@ -95,6 +80,6 @@ export async function handleEmailSmtpJob(
       correlationId,
     });
 
-    throw error; // Retry
+    throw error;
   }
 }

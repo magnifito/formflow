@@ -99,7 +99,6 @@ ORIGIN=*
 
 
 # Email (enabled by default in dev - use Mailpit at localhost:8025)
-SYSTEM_MAIL_PROVIDER=localhost
 SYSTEM_MAIL_HOST=127.0.0.1
 SYSTEM_MAIL_SMTP_PORT=1026
 SYSTEM_MAIL_USER=test@localhost

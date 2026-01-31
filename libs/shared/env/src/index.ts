@@ -1,13 +1,13 @@
-import * as dotenv from "dotenv";
-import * as fs from "fs";
-import * as path from "path";
+import * as dotenv from '@dotenvx/dotenvx';
+import * as fs from 'fs';
+import * as path from 'path';
 
 let envLoaded = false;
 
 const getEnvAliases = (nodeEnv: string): string[] => {
-  if (nodeEnv === "development") return ["development", "dev"];
-  if (nodeEnv === "production") return ["production", "prod"];
-  if (nodeEnv === "test") return ["test"];
+  if (nodeEnv === 'development') return ['development', 'dev'];
+  if (nodeEnv === 'production') return ['production', 'prod'];
+  if (nodeEnv === 'test') return ['test'];
   return [nodeEnv];
 };
 
@@ -38,16 +38,22 @@ const findEnvFile = (names: string[], roots: string[]): string | null => {
 export const loadEnv = (): void => {
   if (envLoaded) return;
 
-  const nodeEnv = process.env.NODE_ENV || "development";
-  const aliases = getEnvAliases(nodeEnv).map((alias) => `.env.${alias}`);
+  const nodeEnv = process.env.NODE_ENV || 'development';
   const roots = getSearchRoots();
 
+  // Load .env.keys first (decryption keys)
+  const keysPath = findEnvFile(['.env.keys'], roots);
+  if (keysPath) {
+    dotenv.config({ path: keysPath });
+  }
+
+  const aliases = getEnvAliases(nodeEnv).map((alias) => `.env.${alias}`);
   const envPath = findEnvFile(aliases, roots);
   if (envPath) {
     dotenv.config({ path: envPath });
   }
 
-  const basePath = findEnvFile([".env"], roots);
+  const basePath = findEnvFile(['.env'], roots);
   if (basePath) {
     dotenv.config({ path: basePath });
   }
@@ -57,7 +63,7 @@ export const loadEnv = (): void => {
 
 export const getEnv = (key: string): string | undefined => {
   const value = process.env[key];
-  if (value === undefined || value === "") {
+  if (value === undefined || value === '') {
     return undefined;
   }
   return value;

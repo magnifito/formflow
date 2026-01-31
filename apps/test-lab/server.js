@@ -4,9 +4,16 @@ import bodyParser from 'body-parser';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { config } from '@dotenvx/dotenvx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load environment variables from root
+const rootDir = path.resolve(__dirname, '../../');
+config({ path: path.join(rootDir, '.env.keys') }); // Load keys first
+config({ path: path.join(rootDir, '.env.extend') });
+config({ path: path.join(rootDir, '.env.development') });
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -26,61 +33,63 @@ app.use(express.static(distPath));
 
 // Webhook receiver endpoint
 app.post('/webhook', (req, res) => {
-    const webhookEntry = {
-        id: Date.now() + Math.random().toString(36).substring(7),
-        timestamp: new Date().toISOString(),
-        method: req.method,
-        headers: req.headers,
-        body: req.body,
-        query: req.query,
-    };
+  const webhookEntry = {
+    id: Date.now() + Math.random().toString(36).substring(7),
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    headers: req.headers,
+    body: req.body,
+    query: req.query,
+  };
 
-    webhooks.unshift(webhookEntry);
-    if (webhooks.length > MAX_WEBHOOKS) {
-        webhooks.pop();
-    }
+  webhooks.unshift(webhookEntry);
+  if (webhooks.length > MAX_WEBHOOKS) {
+    webhooks.pop();
+  }
 
-    console.log(`[Webhook Received] ${webhookEntry.timestamp} - ${JSON.stringify(req.body).substring(0, 100)}...`);
+  console.log(
+    `[Webhook Received] ${webhookEntry.timestamp} - ${JSON.stringify(req.body).substring(0, 100)}...`,
+  );
 
-    res.status(200).json({ status: 'received', id: webhookEntry.id });
+  res.status(200).json({ status: 'received', id: webhookEntry.id });
 });
 
 // API to list received webhooks
 app.get('/api/webhooks', (req, res) => {
-    res.json(webhooks);
+  res.json(webhooks);
 });
 
 // API to clear webhooks
 app.delete('/api/webhooks', (req, res) => {
-    webhooks = [];
-    res.status(204).send();
+  webhooks = [];
+  res.status(204).send();
 });
 
 // Fallback to index.html for SPA
-app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path === '/webhook') {
-        return next();
-    }
-    res.sendFile(path.join(distPath, 'index.html'));
+app.get(/.*/, (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path === '/webhook') {
+    return next();
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 const server = app.listen(PORT, () => {
-    console.log(`FormFlow Lab server running on http://localhost:${PORT}`);
-    console.log(`Webhook endpoint: http://localhost:${PORT}/webhook`);
+  console.log(`FormFlow Lab server running on http://localhost:${PORT}`);
+  console.log(`Webhook endpoint: http://localhost:${PORT}/webhook`);
 });
 
 const shutdown = () => {
-    console.log('Shutting down server...');
-    server.close(() => {
-        console.log('HTTP server closed');
-        process.exit(0);
-    });
+  console.log('Shutting down server...');
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
 
-    // Force exit if hanging
-    setTimeout(() => {
-        console.error('Forcing shutdown after timeout');
-        process.exit(1);
-    }, 10000);
+  // Force exit if hanging
+  setTimeout(() => {
+    console.error('Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
 };
 
 process.on('SIGTERM', shutdown);
